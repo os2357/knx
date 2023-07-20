@@ -158,13 +158,13 @@ func (client *Client) DefaultConfig(prompt string) *readline.Config {
 }
 
 func (client *Client) RunQuery(q pack.Query, k *querylang.KnoxQuery) error {
-	if k.List {
+	if k.List != nil {
 		return client.list(q, k)
 	}
-	if k.Delete {
+	if k.Delete != nil {
 		return client.delete(q, k)
 	}
-	if k.Count {
+	if k.Count != nil {
 		return client.count(q, k)
 	}
 	return nil
@@ -190,7 +190,7 @@ func (client *Client) list(q pack.Query, k *querylang.KnoxQuery) error {
 			if err != nil {
 				return err
 			}
-			field := findField(k.Query.Fields, f.Alias)
+			field := findField(k.List.Query.Fields, f.Alias)
 			if field != nil &&
 				field.Type.ShouldCast() {
 				rows[i], err = field.Type.CastToString(v)

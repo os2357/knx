@@ -20,12 +20,9 @@ var (
 type KnoxQuery struct {
 	Pos lexer.Position
 
-	List   bool        `  ( @("list") `
-	Delete bool        `| @("delete") `
-	Count  bool        `| @("count") )`
-	Query  *Query      `  @@`
-	Where  *Expression `  ( "where" "("? @@ ")"? )?`
-	Limit  *Limit      `  ( "limit" @@ )?`
+	List   *List   `  ( "list" @@`
+	Count  *Count  `| "count" @@`
+	Delete *Delete `| "delete" @@ )`
 }
 
 func GenerateQuery(ql string, table *pack.Table) (pack.Query, *KnoxQuery, error) {
@@ -39,54 +36,79 @@ func GenerateQuery(ql string, table *pack.Table) (pack.Query, *KnoxQuery, error)
 	q := pack.NewQuery("generated-pack-query").
 		WithTable(table)
 
-	if p.Query != nil {
-		if !p.Query.Table && len(p.Query.Fields) == 0 {
-			return pack.Query{}, nil, fmt.Errorf("table or fields should be selected")
-		}
-		if len(p.Query.Fields) > 0 {
-			fields := make([]string, len(p.Query.Fields))
-			for i := 0; i < len(p.Query.Fields); i++ {
-				fields[i] = p.Query.Fields[i].Name
+	if p.List != nil {
+		if p.List.Query != nil {
+			if !p.List.Query.Table && len(p.List.Query.Fields) == 0 {
+				return pack.Query{}, nil, fmt.Errorf("table or fields should be selected")
 			}
-			q.Fields = fields
+			if len(p.List.Query.Fields) > 0 {
+				fields := make([]string, len(p.List.Query.Fields))
+				for i := 0; i < len(p.List.Query.Fields); i++ {
+					fields[i] = p.List.Query.Fields[i].Name
+				}
+				q.Fields = fields
+			}
 		}
-	}
-	if p.List {
 		limit := 1000
-		if p.Limit != nil {
-			limit = int(p.Limit.Value)
+		if p.List.Limit != nil {
+			limit = int(p.List.Limit.Value)
 		}
 		q = q.WithLimit(limit)
+		if p.List.Where != nil {
+			q, err = generateWhereConditionQuery(p.List.Where, table, q)
+			if err != nil {
+				return q, p, err
+			}
+		}
+	} else if p.Count != nil {
+		if p.Count.Where != nil {
+			q, err = generateWhereConditionQuery(p.Count.Where, table, q)
+			if err != nil {
+				return q, p, err
+			}
+		}
+	} else if p.Delete != nil {
+		if p.Delete.Where != nil {
+			q, err = generateWhereConditionQuery(p.Delete.Where, table, q)
+			if err != nil {
+				return q, p, err
+			}
+		}
 	}
-	if p.Where != nil {
+	return q, p, nil
+}
+
+func generateWhereConditionQuery(whereCondition *Expression, table *pack.Table, q pack.Query) (pack.Query, error) {
+	if whereCondition != nil {
 		fields := table.Fields()
 		orSubConditions := make([]pack.UnboundCondition, 0)
-		for i := 0; i < len(p.Where.Or); i++ {
+		for i := 0; i < len(whereCondition.Or); i++ {
 			andSubConditions := make([]pack.UnboundCondition, 0)
-			for j := 0; j < len(p.Where.Or[i].And); j++ {
-				whereField := fields.Find(p.Where.Or[i].And[j].Field)
+			for j := 0; j < len(whereCondition.Or[i].And); j++ {
+				whereField := fields.Find(whereCondition.Or[i].And[j].Field)
 				if !whereField.IsValid() {
-					return pack.Query{}, nil, fmt.Errorf("field %q is not valid", whereField)
+					return pack.Query{}, fmt.Errorf("field %q is not valid", whereField)
 				}
-				filterMode, ok := filters[strings.ToUpper(strings.TrimSpace(p.Where.Or[i].And[j].Op))]
+				filterMode, ok := filters[strings.ToUpper(strings.TrimSpace(whereCondition.Or[i].And[j].Op))]
 				if !ok {
-					return pack.Query{}, nil, fmt.Errorf("filter mode is invalid")
+					return pack.Query{}, fmt.Errorf("filter mode is invalid")
 				}
 				var value any
-				if p.Where.Or[i].And[j].Type.ShouldCast() {
-					value, err = p.Where.Or[i].And[j].Type.CastToType(p.Where.Or[i].And[j].Value)
+				var err error
+				if whereCondition.Or[i].And[j].Type.ShouldCast() {
+					value, err = whereCondition.Or[i].And[j].Type.CastToType(whereCondition.Or[i].And[j].Value)
 					if err != nil {
-						return pack.Query{}, nil, fmt.Errorf("failed to cast type value (%v) : %v", p.Where.Or[i].And[j].Value, err)
+						return pack.Query{}, fmt.Errorf("failed to cast type value (%v) : %v", whereCondition.Or[i].And[j].Value, err)
 					}
-				} else if p.Where.Or[i].And[j].Value.IsValidAddress() {
-					value, err = tezos.ParseAddress(*p.Where.Or[i].And[j].Value.Address)
+				} else if whereCondition.Or[i].And[j].Value.IsValidAddress() {
+					value, err = tezos.ParseAddress(*whereCondition.Or[i].And[j].Value.Address)
 					if err != nil {
-						return pack.Query{}, nil, fmt.Errorf("failed to parse value (%v) to address : %v", p.Where.Or[i].And[j].Value, err)
+						return pack.Query{}, fmt.Errorf("failed to parse value (%v) to address : %v", whereCondition.Or[i].And[j].Value, err)
 					}
 				} else {
-					value, err = whereField.Type.ParseAs(p.Where.Or[i].And[j].Value.Cast(), whereField)
+					value, err = whereField.Type.ParseAs(whereCondition.Or[i].And[j].Value.Cast(), whereField)
 					if err != nil {
-						return pack.Query{}, nil, fmt.Errorf("failed to parse type value: %v", err)
+						return pack.Query{}, fmt.Errorf("failed to parse type value: %v", err)
 					}
 				}
 				c := pack.UnboundCondition{
@@ -101,5 +123,5 @@ func GenerateQuery(ql string, table *pack.Table) (pack.Query, *KnoxQuery, error)
 		}
 		q = q.OrCondition(orSubConditions...)
 	}
-	return q, p, nil
+	return q, nil
 }

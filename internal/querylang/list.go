@@ -5,6 +5,12 @@ package querylang
 
 import "github.com/alecthomas/participle/v2/lexer"
 
+type List struct {
+	Query *Query      `@@`
+	Limit *Limit      `( "limit" @@ )?`
+	Where *Expression `( "where" "("? @@ ")"? )?`
+}
+
 type Query struct {
 	Pos lexer.Position
 
