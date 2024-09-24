@@ -21,12 +21,16 @@ type segment struct {
 
 func createSegment(id LSN) (*segment, error) {
 	// use the seed as first checksum
-	return nil, nil
+	return &segment{
+		pos: 0,
+	}, nil
 }
 
 func openSegment(id LSN) (*segment, error) {
 	// load last record's checksum
-	return nil, nil
+	return &segment{
+		fd: f,
+	}, nil
 }
 
 func (s *segment) Close() error {
