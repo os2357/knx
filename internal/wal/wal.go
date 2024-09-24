@@ -6,7 +6,9 @@ package wal
 import (
 	"encoding/binary"
 	"hash"
+	"os"
 
+	"blockwatch.cc/knoxdb/internal/hash/xxhash"
 	"blockwatch.cc/knoxdb/internal/types"
 )
 
@@ -39,17 +41,51 @@ type Wal struct {
 
 func Create(opts WalOptions) (*Wal, error) {
 	// create directory
+	_, err := os.Create(opts.Path)
+	if err != nil {
+		return nil, err
+	}
 	// create active wal segment
-	return &Wal{}, nil
+	seg, err := createSegment(LSN(opts.Seed))
+	if err != nil {
+		return nil, err
+	}
+	return &Wal{
+		opts:   opts,
+		active: seg,
+		hash:   xxhash.New(),
+	}, nil
 }
 
 func Open(opts WalOptions) (*Wal, error) {
 	// try open directory
+	_, err := os.Stat(opts.Path)
+	if err != nil {
+		return nil, err
+	}
 	// set exclusive lock
+	dirEntries, err := os.ReadDir(opts.Path)
+	if err != nil {
+		return nil, err
+	}
+	// ReadDir sorts the the files by Name so we can assume the last
+	// file is the last segment file
+	lastActiveSegmentFile := dirEntries[len(dirEntries)-1]
 	// open last segment file
+	f, err := os.OpenFile(lastActiveSegmentFile.Name(), os.O_RDWR, os.ModeExclusive)
+	if err != nil {
+		return nil, err
+	}
 	// read hash of last record and init w.csum
-
-	return &Wal{}, nil
+	seg, err := openSegment(lastActiveSegmentFile.Name())
+	if err != nil {
+		return nil, err
+	}
+	return &Wal{
+		opts:   opts,
+		active: seg,
+		hash:   xxhash.New(),
+	}, nil
 }
 
 func (w *Wal) Close() error {
