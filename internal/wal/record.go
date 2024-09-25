@@ -38,6 +38,10 @@ func (t RecordType) String() string {
 // the unique position (offset) of a record in the wal.
 type LSN uint64
 
+func NewLSN(id, sz, pos int) LSN {
+	return LSN(id*sz + pos)
+}
+
 type Record struct {
 	Type   RecordType
 	Tag    types.ObjectTag // object kind (db, table, store, enum, etc)

@@ -46,7 +46,7 @@ func Create(opts WalOptions) (*Wal, error) {
 		return nil, err
 	}
 	// create active wal segment
-	seg, err := createSegment(LSN(opts.Seed))
+	seg, err := createSegment(LSN(opts.Seed), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -72,12 +72,9 @@ func Open(lsn LSN, opts WalOptions) (*Wal, error) {
 	// file is the last segment file
 	lastActiveSegmentFile := dirEntries[len(dirEntries)-1]
 	// open last segment file
-	f, err := os.OpenFile(lastActiveSegmentFile.Name(), os.O_RDWR, os.ModeExclusive)
-	if err != nil {
-		return nil, err
-	}
 	// read hash of last record and init w.csum
-	seg, err := openSegment(lastActiveSegmentFile.Name())
+	// TODO(abdul): How do I know the last record ??
+	seg, err := openSegment(lastActiveSegmentFile.Name(), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +119,7 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 	segsz := w.active.pos
 
 	// calculate the LSN
-	lsn := LSN(w.active.id*w.opts.MaxSegmentSize + w.active.pos)
+	lsn := NewLSN(w.active.id, w.opts.MaxSegmentSize, w.active.pos)
 
 	// split record when active segment has not enough space
 	spaceLeft := w.opts.MaxSegmentSize - w.active.pos
@@ -221,5 +218,16 @@ func (w *Wal) nextSegment() error {
 	// close and fsync the current active segment
 	// create new segment file
 	// fsync the directory
+	if err := w.active.Sync(); err != nil {
+		return err
+	}
+	if err := w.active.Close(); err != nil {
+		return err
+	}
+	seg, err := createSegment(1, w.opts)
+	if err != nil {
+		return err
+	}
+	w.active = seg
 	return nil
 }

@@ -5,6 +5,7 @@ package wal
 
 import (
 	"os"
+	"strconv"
 )
 
 type segment struct {
@@ -13,23 +14,32 @@ type segment struct {
 	fd  *os.File
 }
 
-// func newSegement() *segment {
-// 	return &segment{
-// 		hash: xxhash.New(),
-// 	}
-// }
-
-func createSegment(id LSN) (*segment, error) {
+func createSegment(id LSN, opts WalOptions) (*segment, error) {
+	filename := calculateFilename(int(id), opts.MaxSegmentSize)
+	f, err := os.OpenFile(strconv.FormatInt(int64(filename), 10), os.O_CREATE|os.O_RDWR, os.ModeExclusive)
+	if err != nil {
+		return nil, err
+	}
 	// use the seed as first checksum
 	return &segment{
 		pos: 0,
+		id:  filename,
+		fd:  f,
 	}, nil
 }
 
-func openSegment(id LSN) (*segment, error) {
+func openSegment(id LSN, opts WalOptions) (*segment, error) {
+	filename := calculateFilename(int(id), opts.MaxSegmentSize)
+	f, err := os.OpenFile(strconv.FormatInt(int64(filename), 10), os.O_RDWR|os.O_APPEND, os.ModeExclusive)
+	if err != nil {
+		return nil, err
+	}
+	fileOffset := calculateOffset(int(id), opts.MaxSegmentSize)
 	// load last record's checksum
 	return &segment{
-		fd: f,
+		fd:  f,
+		id:  filename,
+		pos: fileOffset,
 	}, nil
 }
 
@@ -106,3 +116,11 @@ func (s *segment) Write(buf []byte) (int, error) {
 
 // 	return
 // }
+
+func calculateFilename(lsn, sz int) int {
+	return lsn / sz
+}
+
+func calculateOffset(lsn, sz int) int {
+	return lsn % sz
+}
