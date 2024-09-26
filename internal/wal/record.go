@@ -40,6 +40,7 @@ func (t RecordType) String() string {
 type LSN uint64
 
 type Record struct {
+	LSN    LSN
 	Type   RecordType
 	Tag    types.ObjectTag // object kind (db, table, store, enum, etc)
 	TxID   uint64          // unique transaction id this record was belongs to

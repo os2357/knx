@@ -13,73 +13,83 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"blockwatch.cc/knoxdb/internal/wal"
+	"flag"
 )
 
+var debugFlag = flag.Int("debug", 1, "Debug level: 1, 2, or 3")
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	wal.SetDebugLevel(*debugFlag)
+	os.Exit(m.Run())
+}
+
 func TestWalBasicOperations(t *testing.T) {
-    t.Log("Starting TestWalBasicOperations")
-    tempDir, err := os.MkdirTemp("", "wal_test")
-    require.NoError(t, err)
-    defer os.RemoveAll(tempDir)
+	t.Log("Starting TestWalBasicOperations")
+	tempDir, err := os.MkdirTemp("", "wal_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
 
-    t.Log("Created temporary directory:", tempDir)
+	t.Log("Created temporary directory:", tempDir)
 
-    opts := wal.WalOptions{
-        Path:           tempDir,
-        MaxSegmentSize: 1024,
-        MaxRecordSize:  100,
-        BufferSize:     256,
-        SyncInterval:   time.Second,
-    }
+	opts := wal.WalOptions{
+		Path:           tempDir,
+		MaxSegmentSize: 1024,
+		MaxRecordSize:  100,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
+	}
 
-    t.Log("Opening WAL")
-    w, err := wal.Open(opts)
-    require.NoError(t, err)
-    defer w.Close()
+	t.Log("Opening WAL")
+	w, err := wal.Open(opts)
+	require.NoError(t, err)
+	defer w.Close()
 
-    t.Log("Writing records")
-    // Test writing records
-    for i := 0; i < 10; i++ {
-        t.Logf("Creating record %d", i)
-        rec := &wal.Record{
-            Type:   wal.RecordType(i % 3),
-            Entity: uint64(i),
-            TxID:   uint64(i * 100),
-            Data:   []byte(fmt.Sprintf("test data %d", i)),
-        }
-        t.Logf("Writing record %d", i)
-        lsn, err := w.Write(rec)
-        if err != nil {
-            t.Fatalf("Failed to write record %d: %v", i, err)
-        }
-        t.Logf("Wrote record %d, LSN: %d", i, lsn)
-    }
+	t.Log("WAL opened successfully")
 
-    t.Log("Creating new reader")
-    // Test reading records
-    reader := w.NewReader()
-    defer reader.Close()
+	t.Log("Writing records")
+	// Test writing records
+	for i := 0; i < 10; i++ {
+		t.Logf("Creating record %d", i)
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
+			Entity: uint64(i),
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("test data %d", i)),
+		}
+		t.Logf("Writing record %d", i)
+		lsn, err := w.Write(rec)
+		require.NoError(t, err)
+		t.Logf("Wrote record %d, LSN: %d", i, lsn)
+	}
 
-    t.Log("Seeking to start of WAL")
-    err = reader.Seek(0)
-    assert.NoError(t, err)
+	t.Log("Creating new reader")
+	reader := w.NewReader()
+	require.NotNil(t, reader, "NewReader() returned nil")
+	defer reader.Close()
 
-    t.Log("Reading records")
-    for i := 0; i < 10; i++ {
-        rec, err := reader.Next()
-        assert.NoError(t, err)
-        assert.Equal(t, wal.RecordType(i%3), rec.Type)
-        assert.Equal(t, uint64(i), rec.Entity)
-        assert.Equal(t, uint64(i*100), rec.TxID)
-        assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
-        t.Logf("Read record %d", i)
-    }
+	t.Log("Seeking to start of WAL")
+	err = reader.Seek(0)
+	require.NoError(t, err, "Failed to seek to start of WAL")
 
-    t.Log("Testing EOF")
-    // Test EOF
-    _, err = reader.Next()
-    assert.Equal(t, io.EOF, err)
+	t.Log("Reading records")
+	for i := 0; i < 10; i++ {
+		rec, err := reader.Next()
+		if err != nil {
+			t.Fatalf("Failed to read record %d: %v", i, err)
+		}
+		t.Logf("Read record %d: Type=%d, Entity=%d, TxID=%d, Data=%s", i, rec.Type, rec.Entity, rec.TxID, string(rec.Data))
+		assert.Equal(t, wal.RecordType(i%3), rec.Type)
+		assert.Equal(t, uint64(i), rec.Entity)
+		assert.Equal(t, uint64(i*100), rec.TxID)
+		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
+	}
 
-    t.Log("TestWalBasicOperations completed successfully")
+	// Test EOF
+	_, err = reader.Next()
+	assert.Equal(t, io.EOF, err)
+
+	t.Log("TestWalBasicOperations completed successfully")
 }
 
 func TestWalSegmentRollover(t *testing.T) {
@@ -198,64 +208,6 @@ func TestWalCheckpointAndRecovery(t *testing.T) {
 		assert.Equal(t, uint64(i), rec.Entity)
 		assert.Equal(t, uint64(i*100), rec.TxID)
 		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
-	}
-}
-
-func TestWalEncryption(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "wal_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
-
-	encryptionKey := []byte("0123456789abcdef") // 16-byte key for AES-128
-
-	opts := wal.WalOptions{
-		Path:           tempDir,
-		MaxSegmentSize: 1024,
-		MaxRecordSize:  100,
-		BufferSize:     256,
-		SyncInterval:   time.Second,
-		EncryptionKey:  encryptionKey,
-	}
-
-	w, err := wal.Open(opts)
-	require.NoError(t, err)
-	defer w.Close()
-
-	// Write encrypted records
-	for i := 0; i < 10; i++ {
-		rec := &wal.Record{
-			Type:   wal.RecordType(i % 3),
-			Entity: uint64(i),
-			TxID:   uint64(i * 100),
-			Data:   []byte(fmt.Sprintf("secret data %d", i)),
-		}
-		_, err := w.Write(rec)
-		assert.NoError(t, err)
-	}
-
-	// Check if the data is actually encrypted
-	segments, err := filepath.Glob(filepath.Join(tempDir, "*.wal"))
-	assert.NoError(t, err)
-	assert.NotEmpty(t, segments)
-
-	encryptedData, err := os.ReadFile(segments[0])
-	assert.NoError(t, err)
-	assert.NotContains(t, string(encryptedData), "secret data")
-
-	// Read and decrypt records
-	reader := w.NewReader()
-	defer reader.Close()
-
-	err = reader.Seek(0)
-	assert.NoError(t, err)
-
-	for i := 0; i < 10; i++ {
-		rec, err := reader.Next()
-		assert.NoError(t, err)
-		assert.Equal(t, wal.RecordType(i%3), rec.Type)
-		assert.Equal(t, uint64(i), rec.Entity)
-		assert.Equal(t, uint64(i*100), rec.TxID)
-		assert.Equal(t, []byte(fmt.Sprintf("secret data %d", i)), rec.Data)
 	}
 }
 

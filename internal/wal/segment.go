@@ -6,6 +6,7 @@ package wal
 import (
 	"os"
 	"errors"
+	"sync"
 )
 
 type segment struct {
@@ -63,4 +64,41 @@ func (s *segment) writeRecord(r *Record) (LSN, error) {
 	// ...
 
 	return LSN(uint64(s.id)<<32 | uint64(s.pos)), nil
+}
+
+type Segment struct {
+	id       uint64
+	file     *os.File
+	position int64
+	maxSize  int64
+	mu       sync.RWMutex
+}
+
+func (s *Segment) Close() error {
+	if s.file != nil {
+		return s.file.Close()
+	}
+	return nil
+}
+
+func (s *Segment) writeRecord(r *Record) (LSN, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check if there's enough space in the segment
+	if s.position+int64(r.Size()) > s.maxSize {
+		return 0, ErrSegmentFull
+	}
+
+	// Write the record
+	err := r.Write(s.file)
+	if err != nil {
+		return 0, err
+	}
+
+	// Update the position
+	lsn := LSN(uint64(s.id)<<32 | uint64(s.position))
+	s.position += int64(r.Size())
+
+	return lsn, nil
 }

@@ -1,15 +1,9 @@
-// wal.go
-
 package wal
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -19,19 +13,13 @@ import (
 	"sync/atomic"
 	"time"
 	"math"
+	"io"
 )
 
 const (
 	headerSize = 28
+	dataSize   = 1024
 )
-
-type Segment struct {
-	id       uint64
-	file     *os.File
-	position int64
-	maxSize  int64
-	mu       sync.RWMutex
-}
 
 type Wal struct {
 	opts           WalOptions
@@ -42,7 +30,6 @@ type Wal struct {
 	lastCheckpoint LSN
 	metrics        *WalMetrics
 	logger         *log.Logger
-	encryptionKey  []byte
 	schemaRegistry map[uint64]*Schema
 }
 
@@ -52,7 +39,6 @@ type WalOptions struct {
 	MaxRecordSize  int
 	BufferSize     int
 	SyncInterval   time.Duration
-	EncryptionKey  []byte
 }
 
 type WalMetrics struct {
@@ -66,17 +52,13 @@ type Field struct {
 	Type string
 }
 
-type Schema struct {
-	Fields []Field
-}
-
 type Checkpoint struct {
 	LSN       LSN
 	Timestamp int64
 }
 
 func Open(opts WalOptions) (*Wal, error) {
-	fmt.Println("Starting WAL Open")
+	debugPrint(1, "Starting WAL Open\n")
 	
 	w := &Wal{
 		opts: opts,
@@ -89,30 +71,27 @@ func Open(opts WalOptions) (*Wal, error) {
 		logger:  log.New(os.Stderr, "WAL: ", log.LstdFlags),
 		schemaRegistry: make(map[uint64]*Schema),
 	}
-	fmt.Println("WAL struct initialized")
+	debugPrint(1, "WAL struct initialized\n")
 
 	// Initialize segments
 	if initErr := w.initSegments(); initErr != nil {
 		return nil, fmt.Errorf("failed to initialize segments: %w", initErr)
 	}
-	fmt.Println("Segments initialized")
+	debugPrint(1, "Segments initialized\n")
 
-	if err := w.recover(); err != nil {
-		return nil, err
-	}
+	// Add any other initialization steps here
+	// ...
 
-	if len(opts.EncryptionKey) > 0 {
-		w.encryptionKey = opts.EncryptionKey
-	}
+	debugPrint(1, "Starting background tasks\n")
+	// Start background tasks (if any)
+	// ...
 
-	go w.periodicSync()
-
-	fmt.Println("WAL Open completed")
+	debugPrint(1, "WAL Open completed\n")
 	return w, nil
 }
 
 func (w *Wal) initSegments() error {
-	fmt.Println("Starting initSegments")
+	debugPrint(1, "Starting initSegments\n")
 	files, err := filepath.Glob(filepath.Join(w.opts.Path, "*.wal"))
 	if err != nil {
 		return fmt.Errorf("failed to list WAL segments: %w", err)
@@ -137,7 +116,7 @@ func (w *Wal) initSegments() error {
 	}
 
 	w.active = w.segments[len(w.segments)-1]
-	fmt.Println("initSegments completed")
+	debugPrint(1, "initSegments completed\n")
 	return nil
 }
 
@@ -181,29 +160,32 @@ func (w *Wal) createNewSegment(id uint64) (*Segment, error) {
 }
 
 func (w *Wal) Write(rec *Record) (LSN, error) {
-	fmt.Println("Starting Write operation")
+	debugPrint(1, "Starting Write operation\n")
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	startTime := time.Now()
 
-	fmt.Println("Calculating LSN")
+	debugPrint(2, "Calculating LSN\n")
 	lsn := w.calculateLSN()
 	
-	fmt.Println("Ensuring capacity")
+	debugPrint(2, "Ensuring capacity\n")
 	if err := w.ensureCapacity(int64(rec.Size())); err != nil {
 		return 0, fmt.Errorf("failed to ensure capacity: %w", err)
 	}
 
-	fmt.Println("Writing record to segment")
+	debugPrint(2, "Writing record to segment\n")
 	if err := w.writeRecordToSegment(rec); err != nil {
 		return 0, fmt.Errorf("failed to write record: %w", err)
 	}
 
-	fmt.Println("Updating metrics")
+	// Add this line to update the active segment's position
+	w.active.position += int64(rec.Size())
+
+	debugPrint(2, "Updating metrics\n")
 	w.updateMetrics(startTime, int64(rec.Size()))
 
-	fmt.Println("Write operation completed")
+	debugPrint(1, "Write operation completed\n")
 	return lsn, nil
 }
 
@@ -245,14 +227,6 @@ func (w *Wal) writeRecordToSegment(rec *Record) error {
 
 	data := append(header, rec.Data...)
 
-	if w.encryptionKey != nil {
-		var err error
-		data, err = w.encrypt(data)
-		if err != nil {
-			return fmt.Errorf("failed to encrypt record: %w", err)
-		}
-	}
-
 	w.active.mu.Lock()
 	defer w.active.mu.Unlock()
 
@@ -269,7 +243,15 @@ func (r *Record) Size() int {
 }
 
 func (w *Wal) NewReader() WalReader {
-	return NewReader(w)
+	debugPrint(1, "Creating new WAL reader\n")
+	reader := &Reader{
+		wal:                w,
+		currentSegment:     w.segments[0],
+		currentSegmentIndex: 0,
+		buffer:             make([]byte, w.opts.BufferSize),
+	}
+	debugPrint(1, "WAL reader created\n")
+	return reader
 }
 
 func parseSegmentID(name string) (uint64, error) {
@@ -281,7 +263,7 @@ func (w *Wal) Close() error {
 	defer w.mu.Unlock()
 
 	for _, segment := range w.segments {
-		if err := segment.file.Close(); err != nil {
+		if err := segment.Close(); err != nil {
 			return fmt.Errorf("failed to close segment: %w", err)
 		}
 	}
@@ -296,33 +278,68 @@ func (w *Wal) Sync() error {
 	return w.active.file.Sync()
 }
 
-func (w *Wal) Compact(upToLSN LSN) error {
+func (w *Wal) Compact(lsn LSN) error {
+	debugPrint(3, "Starting compaction process\n")
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	segmentID := uint64(upToLSN >> 32)
-	offset := uint64(upToLSN & 0xFFFFFFFF)
-
-	var segmentsToRemove []*Segment
-	for _, segment := range w.segments {
-		if segment.id < segmentID || (segment.id == segmentID && int64(offset) >= segment.position) {
-			segmentsToRemove = append(segmentsToRemove, segment)
-		} else {
+	compactIndex := -1
+	for i, seg := range w.segments {
+		if uint64(lsn>>32) <= seg.id {
+			compactIndex = i
 			break
 		}
 	}
 
-	for _, segment := range segmentsToRemove {
-		if err := segment.file.Close(); err != nil {
-			return fmt.Errorf("failed to close segment during compaction: %w", err)
+	if compactIndex == -1 || compactIndex == 0 {
+		debugPrint(3, "No segments to compact\n")
+		return nil
+	}
+
+	// Create a new segment for compacted data
+	newSegment, err := w.createNewSegment(uint64(lsn >> 32))
+	if err != nil {
+		return fmt.Errorf("failed to create new segment: %w", err)
+	}
+
+	// Copy records from old segments to the new segment
+	reader := w.NewReader()
+	err = reader.Seek(lsn)
+	if err != nil {
+		return fmt.Errorf("failed to seek to LSN %d: %w", lsn, err)
+	}
+
+	for {
+		record, err := reader.Next()
+		if err == io.EOF {
+			break
 		}
-		if err := os.Remove(segment.file.Name()); err != nil {
-			return fmt.Errorf("failed to remove segment file during compaction: %w", err)
+		if err != nil {
+			return fmt.Errorf("failed to read record: %w", err)
+		}
+
+		_, err = newSegment.writeRecord(record)
+		if err != nil {
+			return fmt.Errorf("failed to write record to new segment: %w", err)
 		}
 	}
 
-	w.segments = w.segments[len(segmentsToRemove):]
+	// Remove old segments
+	for i := 0; i < compactIndex; i++ {
+		err = w.segments[i].Close()
+		if err != nil {
+			return fmt.Errorf("failed to close segment: %w", err)
+		}
+		err = os.Remove(w.segments[i].file.Name())
+		if err != nil {
+			return fmt.Errorf("failed to remove segment file: %w", err)
+		}
+	}
 
+	// Update segments slice
+	w.segments = append([]*Segment{newSegment}, w.segments[compactIndex:]...)
+
+	debugPrint(3, "Compaction completed successfully\n")
 	return nil
 }
 
@@ -350,95 +367,6 @@ func (w *Wal) GetMetrics() WalMetrics {
 		TotalBytesWritten: atomic.LoadInt64(&w.metrics.TotalBytesWritten),
 		AvgWriteLatency:   time.Duration(atomic.LoadInt64((*int64)(&w.metrics.AvgWriteLatency))),
 	}
-}
-
-func (w *Wal) encrypt(data []byte) ([]byte, error) {
-	block, err := aes.NewCipher(w.encryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
-
-	return gcm.Seal(nonce, nonce, data, nil), nil
-}
-
-func (w *Wal) decrypt(data []byte) ([]byte, error) {
-	block, err := aes.NewCipher(w.encryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	nonceSize := gcm.NonceSize()
-	if len(data) < nonceSize {
-		return nil, fmt.Errorf("ciphertext too short")
-	}
-
-	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
-	return gcm.Open(nil, nonce, ciphertext, nil)
-}
-
-func (w *Wal) recover() error {
-	reader := w.NewReader()
-	defer reader.Close()
-
-	lastLSN := w.lastCheckpoint
-	err := reader.Seek(lastLSN)
-	if err != nil {
-		return fmt.Errorf("failed to seek to last checkpoint: %w", err)
-	}
-
-	for {
-		_, err := reader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("error during recovery: %w", err)
-		}
-	}
-
-	w.lastCheckpoint = lastLSN
-	return nil
-}
-
-func (w *Wal) Checkpoint() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	checkpointData := struct {
-		LSN       LSN
-		Timestamp int64
-	}{
-		LSN:       w.calculateLSN(),
-		Timestamp: time.Now().UnixNano(),
-	}
-
-	data, err := json.Marshal(checkpointData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal checkpoint data: %w", err)
-	}
-
-	checkpointFile := filepath.Join(w.opts.Path, "checkpoint")
-	if err := os.WriteFile(checkpointFile, data, 0644); err != nil {
-		return fmt.Errorf("failed to write checkpoint file: %w", err)
-	}
-
-	w.lastCheckpoint = checkpointData.LSN
-	return nil
 }
 
 func decodeField(data []byte, field *Field) (interface{}, int, error) {
@@ -536,4 +464,43 @@ func (w *Wal) GetSchema(entityID uint64) (*Schema, error) {
 		return nil, fmt.Errorf("schema not found for entity %d", entityID)
 	}
 	return schema, nil
+}
+
+// Add this method to the Wal struct
+func (w *Wal) Checkpoint() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// Sync the current active segment
+	if err := w.active.file.Sync(); err != nil {
+		return fmt.Errorf("failed to sync active segment: %w", err)
+	}
+
+	// Create a new checkpoint
+	checkpoint := Checkpoint{
+		LSN:       w.calculateLSN(),
+		Timestamp: time.Now().UnixNano(),
+	}
+
+	// Write the checkpoint to disk
+	if err := w.writeCheckpoint(checkpoint); err != nil {
+		return fmt.Errorf("failed to write checkpoint: %w", err)
+	}
+
+	// Update the last checkpoint LSN
+	w.lastCheckpoint = checkpoint.LSN
+
+	return nil
+}
+
+var debugLevel int
+
+func SetDebugLevel(level int) {
+    debugLevel = level
+}
+
+func debugPrint(level int, format string, args ...interface{}) {
+    if debugLevel >= level {
+        fmt.Printf(format, args...)
+    }
 }
