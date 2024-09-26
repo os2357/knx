@@ -76,6 +76,8 @@ type Checkpoint struct {
 }
 
 func Open(opts WalOptions) (*Wal, error) {
+	fmt.Println("Starting WAL Open")
+	
 	w := &Wal{
 		opts: opts,
 		bufferPool: &sync.Pool{
@@ -87,10 +89,13 @@ func Open(opts WalOptions) (*Wal, error) {
 		logger:  log.New(os.Stderr, "WAL: ", log.LstdFlags),
 		schemaRegistry: make(map[uint64]*Schema),
 	}
+	fmt.Println("WAL struct initialized")
 
-	if err := w.initSegments(); err != nil {
-		return nil, err
+	// Initialize segments
+	if initErr := w.initSegments(); initErr != nil {
+		return nil, fmt.Errorf("failed to initialize segments: %w", initErr)
 	}
+	fmt.Println("Segments initialized")
 
 	if err := w.recover(); err != nil {
 		return nil, err
@@ -102,10 +107,12 @@ func Open(opts WalOptions) (*Wal, error) {
 
 	go w.periodicSync()
 
+	fmt.Println("WAL Open completed")
 	return w, nil
 }
 
 func (w *Wal) initSegments() error {
+	fmt.Println("Starting initSegments")
 	files, err := filepath.Glob(filepath.Join(w.opts.Path, "*.wal"))
 	if err != nil {
 		return fmt.Errorf("failed to list WAL segments: %w", err)
@@ -130,6 +137,7 @@ func (w *Wal) initSegments() error {
 	}
 
 	w.active = w.segments[len(w.segments)-1]
+	fmt.Println("initSegments completed")
 	return nil
 }
 
