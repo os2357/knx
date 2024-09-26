@@ -1,212 +1,412 @@
+//- append garbage data
+//- does it correctly truncate
+//- overwrite data at the end
+//- simulate different problems:
+//-does the wal recover correctly?
+
 // wal_test.go
 
-package wal_test
+package wal
 
 import (
-	"fmt"
-	"math/rand"
+	"bytes"
+	"encoding/binary"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"blockwatch.cc/knoxdb/internal/wal"
-	"io/ioutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func createInitialSegment(dir string) error {
-	initialSegmentPath := filepath.Join(dir, "00000001.wal")
-	return ioutil.WriteFile(initialSegmentPath, []byte{}, 0644)
-}
-
-func openWALWithRetry(opts wal.WalOptions, maxRetries int) (*wal.Wal, error) {
-	var w *wal.Wal
-	var err error
-	for i := 0; i < maxRetries; i++ {
-		w, err = wal.Open(opts)
-		if err == nil {
-			return w, nil
-		}
-		if !strings.Contains(err.Error(), "WAL is locked") {
-			return nil, err
-		}
-		time.Sleep(time.Duration(1<<uint(i)) * time.Millisecond)
-	}
-	return nil, fmt.Errorf("failed to open WAL after %d retries: %v", maxRetries, err)
-}
-
-func TestWalWrite(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "wal_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
+func TestWalBasicOperations(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "wal_test")
+	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	if err := createInitialSegment(tempDir); err != nil {
-		t.Fatalf("Failed to create initial segment: %v", err)
-	}
-
-	opts := wal.WalOptions{
+	opts := WalOptions{
 		Path:           tempDir,
-		MaxSegmentSize: 1024 * 1024,
-		MaxRecordSize:  1024,
+		MaxSegmentSize: 1024,
+		MaxRecordSize:  100,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
 	}
 
-	w, err := wal.Open(opts)
-	if err != nil {
-		t.Fatalf("Failed to open WAL: %v", err)
-	}
+	w, err := Open(opts)
+	require.NoError(t, err)
 	defer w.Close()
 
-	// Write test records
-	testRecords := []*wal.Record{
-		{Type: wal.RecordTypeInsert, Entity: 1, Data: []byte("test data 1")},
-		{Type: wal.RecordTypeUpdate, Entity: 2, Data: []byte("test data 2")},
-		{Type: wal.RecordTypeDelete, Entity: 3, Data: []byte("test data 3")},
-	}
-
-	for _, rec := range testRecords {
-		_, err := w.Write(rec)
-		if err != nil {
-			t.Fatalf("Failed to write record: %v", err)
+	// Test writing records
+	for i := 0; i < 10; i++ {
+		rec := &Record{
+			Type:   RecordType(i % 3),
+			Entity: uint64(i),
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("test data %d", i)),
 		}
+		lsn, err := w.Write(rec)
+		assert.NoError(t, err)
+		assert.NotZero(t, lsn)
 	}
 
-	// Close the WAL to ensure all data is flushed
-	w.Close()
+	// Test reading records
+	reader := w.NewReader()
+	defer reader.Close()
 
-	// Verify that files were created
-	files, err := ioutil.ReadDir(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to read directory: %v", err)
+	err = reader.Seek(0)
+	assert.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		rec, err := reader.Next()
+		assert.NoError(t, err)
+		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, uint64(i), rec.Entity)
+		assert.Equal(t, uint64(i*100), rec.TxID)
+		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
 	}
 
-	if len(files) == 0 {
-		t.Fatalf("No WAL files were created")
-	}
-
-	// You can add more specific checks here if you know the expected file format
+	// Test EOF
+	_, err = reader.Next()
+	assert.Equal(t, io.EOF, err)
 }
 
-func TestWalRecovery(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "wal_recovery_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
+func TestWalSegmentRollover(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "wal_test")
+	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	if err := createInitialSegment(tempDir); err != nil {
-		t.Fatalf("Failed to create initial segment: %v", err)
-	}
-
-	opts := wal.WalOptions{
+	opts := WalOptions{
 		Path:           tempDir,
-		MaxSegmentSize: 1024 * 1024,
-		MaxRecordSize:  1024,
+		MaxSegmentSize: 100,
+		MaxRecordSize:  50,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
 	}
 
-	// Create and populate WAL
-	{
-		w, err := openWALWithRetry(opts, 5)
-		if err != nil {
-			t.Fatalf("Failed to open WAL: %v", err)
-		}
+	w, err := Open(opts)
+	require.NoError(t, err)
+	defer w.Close()
 
-		testRecords := []*wal.Record{
-			{Type: wal.RecordTypeInsert, Entity: 1, Data: []byte("test data 1")},
-			{Type: wal.RecordTypeUpdate, Entity: 2, Data: []byte("test data 2")},
-			{Type: wal.RecordTypeDelete, Entity: 3, Data: []byte("test data 3")},
+	// Write records until we have multiple segments
+	for i := 0; i < 20; i++ {
+		rec := &Record{
+			Type:   RecordType(i % 3),
+			Entity: uint64(i),
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("test data %d", i)),
 		}
-
-		for _, rec := range testRecords {
-			_, err := w.Write(rec)
-			if err != nil {
-				t.Fatalf("Failed to write record: %v", err)
-			}
-		}
-
-		w.Close()
+		_, err := w.Write(rec)
+		assert.NoError(t, err)
 	}
 
-	// Reopen WAL to test recovery
-	recoveredWal, err := openWALWithRetry(opts, 5)
-	if err != nil {
-		t.Fatalf("Failed to reopen WAL: %v", err)
-	}
-	defer recoveredWal.Close()
+	// Check if multiple segments were created
+	segments, err := filepath.Glob(filepath.Join(tempDir, "*.wal"))
+	assert.NoError(t, err)
+	assert.Greater(t, len(segments), 1)
 
-	// Verify that the WAL was recovered successfully
-	// You might need to add specific checks based on the WAL implementation
+	// Test reading across segments
+	reader := w.NewReader()
+	defer reader.Close()
+
+	err = reader.Seek(0)
+	assert.NoError(t, err)
+
+	for i := 0; i < 20; i++ {
+		rec, err := reader.Next()
+		assert.NoError(t, err)
+		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, uint64(i), rec.Entity)
+		assert.Equal(t, uint64(i*100), rec.TxID)
+		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
+	}
+}
+
+func TestWalCheckpointAndRecovery(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "wal_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	opts := WalOptions{
+		Path:           tempDir,
+		MaxSegmentSize: 1024,
+		MaxRecordSize:  100,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
+	}
+
+	w, err := Open(opts)
+	require.NoError(t, err)
+
+	// Write some records
+	for i := 0; i < 10; i++ {
+		rec := &Record{
+			Type:   RecordType(i % 3),
+			Entity: uint64(i),
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("test data %d", i)),
+		}
+		_, err := w.Write(rec)
+		assert.NoError(t, err)
+	}
+
+	// Create a checkpoint
+	err = w.Checkpoint()
+	assert.NoError(t, err)
+
+	// Write more records
+	for i := 10; i < 20; i++ {
+		rec := &Record{
+			Type:   RecordType(i % 3),
+			Entity: uint64(i),
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("test data %d", i)),
+		}
+		_, err := w.Write(rec)
+		assert.NoError(t, err)
+	}
+
+	w.Close()
+
+	// Reopen the WAL
+	w, err = Open(opts)
+	require.NoError(t, err)
+	defer w.Close()
+
+	// Check if recovery was successful
+	reader := w.NewReader()
+	defer reader.Close()
+
+	err = reader.Seek(0)
+	assert.NoError(t, err)
+
+	for i := 0; i < 20; i++ {
+		rec, err := reader.Next()
+		assert.NoError(t, err)
+		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, uint64(i), rec.Entity)
+		assert.Equal(t, uint64(i*100), rec.TxID)
+		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
+	}
+}
+
+func TestWalEncryption(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "wal_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	encryptionKey := []byte("0123456789abcdef") // 16-byte key for AES-128
+
+	opts := WalOptions{
+		Path:           tempDir,
+		MaxSegmentSize: 1024,
+		MaxRecordSize:  100,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
+		EncryptionKey:  encryptionKey,
+	}
+
+	w, err := Open(opts)
+	require.NoError(t, err)
+	defer w.Close()
+
+	// Write encrypted records
+	for i := 0; i < 10; i++ {
+		rec := &Record{
+			Type:   RecordType(i % 3),
+			Entity: uint64(i),
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("secret data %d", i)),
+		}
+		_, err := w.Write(rec)
+		assert.NoError(t, err)
+	}
+
+	// Check if the data is actually encrypted
+	segments, err := filepath.Glob(filepath.Join(tempDir, "*.wal"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, segments)
+
+	encryptedData, err := ioutil.ReadFile(segments[0])
+	assert.NoError(t, err)
+	assert.NotContains(t, string(encryptedData), "secret data")
+
+	// Read and decrypt records
+	reader := w.NewReader()
+	defer reader.Close()
+
+	err = reader.Seek(0)
+	assert.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		rec, err := reader.Next()
+		assert.NoError(t, err)
+		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, uint64(i), rec.Entity)
+		assert.Equal(t, uint64(i*100), rec.TxID)
+		assert.Equal(t, []byte(fmt.Sprintf("secret data %d", i)), rec.Data)
+	}
 }
 
 func TestWalCompaction(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "wal_compaction_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
+	tempDir, err := ioutil.TempDir("", "wal_test")
+	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	if err := createInitialSegment(tempDir); err != nil {
-		t.Fatalf("Failed to create initial segment: %v", err)
-	}
-
-	opts := wal.WalOptions{
+	opts := WalOptions{
 		Path:           tempDir,
-		MaxSegmentSize: 1024 * 10, // 10KB
-		MaxRecordSize:  1024,      // 1KB
-		Seed:           uint64(time.Now().UnixNano()), // Add this line
+		MaxSegmentSize: 100,
+		MaxRecordSize:  50,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
 	}
 
-	w, err := openWALWithRetry(opts, 5)
-	if err != nil {
-		t.Fatalf("Failed to open WAL: %v", err)
-	}
+	w, err := Open(opts)
+	require.NoError(t, err)
+	defer w.Close()
 
-	// Write many records with sizes up to MaxRecordSize to create multiple segments
-	rand.Seed(int64(opts.Seed))
-	for i := 0; i < 1000; i++ {
-		dataSize := rand.Intn(opts.MaxRecordSize - 100) + 100 // Random size between 100 and MaxRecordSize-1 bytes
-		data := make([]byte, dataSize)
-		rand.Read(data)
-		rec := &wal.Record{
-			Type:   wal.RecordTypeInsert,
+	// Write records to create multiple segments
+	var compactionLSN LSN
+	for i := 0; i < 20; i++ {
+		rec := &Record{
+			Type:   RecordType(i % 3),
 			Entity: uint64(i),
-			Data:   data,
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("test data %d", i)),
 		}
-		_, err := w.Write(rec)
-		if err != nil {
-			t.Fatalf("Failed to write record: %v", err)
+		lsn, err := w.Write(rec)
+		assert.NoError(t, err)
+		if i == 10 {
+			compactionLSN = lsn
 		}
 	}
 
-	// Get initial segment count
+	// Count initial segments
 	initialSegments, err := filepath.Glob(filepath.Join(tempDir, "*.wal"))
-	if err != nil {
-		t.Fatalf("Failed to list WAL segments: %v", err)
-	}
+	assert.NoError(t, err)
 	initialCount := len(initialSegments)
 
-	if initialCount < 2 {
-		t.Fatalf("Expected multiple segments, but got %d", initialCount)
-	}
-
 	// Perform compaction
-	err = w.Compact()
-	if err != nil {
-		t.Fatalf("Failed to compact WAL: %v", err)
+	err = w.Compact(compactionLSN)
+	assert.NoError(t, err)
+
+	// Count remaining segments
+	remainingSegments, err := filepath.Glob(filepath.Join(tempDir, "*.wal"))
+	assert.NoError(t, err)
+	remainingCount := len(remainingSegments)
+
+	assert.Less(t, remainingCount, initialCount)
+
+	// Verify that we can still read all records after compaction
+	reader := w.NewReader()
+	defer reader.Close()
+
+	err = reader.Seek(0)
+	assert.NoError(t, err)
+
+	for i := 0; i < 20; i++ {
+		rec, err := reader.Next()
+		assert.NoError(t, err)
+		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, uint64(i), rec.Entity)
+		assert.Equal(t, uint64(i*100), rec.TxID)
+		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
+	}
+}
+
+func TestWalMetrics(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "wal_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	opts := WalOptions{
+		Path:           tempDir,
+		MaxSegmentSize: 1024,
+		MaxRecordSize:  100,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
 	}
 
-	// Get final segment count
-	finalSegments, err := filepath.Glob(filepath.Join(tempDir, "*.wal"))
-	if err != nil {
-		t.Fatalf("Failed to list WAL segments after compaction: %v", err)
-	}
-	finalCount := len(finalSegments)
+	w, err := Open(opts)
+	require.NoError(t, err)
+	defer w.Close()
 
-	if finalCount >= initialCount {
-		t.Errorf("Compaction did not reduce segment count. Initial: %d, Final: %d", initialCount, finalCount)
+	// Write some records
+	for i := 0; i < 10; i++ {
+		rec := &Record{
+			Type:   RecordType(i % 3),
+			Entity: uint64(i),
+			TxID:   uint64(i * 100),
+			Data:   []byte(fmt.Sprintf("test data %d", i)),
+		}
+		_, err := w.Write(rec)
+		assert.NoError(t, err)
 	}
 
-	w.Close()
+	// Check metrics
+	metrics := w.GetMetrics()
+	assert.Equal(t, int64(10), metrics.TotalWrites)
+	assert.Greater(t, metrics.TotalBytesWritten, int64(0))
+	assert.Greater(t, metrics.AvgWriteLatency, time.Duration(0))
+}
+
+func TestWalConcurrency(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "wal_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	opts := WalOptions{
+		Path:           tempDir,
+		MaxSegmentSize: 1024,
+		MaxRecordSize:  100,
+		BufferSize:     256,
+		SyncInterval:   time.Second,
+	}
+
+	w, err := Open(opts)
+	require.NoError(t, err)
+	defer w.Close()
+
+	numWorkers := 10
+	numRecordsPerWorker := 100
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for j := 0; j < numRecordsPerWorker; j++ {
+				rec := &Record{
+					Type:   RecordType(j % 3),
+					Entity: uint64(workerID*numRecordsPerWorker + j),
+					TxID:   uint64((workerID*numRecordsPerWorker + j) * 100),
+					Data:   []byte(fmt.Sprintf("worker %d data %d", workerID, j)),
+				}
+				_, err := w.Write(rec)
+				assert.NoError(t, err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify that all records were written correctly
+	reader := w.NewReader()
+	defer reader.Close()
+
+	err = reader.Seek(0)
+	assert.NoError(t, err)
+
+	recordCount := 0
+	for {
+		_, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		assert.NoError(t, err)
+		recordCount++
+	}
+
+	assert.Equal(t, numWorkers*numRecordsPerWorker, recordCount)
 }
