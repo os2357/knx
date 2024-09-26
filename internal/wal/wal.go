@@ -57,24 +57,16 @@ func Create(opts WalOptions) (*Wal, error) {
 	}, nil
 }
 
-func Open(lsn LSN, opts WalOptions) (*Wal, error) {
+func Open(id LSN, opts WalOptions) (*Wal, error) {
 	// try open directory
 	_, err := os.Stat(opts.Path)
 	if err != nil {
 		return nil, err
 	}
 	// set exclusive lock
-	dirEntries, err := os.ReadDir(opts.Path)
-	if err != nil {
-		return nil, err
-	}
-	// ReadDir sorts the the files by Name so we can assume the last
-	// file is the last segment file
-	lastActiveSegmentFile := dirEntries[len(dirEntries)-1]
 	// open last segment file
 	// read hash of last record and init w.csum
-	// TODO(abdul): How do I know the last record ??
-	seg, err := openSegment(lastActiveSegmentFile.Name(), opts)
+	seg, err := openSegment(id, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +105,9 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 	w.hash.Write(b[:])
 	w.hash.Write(head[:20])
 	w.hash.Write(rec.Data)
-	w.hash.Sum(head[20:])
+	w.hash.Sum(head[20:]) // TODO(abdul): ??
 
 	// remember current size and truncate on failed write
-	segsz := w.active.pos
-
 	// calculate the LSN
 	lsn := NewLSN(w.active.id, w.opts.MaxSegmentSize, w.active.pos)
 
@@ -137,16 +127,14 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 		lsn = LSN(w.active.id + w.active.pos)
 
 		// write header
-		_, err = w.active.Write(head[:])
+		_, err = w.writeHeader(head)
 		if err != nil {
-			_ = w.active.Truncate(segsz)
 			return 0, err
 		}
 
 		// write data
-		_, err = w.active.Write(rec.Data)
+		_, err = w.writeData(rec.Data)
 		if err != nil {
-			_ = w.active.Truncate(segsz)
 			return 0, err
 		}
 
@@ -156,16 +144,14 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 		// the next active segment
 
 		// write header
-		_, err := w.active.Write(head[:])
+		_, err := w.writeHeader(head)
 		if err != nil {
-			_ = w.active.Truncate(segsz)
 			return 0, err
 		}
 
 		// write first data part
-		_, err = w.active.Write(rec.Data[:spaceLeft-28])
+		_, err = w.writeData(rec.Data[:spaceLeft-28])
 		if err != nil {
-			_ = w.active.Truncate(segsz)
 			return 0, err
 		}
 
@@ -176,9 +162,8 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 		}
 
 		// write second data part
-		_, err = w.active.Write(rec.Data[spaceLeft-28:])
+		_, err = w.writeData(rec.Data[spaceLeft-28:])
 		if err != nil {
-			_ = w.active.Truncate(segsz)
 			return 0, err
 		}
 
@@ -186,16 +171,12 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 		// everything fits
 
 		// write header
-		_, err := w.active.Write(head[:])
-		if err != nil {
-			_ = w.active.Truncate(segsz)
+		if _, err := w.writeHeader(head); err != nil {
 			return 0, err
 		}
 
 		// write data
-		_, err = w.active.Write(rec.Data)
-		if err != nil {
-			_ = w.active.Truncate(segsz)
+		if _, err := w.writeData(rec.Data); err != nil {
 			return 0, err
 		}
 	}
@@ -230,4 +211,22 @@ func (w *Wal) nextSegment() error {
 	}
 	w.active = seg
 	return nil
+}
+
+func (w *Wal) writeHeader(head [28]byte) (int, error) {
+	pos, err := w.active.Write(head[:])
+	if err != nil {
+		_ = w.active.Truncate(w.active.pos)
+		return 0, err
+	}
+	return pos, err
+}
+
+func (w *Wal) writeData(data []byte) (int, error) {
+	pos, err := w.active.Write(data)
+	if err != nil {
+		_ = w.active.Truncate(w.active.pos)
+		return 0, err
+	}
+	return pos, err
 }

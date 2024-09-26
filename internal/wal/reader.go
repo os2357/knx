@@ -85,9 +85,15 @@ func (r *Reader) Close() error {
 
 func (r *Reader) Seek(lsn LSN) error {
 	// open segment and seek
-	// segid := lsn / r.wal.opts.MaxSegmentSize
-	// fielpos := lsn % r.wal.opts.MaxSegmentSize
-
+	filepos := calculateOffset(int(lsn), r.wal.opts.MaxSegmentSize)
+	seg, err := openSegment(lsn, r.wal.opts)
+	if err != nil {
+		return err
+	}
+	_, err = seg.fd.Seek(int64(filepos), 0)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
