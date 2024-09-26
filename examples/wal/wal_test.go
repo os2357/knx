@@ -1,11 +1,3 @@
-//- append garbage data
-//- does it correctly truncate
-//- overwrite data at the end
-//- simulate different problems:
-//-does the wal recover correctly?
-
-// wal_test.go
-
 package wal
 
 import (
