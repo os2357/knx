@@ -5,13 +5,17 @@ package wal
 
 import (
 	"os"
+	"fmt"
+	"errors"
 )
 
 type segment struct {
-	id  int
-	pos int
-	fd  *os.File
+	id   uint64
+	file *os.File
+	pos  int64
 }
+
+var ErrSegmentFull = errors.New("segment is full")
 
 // func newSegement() *segment {
 // 	return &segment{
@@ -30,31 +34,32 @@ func openSegment(id LSN) (*segment, error) {
 }
 
 func (s *segment) Close() error {
-	err := s.fd.Close()
-	s.fd = nil
+	err := s.file.Close()
+	s.file = nil
 	s.id = 0
 	s.pos = 0
 	return err
 }
 
 func (s *segment) Sync() error {
-	return s.fd.Sync()
+	return s.file.Sync()
 }
 
 func (s *segment) LastRecord() (*Record, error) {
+	// Implementation
 	return nil, nil
 }
 
-func (s *segment) Truncate(sz int) error {
-	return s.fd.Truncate(int64(sz))
+func (s *segment) Truncate(sz int64) error {
+	return s.file.Truncate(sz)
 }
 
 func (s *segment) Write(buf []byte) (int, error) {
-	n, err := s.fd.Write(buf)
+	n, err := s.file.Write(buf)
 	if err != nil {
 		return n, err
 	}
-	s.pos += n
+	s.pos += int64(n)
 	return n, nil
 }
 
@@ -102,3 +107,28 @@ func (s *segment) Write(buf []byte) (int, error) {
 
 // 	return
 // }
+
+func (s *segment) Write(r *Record) (LSN, error) {
+	// Calculate the size of the record
+	recordSize := r.calculateSize()
+
+	// Check if the record size exceeds the maximum allowed size
+	if recordSize > s.wal.opts.MaxRecordSize {
+		return 0, fmt.Errorf("record size %d exceeds maximum allowed size %d", recordSize, s.wal.opts.MaxRecordSize)
+	}
+
+	// Check if writing this record would exceed the maximum segment size
+	if s.pos+int64(recordSize) > s.wal.opts.MaxSegmentSize {
+		return 0, ErrSegmentFull
+	}
+
+	// Existing write logic
+	// ...
+}
+
+func (s *segment) writeRecord(r *Record) (LSN, error) {
+	// Implementation of actual record writing
+	// ...
+
+	return LSN(uint64(s.id)<<32 | uint64(s.pos)), nil
+}

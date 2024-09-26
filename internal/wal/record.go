@@ -5,20 +5,21 @@ package wal
 
 import (
 	"fmt"
-
+	"io"
 	"blockwatch.cc/knoxdb/internal/types"
 )
 
 type RecordType byte
 
 const (
-	RecordTypeInvalid RecordType = iota
-	RecordTypeInsert
-	RecordTypeUpdate
-	RecordTypeDelete
-	RecordTypeCommit
-	RecordTypeAbort
-	RecordTypeCheckpoint
+    RecordTypeInvalid RecordType = iota
+    RecordTypeInsert
+    RecordTypeUpdate
+    RecordTypeDelete
+    RecordTypeCommit
+    RecordTypeAbort
+    RecordTypeCheckpoint
+    RecordTypeMax
 )
 
 var (
@@ -51,4 +52,19 @@ func (r Record) String() string {
 	return fmt.Sprintf("wal: LSN=0x%016x xid=0x%016x  typ=%s tag=%s entity=0x%016x len=%d",
 		r.Lsn, r.TxID, r.Type, r.Tag, r.Entity, len(r.Data),
 	)
+}
+
+func (r *Record) Write(w io.Writer) error {
+	size := r.calculateSize()
+	if size > MaxRecordSize {
+		return fmt.Errorf("record size %d exceeds maximum allowed size %d", size, MaxRecordSize)
+	}
+	// ... rest of the write logic ...
+	return nil
+}
+
+func (r *Record) calculateSize() int {
+	// Calculate and return the size of the record
+	// This should include the size of all fields in the record
+	return len(r.Data) + 8 + 8 + 1 + 1 // Example: data size + entity size + txID size + type size + tag size
 }
