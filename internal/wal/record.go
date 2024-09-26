@@ -68,3 +68,15 @@ func (r *Record) calculateSize() int {
 	// This should include the size of all fields in the record
 	return len(r.Data) + 8 + 8 + 1 + 1 // Example: data size + entity size + txID size + type size + tag size
 }
+
+const MaxRecordSize = 1024 * 1024 // 1MB, adjust as needed
+
+type FieldType string
+
+const (
+    TypeUint64  FieldType = "uint64"
+    TypeInt64   FieldType = "int64"
+    TypeFloat64 FieldType = "float64"
+    TypeString  FieldType = "string"
+    TypeBytes   FieldType = "bytes"
+)

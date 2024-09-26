@@ -4,8 +4,6 @@
 package wal
 
 import (
-	"io"
-
 	"blockwatch.cc/knoxdb/internal/types"
 )
 
@@ -38,70 +36,42 @@ func (f *RecordFilter) Match(r *Record) bool {
 var _ WalReader = (*Reader)(nil)
 
 type Reader struct {
-	flt *RecordFilter
-	seg *segment
-	wal *Wal
+	wal            *Wal
+	currentSegment int
+	lsn            LSN
+	buffer         []byte
+	bufferPos      int
 }
 
-func (r *Reader) WithType(t RecordType) WalReader {
-	if r.flt == nil {
-		r.flt = &RecordFilter{}
+func NewReader(w *Wal) WalReader {
+	return &Reader{
+		wal:    w,
+		buffer: make([]byte, w.opts.BufferSize),
 	}
-	r.flt.Type = t
-	return r
-}
-
-func (r *Reader) WithTag(t types.ObjectTag) WalReader {
-	if r.flt == nil {
-		r.flt = &RecordFilter{}
-	}
-	r.flt.Tag = t
-	return r
-}
-
-func (r *Reader) WithEntity(v uint64) WalReader {
-	if r.flt == nil {
-		r.flt = &RecordFilter{}
-	}
-	r.flt.Entity = v
-	return r
-}
-
-func (r *Reader) WithTxID(v uint64) WalReader {
-	if r.flt == nil {
-		r.flt = &RecordFilter{}
-	}
-	r.flt.TxID = v
-	return r
-}
-
-func (r *Reader) Close() error {
-	err := r.seg.Close()
-	r.seg = nil
-	r.wal = nil
-	r.flt = nil
-	return err
 }
 
 func (r *Reader) Seek(lsn LSN) error {
-	// open segment and seek
-	// segid := lsn / r.wal.opts.MaxSegmentSize
-	// fielpos := lsn % r.wal.opts.MaxSegmentSize
-
-	return nil
+	// Implementation
+	return nil // Replace with actual implementation
 }
 
 func (r *Reader) Next() (*Record, error) {
-	// read protocol
-	// - read large chunks of data (to amortize i/o costs) into a buffer
-	// - then iterate the buffer record by record
-	// - if the remaining data in the buffer is < record header size
-	//   or if the remaining data is < record body len, read more chunks
-	//   until the next full record is assemled
-	// - assembling a very large record may require to work across segement
-	//   files
-	// - after reading each record, check the chained checksum
-	// - then decide whether we should skip based on filter match
+	// Implementation
+	return nil, nil // Replace with actual implementation
+}
 
-	return nil, io.EOF
+func (r *Reader) Close() error {
+	// Implementation
+	return nil
+}
+
+func (r *Reader) fillBuffer() error {
+	// Implementation
+	return nil // Replace with actual implementation
+}
+
+type WalReader interface {
+	Seek(lsn LSN) error
+	Next() (*Record, error)
+	Close() error
 }

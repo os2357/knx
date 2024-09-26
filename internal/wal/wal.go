@@ -18,22 +18,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"math"
 )
 
 const (
 	headerSize = 28
 )
-
-type LSN uint64
-
-type RecordType byte
-
-type Record struct {
-	Type   RecordType
-	Entity uint64
-	TxID   uint64
-	Data   []byte
-}
 
 type Segment struct {
 	id       uint64
@@ -53,6 +43,7 @@ type Wal struct {
 	metrics        *WalMetrics
 	logger         *log.Logger
 	encryptionKey  []byte
+	schemaRegistry map[uint64]*Schema
 }
 
 type WalOptions struct {
@@ -70,6 +61,20 @@ type WalMetrics struct {
 	AvgWriteLatency   time.Duration
 }
 
+type Field struct {
+	Name string
+	Type string
+}
+
+type Schema struct {
+	Fields []Field
+}
+
+type Checkpoint struct {
+	LSN       LSN
+	Timestamp int64
+}
+
 func Open(opts WalOptions) (*Wal, error) {
 	w := &Wal{
 		opts: opts,
@@ -80,6 +85,7 @@ func Open(opts WalOptions) (*Wal, error) {
 		},
 		metrics: &WalMetrics{},
 		logger:  log.New(os.Stderr, "WAL: ", log.LstdFlags),
+		schemaRegistry: make(map[uint64]*Schema),
 	}
 
 	if err := w.initSegments(); err != nil {
@@ -248,121 +254,8 @@ func (r *Record) Size() int {
 	return headerSize + len(r.Data)
 }
 
-type WalReader struct {
-	wal            *Wal
-	currentSegment int
-	buffer         []byte
-	bufferPos      int
-	lsn            LSN
-}
-
-func (w *Wal) NewReader() *WalReader {
-	return &WalReader{
-		wal:    w,
-		buffer: w.bufferPool.Get().([]byte),
-	}
-}
-
-func (r *WalReader) Seek(lsn LSN) error {
-	segmentID := uint64(lsn >> 32)
-	offset := uint64(lsn & 0xFFFFFFFF)
-
-	for i, seg := range r.wal.segments {
-		if seg.id == segmentID {
-			r.currentSegment = i
-			r.lsn = lsn
-			_, err := seg.file.Seek(int64(offset), io.SeekStart)
-			if err != nil {
-				return fmt.Errorf("failed to seek in segment: %w", err)
-			}
-			r.bufferPos = 0
-			return r.fillBuffer()
-		}
-	}
-
-	return fmt.Errorf("segment not found for LSN %d", lsn)
-}
-
-func (r *WalReader) Next() (*Record, error) {
-	header := make([]byte, headerSize)
-	if err := r.read(header); err != nil {
-		return nil, err
-	}
-
-	if r.wal.encryptionKey != nil {
-		decryptedHeader, err := r.wal.decrypt(header)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decrypt record header: %w", err)
-		}
-		header = decryptedHeader
-	}
-
-	rec := &Record{
-		Type:   RecordType(binary.LittleEndian.Uint64(header[0:8])),
-		Entity: binary.LittleEndian.Uint64(header[8:16]),
-		TxID:   binary.LittleEndian.Uint64(header[16:24]),
-	}
-
-	dataLen := binary.LittleEndian.Uint32(header[24:28])
-	rec.Data = make([]byte, dataLen)
-	if err := r.read(rec.Data); err != nil {
-		return nil, err
-	}
-
-	if r.wal.encryptionKey != nil {
-		decryptedData, err := r.wal.decrypt(rec.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decrypt record data: %w", err)
-		}
-		rec.Data = decryptedData
-	}
-
-	r.lsn += LSN(headerSize + int(dataLen))
-	return rec, nil
-}
-
-func (r *WalReader) read(p []byte) error {
-	remaining := len(p)
-	for remaining > 0 {
-		if r.bufferPos >= len(r.buffer) {
-			if err := r.fillBuffer(); err != nil {
-				return err
-			}
-		}
-
-		n := copy(p[len(p)-remaining:], r.buffer[r.bufferPos:])
-		r.bufferPos += n
-		remaining -= n
-	}
-	return nil
-}
-
-func (r *WalReader) fillBuffer() error {
-	for {
-		if r.currentSegment >= len(r.wal.segments) {
-			return io.EOF
-		}
-
-		segment := r.wal.segments[r.currentSegment]
-		segment.mu.RLock()
-		n, err := segment.file.Read(r.buffer)
-		segment.mu.RUnlock()
-		if err == io.EOF {
-			r.currentSegment++
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read from segment: %w", err)
-		}
-
-		r.buffer = r.buffer[:n]
-		r.bufferPos = 0
-		return nil
-	}
-}
-
-func (r *WalReader) Close() {
-	r.wal.bufferPool.Put(r.buffer)
+func (w *Wal) NewReader() WalReader {
+	return NewReader(w)
 }
 
 func parseSegmentID(name string) (uint64, error) {
@@ -502,7 +395,6 @@ func (w *Wal) recover() error {
 		if err != nil {
 			return fmt.Errorf("error during recovery: %w", err)
 		}
-		lastLSN = reader.lsn
 	}
 
 	w.lastCheckpoint = lastLSN
@@ -537,22 +429,22 @@ func (w *Wal) Checkpoint() error {
 
 func decodeField(data []byte, field *Field) (interface{}, int, error) {
 	switch field.Type {
-	case TypeUint64:
+	case "uint64":
 		if len(data) < 8 {
 			return nil, 0, fmt.Errorf("insufficient data for uint64")
 		}
 		return binary.LittleEndian.Uint64(data), 8, nil
-	case TypeInt64:
+	case "int64":
 		if len(data) < 8 {
 			return nil, 0, fmt.Errorf("insufficient data for int64")
 		}
 		return int64(binary.LittleEndian.Uint64(data)), 8, nil
-	case TypeFloat64:
+	case "float64":
 		if len(data) < 8 {
 			return nil, 0, fmt.Errorf("insufficient data for float64")
 		}
 		return math.Float64frombits(binary.LittleEndian.Uint64(data)), 8, nil
-	case TypeString:
+	case "string":
 		if len(data) < 4 {
 			return nil, 0, fmt.Errorf("insufficient data for string length")
 		}
@@ -561,7 +453,7 @@ func decodeField(data []byte, field *Field) (interface{}, int, error) {
 			return nil, 0, fmt.Errorf("insufficient data for string content")
 		}
 		return string(data[4 : 4+length]), 4 + length, nil
-	case TypeBytes:
+	case "bytes":
 		if len(data) < 4 {
 			return nil, 0, fmt.Errorf("insufficient data for bytes length")
 		}
@@ -625,7 +517,7 @@ func (w *Wal) writeCheckpoint(checkpoint Checkpoint) error {
 func (w *Wal) GetSchema(entityID uint64) (*Schema, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	schema, ok := w.schemaRegistry.schemas[entityID]
+	schema, ok := w.schemaRegistry[entityID]
 	if !ok {
 		return nil, fmt.Errorf("schema not found for entity %d", entityID)
 	}

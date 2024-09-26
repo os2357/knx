@@ -1,24 +1,26 @@
-package wal
+package wal_test
 
 import (
-	"bytes"
-	"encoding/binary"
-	"io/ioutil"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"blockwatch.cc/knoxdb/internal/wal"
 )
 
 func TestWalBasicOperations(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "wal_test")
+	tempDir, err := os.MkdirTemp("", "wal_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	opts := WalOptions{
+	opts := wal.WalOptions{
 		Path:           tempDir,
 		MaxSegmentSize: 1024,
 		MaxRecordSize:  100,
@@ -26,14 +28,14 @@ func TestWalBasicOperations(t *testing.T) {
 		SyncInterval:   time.Second,
 	}
 
-	w, err := Open(opts)
+	w, err := wal.Open(opts)
 	require.NoError(t, err)
 	defer w.Close()
 
 	// Test writing records
 	for i := 0; i < 10; i++ {
-		rec := &Record{
-			Type:   RecordType(i % 3),
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
 			Entity: uint64(i),
 			TxID:   uint64(i * 100),
 			Data:   []byte(fmt.Sprintf("test data %d", i)),
@@ -53,7 +55,7 @@ func TestWalBasicOperations(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		rec, err := reader.Next()
 		assert.NoError(t, err)
-		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, wal.RecordType(i%3), rec.Type)
 		assert.Equal(t, uint64(i), rec.Entity)
 		assert.Equal(t, uint64(i*100), rec.TxID)
 		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
@@ -65,11 +67,11 @@ func TestWalBasicOperations(t *testing.T) {
 }
 
 func TestWalSegmentRollover(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "wal_test")
+	tempDir, err := os.MkdirTemp("", "wal_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	opts := WalOptions{
+	opts := wal.WalOptions{
 		Path:           tempDir,
 		MaxSegmentSize: 100,
 		MaxRecordSize:  50,
@@ -77,14 +79,14 @@ func TestWalSegmentRollover(t *testing.T) {
 		SyncInterval:   time.Second,
 	}
 
-	w, err := Open(opts)
+	w, err := wal.Open(opts)
 	require.NoError(t, err)
 	defer w.Close()
 
 	// Write records until we have multiple segments
 	for i := 0; i < 20; i++ {
-		rec := &Record{
-			Type:   RecordType(i % 3),
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
 			Entity: uint64(i),
 			TxID:   uint64(i * 100),
 			Data:   []byte(fmt.Sprintf("test data %d", i)),
@@ -108,7 +110,7 @@ func TestWalSegmentRollover(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		rec, err := reader.Next()
 		assert.NoError(t, err)
-		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, wal.RecordType(i%3), rec.Type)
 		assert.Equal(t, uint64(i), rec.Entity)
 		assert.Equal(t, uint64(i*100), rec.TxID)
 		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
@@ -116,11 +118,11 @@ func TestWalSegmentRollover(t *testing.T) {
 }
 
 func TestWalCheckpointAndRecovery(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "wal_test")
+	tempDir, err := os.MkdirTemp("", "wal_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	opts := WalOptions{
+	opts := wal.WalOptions{
 		Path:           tempDir,
 		MaxSegmentSize: 1024,
 		MaxRecordSize:  100,
@@ -128,13 +130,13 @@ func TestWalCheckpointAndRecovery(t *testing.T) {
 		SyncInterval:   time.Second,
 	}
 
-	w, err := Open(opts)
+	w, err := wal.Open(opts)
 	require.NoError(t, err)
 
 	// Write some records
 	for i := 0; i < 10; i++ {
-		rec := &Record{
-			Type:   RecordType(i % 3),
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
 			Entity: uint64(i),
 			TxID:   uint64(i * 100),
 			Data:   []byte(fmt.Sprintf("test data %d", i)),
@@ -149,8 +151,8 @@ func TestWalCheckpointAndRecovery(t *testing.T) {
 
 	// Write more records
 	for i := 10; i < 20; i++ {
-		rec := &Record{
-			Type:   RecordType(i % 3),
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
 			Entity: uint64(i),
 			TxID:   uint64(i * 100),
 			Data:   []byte(fmt.Sprintf("test data %d", i)),
@@ -162,7 +164,7 @@ func TestWalCheckpointAndRecovery(t *testing.T) {
 	w.Close()
 
 	// Reopen the WAL
-	w, err = Open(opts)
+	w, err = wal.Open(opts)
 	require.NoError(t, err)
 	defer w.Close()
 
@@ -176,7 +178,7 @@ func TestWalCheckpointAndRecovery(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		rec, err := reader.Next()
 		assert.NoError(t, err)
-		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, wal.RecordType(i%3), rec.Type)
 		assert.Equal(t, uint64(i), rec.Entity)
 		assert.Equal(t, uint64(i*100), rec.TxID)
 		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
@@ -184,13 +186,13 @@ func TestWalCheckpointAndRecovery(t *testing.T) {
 }
 
 func TestWalEncryption(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "wal_test")
+	tempDir, err := os.MkdirTemp("", "wal_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
 	encryptionKey := []byte("0123456789abcdef") // 16-byte key for AES-128
 
-	opts := WalOptions{
+	opts := wal.WalOptions{
 		Path:           tempDir,
 		MaxSegmentSize: 1024,
 		MaxRecordSize:  100,
@@ -199,14 +201,14 @@ func TestWalEncryption(t *testing.T) {
 		EncryptionKey:  encryptionKey,
 	}
 
-	w, err := Open(opts)
+	w, err := wal.Open(opts)
 	require.NoError(t, err)
 	defer w.Close()
 
 	// Write encrypted records
 	for i := 0; i < 10; i++ {
-		rec := &Record{
-			Type:   RecordType(i % 3),
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
 			Entity: uint64(i),
 			TxID:   uint64(i * 100),
 			Data:   []byte(fmt.Sprintf("secret data %d", i)),
@@ -220,7 +222,7 @@ func TestWalEncryption(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, segments)
 
-	encryptedData, err := ioutil.ReadFile(segments[0])
+	encryptedData, err := os.ReadFile(segments[0])
 	assert.NoError(t, err)
 	assert.NotContains(t, string(encryptedData), "secret data")
 
@@ -234,7 +236,7 @@ func TestWalEncryption(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		rec, err := reader.Next()
 		assert.NoError(t, err)
-		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, wal.RecordType(i%3), rec.Type)
 		assert.Equal(t, uint64(i), rec.Entity)
 		assert.Equal(t, uint64(i*100), rec.TxID)
 		assert.Equal(t, []byte(fmt.Sprintf("secret data %d", i)), rec.Data)
@@ -242,11 +244,11 @@ func TestWalEncryption(t *testing.T) {
 }
 
 func TestWalCompaction(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "wal_test")
+	tempDir, err := os.MkdirTemp("", "wal_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	opts := WalOptions{
+	opts := wal.WalOptions{
 		Path:           tempDir,
 		MaxSegmentSize: 100,
 		MaxRecordSize:  50,
@@ -254,15 +256,15 @@ func TestWalCompaction(t *testing.T) {
 		SyncInterval:   time.Second,
 	}
 
-	w, err := Open(opts)
+	w, err := wal.Open(opts)
 	require.NoError(t, err)
 	defer w.Close()
 
 	// Write records to create multiple segments
-	var compactionLSN LSN
+	var compactionLSN wal.LSN
 	for i := 0; i < 20; i++ {
-		rec := &Record{
-			Type:   RecordType(i % 3),
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
 			Entity: uint64(i),
 			TxID:   uint64(i * 100),
 			Data:   []byte(fmt.Sprintf("test data %d", i)),
@@ -300,7 +302,7 @@ func TestWalCompaction(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		rec, err := reader.Next()
 		assert.NoError(t, err)
-		assert.Equal(t, RecordType(i%3), rec.Type)
+		assert.Equal(t, wal.RecordType(i%3), rec.Type)
 		assert.Equal(t, uint64(i), rec.Entity)
 		assert.Equal(t, uint64(i*100), rec.TxID)
 		assert.Equal(t, []byte(fmt.Sprintf("test data %d", i)), rec.Data)
@@ -308,11 +310,11 @@ func TestWalCompaction(t *testing.T) {
 }
 
 func TestWalMetrics(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "wal_test")
+	tempDir, err := os.MkdirTemp("", "wal_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	opts := WalOptions{
+	opts := wal.WalOptions{
 		Path:           tempDir,
 		MaxSegmentSize: 1024,
 		MaxRecordSize:  100,
@@ -320,14 +322,14 @@ func TestWalMetrics(t *testing.T) {
 		SyncInterval:   time.Second,
 	}
 
-	w, err := Open(opts)
+	w, err := wal.Open(opts)
 	require.NoError(t, err)
 	defer w.Close()
 
 	// Write some records
 	for i := 0; i < 10; i++ {
-		rec := &Record{
-			Type:   RecordType(i % 3),
+		rec := &wal.Record{
+			Type:   wal.RecordType(i % 3),
 			Entity: uint64(i),
 			TxID:   uint64(i * 100),
 			Data:   []byte(fmt.Sprintf("test data %d", i)),
@@ -344,11 +346,11 @@ func TestWalMetrics(t *testing.T) {
 }
 
 func TestWalConcurrency(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "wal_test")
+	tempDir, err := os.MkdirTemp("", "wal_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	opts := WalOptions{
+	opts := wal.WalOptions{
 		Path:           tempDir,
 		MaxSegmentSize: 1024,
 		MaxRecordSize:  100,
@@ -356,7 +358,7 @@ func TestWalConcurrency(t *testing.T) {
 		SyncInterval:   time.Second,
 	}
 
-	w, err := Open(opts)
+	w, err := wal.Open(opts)
 	require.NoError(t, err)
 	defer w.Close()
 
@@ -369,8 +371,8 @@ func TestWalConcurrency(t *testing.T) {
 		go func(workerID int) {
 			defer wg.Done()
 			for j := 0; j < numRecordsPerWorker; j++ {
-				rec := &Record{
-					Type:   RecordType(j % 3),
+				rec := &wal.Record{
+					Type:   wal.RecordType(j % 3),
 					Entity: uint64(workerID*numRecordsPerWorker + j),
 					TxID:   uint64((workerID*numRecordsPerWorker + j) * 100),
 					Data:   []byte(fmt.Sprintf("worker %d data %d", workerID, j)),
