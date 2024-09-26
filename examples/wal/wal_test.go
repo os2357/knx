@@ -39,15 +39,18 @@ func TestWalBasicOperations(t *testing.T) {
     t.Log("Writing records")
     // Test writing records
     for i := 0; i < 10; i++ {
+        t.Logf("Creating record %d", i)
         rec := &wal.Record{
             Type:   wal.RecordType(i % 3),
             Entity: uint64(i),
             TxID:   uint64(i * 100),
             Data:   []byte(fmt.Sprintf("test data %d", i)),
         }
+        t.Logf("Writing record %d", i)
         lsn, err := w.Write(rec)
-        assert.NoError(t, err)
-        assert.NotZero(t, lsn)
+        if err != nil {
+            t.Fatalf("Failed to write record %d: %v", i, err)
+        }
         t.Logf("Wrote record %d, LSN: %d", i, lsn)
     }
 

@@ -181,23 +181,29 @@ func (w *Wal) createNewSegment(id uint64) (*Segment, error) {
 }
 
 func (w *Wal) Write(rec *Record) (LSN, error) {
+	fmt.Println("Starting Write operation")
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	startTime := time.Now()
 
+	fmt.Println("Calculating LSN")
 	lsn := w.calculateLSN()
 	
+	fmt.Println("Ensuring capacity")
 	if err := w.ensureCapacity(int64(rec.Size())); err != nil {
 		return 0, fmt.Errorf("failed to ensure capacity: %w", err)
 	}
 
+	fmt.Println("Writing record to segment")
 	if err := w.writeRecordToSegment(rec); err != nil {
 		return 0, fmt.Errorf("failed to write record: %w", err)
 	}
 
+	fmt.Println("Updating metrics")
 	w.updateMetrics(startTime, int64(rec.Size()))
 
+	fmt.Println("Write operation completed")
 	return lsn, nil
 }
 
