@@ -58,8 +58,6 @@ type Checkpoint struct {
 }
 
 func Open(opts WalOptions) (*Wal, error) {
-	debugPrint(1, "Starting WAL Open\n")
-	
 	w := &Wal{
 		opts: opts,
 		bufferPool: &sync.Pool{
@@ -71,27 +69,19 @@ func Open(opts WalOptions) (*Wal, error) {
 		logger:  log.New(os.Stderr, "WAL: ", log.LstdFlags),
 		schemaRegistry: make(map[uint64]*Schema),
 	}
-	debugPrint(1, "WAL struct initialized\n")
 
 	// Initialize segments
 	if initErr := w.initSegments(); initErr != nil {
 		return nil, fmt.Errorf("failed to initialize segments: %w", initErr)
 	}
-	debugPrint(1, "Segments initialized\n")
 
 	// Add any other initialization steps here
 	// ...
 
-	debugPrint(1, "Starting background tasks\n")
-	// Start background tasks (if any)
-	// ...
-
-	debugPrint(1, "WAL Open completed\n")
 	return w, nil
 }
 
 func (w *Wal) initSegments() error {
-	debugPrint(1, "Starting initSegments\n")
 	files, err := filepath.Glob(filepath.Join(w.opts.Path, "*.wal"))
 	if err != nil {
 		return fmt.Errorf("failed to list WAL segments: %w", err)
@@ -116,7 +106,6 @@ func (w *Wal) initSegments() error {
 	}
 
 	w.active = w.segments[len(w.segments)-1]
-	debugPrint(1, "initSegments completed\n")
 	return nil
 }
 
@@ -160,32 +149,24 @@ func (w *Wal) createNewSegment(id uint64) (*Segment, error) {
 }
 
 func (w *Wal) Write(rec *Record) (LSN, error) {
-	debugPrint(1, "Starting Write operation\n")
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	startTime := time.Now()
-
-	debugPrint(2, "Calculating LSN\n")
 	lsn := w.calculateLSN()
-	
-	debugPrint(2, "Ensuring capacity\n")
+
 	if err := w.ensureCapacity(int64(rec.Size())); err != nil {
 		return 0, fmt.Errorf("failed to ensure capacity: %w", err)
 	}
 
-	debugPrint(2, "Writing record to segment\n")
 	if err := w.writeRecordToSegment(rec); err != nil {
 		return 0, fmt.Errorf("failed to write record: %w", err)
 	}
 
-	// Add this line to update the active segment's position
 	w.active.position += int64(rec.Size())
-
-	debugPrint(2, "Updating metrics\n")
 	w.updateMetrics(startTime, int64(rec.Size()))
 
-	debugPrint(1, "Write operation completed\n")
+	w.logger.Printf("Wrote record: LSN=%d, Type=%s, Size=%d", lsn, rec.Type, rec.Size())
 	return lsn, nil
 }
 
@@ -243,14 +224,13 @@ func (r *Record) Size() int {
 }
 
 func (w *Wal) NewReader() WalReader {
-	debugPrint(1, "Creating new WAL reader\n")
 	reader := &Reader{
-		wal:                w,
-		currentSegment:     w.segments[0],
+		wal:                 w,
+		currentSegment:      w.segments[0],
 		currentSegmentIndex: 0,
-		buffer:             make([]byte, w.opts.BufferSize),
+		buffer:              make([]byte, w.opts.BufferSize),
 	}
-	debugPrint(1, "WAL reader created\n")
+	w.logger.Printf("Created new WAL reader")
 	return reader
 }
 
@@ -279,7 +259,6 @@ func (w *Wal) Sync() error {
 }
 
 func (w *Wal) Compact(lsn LSN) error {
-	debugPrint(3, "Starting compaction process\n")
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -292,7 +271,6 @@ func (w *Wal) Compact(lsn LSN) error {
 	}
 
 	if compactIndex == -1 || compactIndex == 0 {
-		debugPrint(3, "No segments to compact\n")
 		return nil
 	}
 
@@ -339,7 +317,7 @@ func (w *Wal) Compact(lsn LSN) error {
 	// Update segments slice
 	w.segments = append([]*Segment{newSegment}, w.segments[compactIndex:]...)
 
-	debugPrint(3, "Compaction completed successfully\n")
+	w.logger.Printf("Compaction completed: LSN=%d, OldSegments=%d, NewSegments=%d", lsn, compactIndex, len(w.segments))
 	return nil
 }
 
@@ -491,16 +469,4 @@ func (w *Wal) Checkpoint() error {
 	w.lastCheckpoint = checkpoint.LSN
 
 	return nil
-}
-
-var debugLevel int
-
-func SetDebugLevel(level int) {
-    debugLevel = level
-}
-
-func debugPrint(level int, format string, args ...interface{}) {
-    if debugLevel >= level {
-        fmt.Printf(format, args...)
-    }
 }

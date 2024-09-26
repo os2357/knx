@@ -13,16 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"blockwatch.cc/knoxdb/internal/wal"
-	"flag"
 )
-
-var debugFlag = flag.Int("debug", 1, "Debug level: 1, 2, or 3")
-
-func TestMain(m *testing.M) {
-	flag.Parse()
-	wal.SetDebugLevel(*debugFlag)
-	os.Exit(m.Run())
-}
 
 func TestWalBasicOperations(t *testing.T) {
 	t.Log("Starting TestWalBasicOperations")

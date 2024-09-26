@@ -5,9 +5,9 @@ package wal
 
 import (
 	"blockwatch.cc/knoxdb/internal/types"
+	"encoding/binary"
 	"fmt"
 	"io"
-	"encoding/binary"
 )
 
 type RecordFilter struct {
@@ -18,8 +18,8 @@ type RecordFilter struct {
 }
 
 type Schema struct {
-    Fields []Field
-    // Add other necessary fields
+	Fields []Field
+	// Add other necessary fields
 }
 
 func (f *RecordFilter) Match(r *Record) bool {
@@ -44,12 +44,12 @@ func (f *RecordFilter) Match(r *Record) bool {
 var _ WalReader = (*Reader)(nil)
 
 type Reader struct {
-	wal            *Wal
-	currentSegment *Segment
+	wal                 *Wal
+	currentSegment      *Segment
 	currentSegmentIndex int
-	lsn            LSN
-	buffer         []byte
-	bufferPos      int
+	lsn                 LSN
+	buffer              []byte
+	bufferPos           int
 }
 
 func NewReader(w *Wal) WalReader {
@@ -60,7 +60,6 @@ func NewReader(w *Wal) WalReader {
 }
 
 func (r *Reader) Seek(lsn LSN) error {
-	debugPrint(3, "Seeking to LSN: %d\n", lsn)
 	segmentID := uint64(lsn >> 32)
 	offset := uint64(lsn & 0xFFFFFFFF)
 
@@ -92,10 +91,7 @@ func (r *Reader) Seek(lsn LSN) error {
 }
 
 func (r *Reader) Next() (*Record, error) {
-	fmt.Println("Reading next record")
-	
 	if r.currentSegment == nil {
-		fmt.Println("No current segment, initializing")
 		if err := r.initializeReader(); err != nil {
 			return nil, err
 		}
@@ -103,21 +99,19 @@ func (r *Reader) Next() (*Record, error) {
 
 	record, err := r.readNextRecord()
 	if err == io.EOF {
-		fmt.Println("Reached end of current segment")
-		// Try to move to the next segment
 		if r.currentSegmentIndex < len(r.wal.segments)-1 {
 			r.currentSegmentIndex++
 			r.currentSegment = r.wal.segments[r.currentSegmentIndex]
 			r.currentSegment.file.Seek(0, io.SeekStart)
 			return r.Next()
 		}
-		fmt.Println("No more records, returning EOF")
 		return nil, io.EOF
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read next record: %w", err)
 	}
 
+	//r.wal.logger.Printf("Read record: LSN=%d, Type=%s", record.LSN, record.Type)
 	return record, nil
 }
 
@@ -131,7 +125,6 @@ func (r *Reader) initializeReader() error {
 	return err
 }
 
-// You might need to implement this method if it doesn't exist
 func (r *Reader) readNextRecord() (*Record, error) {
 	// Read the record header
 	header := make([]byte, headerSize)
