@@ -57,6 +57,7 @@ type Checkpoint struct {
 	Timestamp int64
 }
 
+// Open creates a new WAL instance with the given options.
 func Open(opts WalOptions) (*Wal, error) {
 	w := &Wal{
 		opts: opts,
@@ -65,18 +66,15 @@ func Open(opts WalOptions) (*Wal, error) {
 				return make([]byte, opts.BufferSize)
 			},
 		},
-		metrics: &WalMetrics{},
-		logger:  log.New(os.Stderr, "WAL: ", log.LstdFlags),
+		metrics:        &WalMetrics{},
+		logger:         log.New(os.Stderr, "WAL: ", log.LstdFlags),
 		schemaRegistry: make(map[uint64]*Schema),
 	}
 
 	// Initialize segments
-	if initErr := w.initSegments(); initErr != nil {
-		return nil, fmt.Errorf("failed to initialize segments: %w", initErr)
+	if err := w.initSegments(); err != nil {
+		return nil, fmt.Errorf("failed to initialize segments: %w", err)
 	}
-
-	// Add any other initialization steps here
-	// ...
 
 	return w, nil
 }
