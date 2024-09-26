@@ -109,10 +109,10 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 
 	// remember current size and truncate on failed write
 	// calculate the LSN
-	lsn := NewLSN(w.active.id, w.opts.MaxSegmentSize, w.active.pos)
+	lsn := NewLSN(w.active.id, int64(w.opts.MaxSegmentSize), w.active.pos)
 
 	// split record when active segment has not enough space
-	spaceLeft := w.opts.MaxSegmentSize - w.active.pos
+	spaceLeft := int64(w.opts.MaxSegmentSize) - w.active.pos
 	switch {
 	case spaceLeft < 28:
 		// not even the header fits, then roll active and write
@@ -138,7 +138,7 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 			return 0, err
 		}
 
-	case spaceLeft < len(rec.Data)+28:
+	case spaceLeft < int64(len(rec.Data)+28):
 		// only a part of the data fits, write header and whatever
 		// body data fits, then continue writing the remainder to
 		// the next active segment

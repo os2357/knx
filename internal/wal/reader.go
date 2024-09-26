@@ -4,6 +4,7 @@
 package wal
 
 import (
+	"bytes"
 	"io"
 
 	"blockwatch.cc/knoxdb/internal/types"
@@ -41,6 +42,8 @@ type Reader struct {
 	flt *RecordFilter
 	seg *segment
 	wal *Wal
+	buf *bytes.Buffer
+	lsn LSN
 }
 
 func (r *Reader) WithType(t RecordType) WalReader {
@@ -85,7 +88,7 @@ func (r *Reader) Close() error {
 
 func (r *Reader) Seek(lsn LSN) error {
 	// open segment and seek
-	filepos := calculateOffset(int(lsn), r.wal.opts.MaxSegmentSize)
+	filepos := lsn.calculateOffset(r.wal.opts.MaxSegmentSize)
 	seg, err := openSegment(lsn, r.wal.opts)
 	if err != nil {
 		return err
@@ -94,10 +97,17 @@ func (r *Reader) Seek(lsn LSN) error {
 	if err != nil {
 		return err
 	}
+	r.lsn = lsn
+	r.seg = seg
 	return nil
 }
 
 func (r *Reader) Next() (*Record, error) {
+	// check the seg is not nil
+	// check the lsn no
+	// open 0 segment if it is nil
+	// read file to buffer
+
 	// read protocol
 	// - read large chunks of data (to amortize i/o costs) into a buffer
 	// - then iterate the buffer record by record

@@ -38,8 +38,16 @@ func (t RecordType) String() string {
 // the unique position (offset) of a record in the wal.
 type LSN uint64
 
-func NewLSN(id, sz, pos int) LSN {
+func NewLSN(id, sz, pos int64) LSN {
 	return LSN(id*sz + pos)
+}
+
+func (lsn LSN) calculateFilename(sz int) int64 {
+	return int64(lsn / LSN(sz))
+}
+
+func (lsn LSN) calculateOffset(sz int) int64 {
+	return int64(lsn % LSN(sz))
 }
 
 type Record struct {

@@ -9,13 +9,13 @@ import (
 )
 
 type segment struct {
-	id  int
-	pos int
+	id  int64
+	pos int64
 	fd  *os.File
 }
 
 func createSegment(id LSN, opts WalOptions) (*segment, error) {
-	filename := calculateFilename(int(id), opts.MaxSegmentSize)
+	filename := id.calculateFilename(opts.MaxSegmentSize)
 	f, err := os.OpenFile(strconv.FormatInt(int64(filename), 10), os.O_CREATE|os.O_RDWR, os.ModeExclusive)
 	if err != nil {
 		return nil, err
@@ -29,12 +29,12 @@ func createSegment(id LSN, opts WalOptions) (*segment, error) {
 }
 
 func openSegment(id LSN, opts WalOptions) (*segment, error) {
-	filename := calculateFilename(int(id), opts.MaxSegmentSize)
+	filename := id.calculateFilename(opts.MaxSegmentSize)
 	f, err := os.OpenFile(strconv.FormatInt(int64(filename), 10), os.O_RDWR|os.O_APPEND, os.ModeExclusive)
 	if err != nil {
 		return nil, err
 	}
-	fileOffset := calculateOffset(int(id), opts.MaxSegmentSize)
+	fileOffset := id.calculateOffset(opts.MaxSegmentSize)
 	// load last record's checksum
 	return &segment{
 		fd:  f,
@@ -59,8 +59,8 @@ func (s *segment) LastRecord() (*Record, error) {
 	return nil, nil
 }
 
-func (s *segment) Truncate(sz int) error {
-	return s.fd.Truncate(int64(sz))
+func (s *segment) Truncate(sz int64) error {
+	return s.fd.Truncate(sz)
 }
 
 func (s *segment) Write(buf []byte) (int, error) {
@@ -68,7 +68,7 @@ func (s *segment) Write(buf []byte) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	s.pos += n
+	s.pos += int64(n)
 	return n, nil
 }
 
@@ -116,11 +116,3 @@ func (s *segment) Write(buf []byte) (int, error) {
 
 // 	return
 // }
-
-func calculateFilename(lsn, sz int) int {
-	return lsn / sz
-}
-
-func calculateOffset(lsn, sz int) int {
-	return lsn % sz
-}
