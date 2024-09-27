@@ -5,11 +5,13 @@ package wal
 
 import (
 	"bytes"
-	"errors"
 	"io"
-	"os"
 
 	"blockwatch.cc/knoxdb/internal/types"
+)
+
+const (
+	chunkSize = 10 << 10
 )
 
 type RecordFilter struct {
@@ -49,7 +51,7 @@ type Reader struct {
 }
 
 func NewReader(wal *Wal) *Reader {
-	return &Reader{wal: wal, buf: bytes.NewBuffer(nil)}
+	return &Reader{wal: wal, buf: bytes.NewBuffer(make([]byte, 0, chunkSize))}
 }
 
 func (r *Reader) WithType(t RecordType) WalReader {
@@ -120,110 +122,111 @@ func (r *Reader) Next() (*Record, error) {
 	// - after reading each record, check the chained checksum
 	// - then decide whether we should skip based on filter match
 
-	if r.seg == nil {
-		r.lsn = LSN(r.wal.opts.Seed)
-		err := r.Seek(r.lsn)
-		if err != nil {
-			return nil, err
-		}
+	// 	if r.seg == nil {
+	// 		r.lsn = LSN(r.wal.opts.Seed)
+	// 		err := r.Seek(r.lsn)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
 
-		_, err = io.Copy(r.buf, r.seg.fd)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// 		_, err = io.Copy(r.buf, r.seg.fd)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 	}
 
-	record := &Record{}
-	dataLength := uint32(0)
+	// 	record := &Record{}
+	// 	dataLength := uint32(0)
 
-RecordAssembler:
-	for {
-		if r.buf.Available() == 0 {
-			err := r.nextSegment()
-			if err != nil {
-				if errors.Is(err, os.ErrNotExist) {
-					break RecordAssembler
-				}
-				return nil, err
-			}
-		}
+	// RecordAssembler:
+	// 	for {
+	// 		if r.buf.Len() == 0 {
+	// 			err := r.nextSegment()
+	// 			if err != nil {
+	// 				if errors.Is(err, os.ErrNotExist) {
+	// 					break RecordAssembler
+	// 				}
+	// 				return nil, err
+	// 			}
+	// 		}
 
-		switch {
-		case !record.Type.IsValid():
-			typ, err := r.buf.ReadByte()
-			if err != nil {
-				return nil, err
-			}
-			record.Type = RecordType(typ)
-		case !record.Tag.IsValid():
-			tag, err := r.buf.ReadByte()
-			if err != nil {
-				return nil, err
-			}
-			record.Tag = types.ObjectTag(tag)
-		case !record.isEntityWritten:
-			switch {
-			case r.buf.Available() >= 8:
-				record.Entity = LE.Uint64(r.buf.Next(8))
-				record.isEntityWritten = true
-			default:
-				err := r.nextSegment()
-				if err != nil {
-					if errors.Is(err, os.ErrNotExist) {
-						break RecordAssembler
-					}
-					return nil, err
-				}
-			}
-		case !record.isTxIDWritten:
-			switch {
-			case r.buf.Available() >= 8:
-				record.TxID = LE.Uint64(r.buf.Next(8))
-				record.isTxIDWritten = true
-			default:
-				err := r.nextSegment()
-				if err != nil {
-					if errors.Is(err, os.ErrNotExist) {
-						break RecordAssembler
-					}
-					return nil, err
-				}
-			}
-		case !record.isDataLengthWritten:
-			switch {
-			case r.buf.Available() >= 4:
-				dataLength = LE.Uint32(r.buf.Next(4))
-				record.isDataLengthWritten = true
-			default:
-				err := r.nextSegment()
-				if err != nil {
-					if errors.Is(err, os.ErrNotExist) {
-						break RecordAssembler
-					}
-					return nil, err
-				}
-			}
-		default:
-			switch {
-			case r.buf.Available() >= int(dataLength):
-				record.Data = r.buf.Next(int(dataLength))
-				if !r.flt.Match(record) {
-					record = &Record{}
-					dataLength = uint32(0)
-					continue
-				}
-				return record, nil
-			default:
-				err := r.nextSegment()
-				if err != nil {
-					if errors.Is(err, os.ErrNotExist) {
-						break RecordAssembler
-					}
-					return nil, err
-				}
-			}
-		}
-	}
+	// 		switch {
+	// 		case !record.Type.IsValid():
+	// 			typ, err := r.buf.ReadByte()
+	// 			if err != nil {
+	// 				return nil, err
+	// 			}
+	// 			record.Type = RecordType(typ)
+	// 		case !record.Tag.IsValid():
+	// 			tag, err := r.buf.ReadByte()
+	// 			if err != nil {
+	// 				return nil, err
+	// 			}
+	// 			record.Tag = types.ObjectTag(tag)
+	// 		case !record.isEntityWritten:
+	// 			switch {
+	// 			case r.buf.Len() >= 8:
+	// 				record.Entity = LE.Uint64(r.buf.Next(8))
+	// 				record.isEntityWritten = true
+	// 			default:
+	// 				err := r.nextSegment()
+	// 				if err != nil {
+	// 					if errors.Is(err, os.ErrNotExist) {
+	// 						break RecordAssembler
+	// 					}
+	// 					return nil, err
+	// 				}
+	// 			}
+	// 		case !record.isTxIDWritten:
+	// 			switch {
+	// 			case r.buf.Len() >= 8:
+	// 				record.TxID = LE.Uint64(r.buf.Next(8))
+	// 				record.isTxIDWritten = true
+	// 			default:
+	// 				err := r.nextSegment()
+	// 				if err != nil {
+	// 					if errors.Is(err, os.ErrNotExist) {
+	// 						break RecordAssembler
+	// 					}
+	// 					return nil, err
+	// 				}
+	// 			}
+	// 		case !record.isDataLengthWritten:
+	// 			switch {
+	// 			case r.buf.Len() >= 4:
+	// 				dataLength = LE.Uint32(r.buf.Next(4))
+	// 				record.isDataLengthWritten = true
+	// 			default:
+	// 				err := r.nextSegment()
+	// 				if err != nil {
+	// 					if errors.Is(err, os.ErrNotExist) {
+	// 						break RecordAssembler
+	// 					}
+	// 					return nil, err
+	// 				}
+	// 			}
+	// 		default:
+	// 			switch {
+	// 			case r.buf.Len() >= int(dataLength):
+	// 				record.Data = r.buf.Next(int(dataLength))
+	// 				if !r.flt.Match(record) {
+	// 					record = &Record{}
+	// 					dataLength = uint32(0)
+	// 					continue
+	// 				}
+	// 				// add checksum comparison
+	// 				return record, nil
+	// 			default:
+	// 				err := r.nextSegment()
+	// 				if err != nil {
+	// 					if errors.Is(err, os.ErrNotExist) {
+	// 						break RecordAssembler
+	// 					}
+	// 					return nil, err
+	// 				}
+	// 			}
+	// 		}
+	// 	}
 	return nil, io.EOF
 }
 

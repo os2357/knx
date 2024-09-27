@@ -7,13 +7,16 @@ import (
 	"encoding/binary"
 	"hash"
 	"os"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/hash/xxhash"
 	"blockwatch.cc/knoxdb/internal/types"
 )
 
 var LE = binary.LittleEndian
+
+const (
+	headerSize = 30
+)
 
 type WalReader interface {
 	Seek(LSN) error
@@ -91,7 +94,7 @@ func (w *Wal) Sync() error {
 func (w *Wal) Write(rec *Record) (LSN, error) {
 	// write record to active segment
 	// create header
-	var head [28]byte
+	var head [headerSize]byte
 	head[0] = byte(rec.Type)
 	head[1] = byte(rec.Tag)
 	LE.PutUint64(head[2:], rec.Entity)
@@ -111,24 +114,18 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 	// calculate the LSN
 	lsn := NewLSN(w.active.id, int64(w.opts.MaxSegmentSize), w.active.pos)
 
-	data := unsafe.Slice(unsafe.SliceData(head[:]), len(head))
+	data := head[:]
 	dataPos := int64(0)
 	isHeaderWritten := false
-	sizeOfRemainingDataToWrite := int64(28)
+	sizeOfRemainingDataToWrite := int64(headerSize)
 
 	for {
 		if w.opts.MaxSegmentSize == int(w.active.pos) {
 			// make sure active file synced first
-			err := w.Sync()
+			err := w.nextSegment()
 			if err != nil {
 				return 0, err
 			}
-			err = w.nextSegment()
-			if err != nil {
-				return 0, err
-			}
-
-			lsn = NewLSN(w.active.id, int64(w.opts.MaxSegmentSize), w.active.pos)
 		}
 
 		spaceLeft := int64(w.opts.MaxSegmentSize) - w.active.pos
@@ -137,10 +134,11 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 			sizeOfDataToWriteToCurrentFile = spaceLeft
 		}
 
-		_, err := w.writeData(data[dataPos : dataPos+sizeOfDataToWriteToCurrentFile])
+		pos, err := w.writeData(data[dataPos : dataPos+sizeOfDataToWriteToCurrentFile])
 		if err != nil {
 			return 0, err
 		}
+		w.active.pos = int64(pos)
 		sizeOfRemainingDataToWrite -= sizeOfDataToWriteToCurrentFile
 		dataPos -= sizeOfDataToWriteToCurrentFile
 
@@ -150,7 +148,7 @@ func (w *Wal) Write(rec *Record) (LSN, error) {
 			}
 
 			isHeaderWritten = true
-			data = unsafe.Slice(unsafe.SliceData(rec.Data[:]), len(rec.Data))
+			data = rec.Data
 			dataPos = int64(0)
 		}
 	}

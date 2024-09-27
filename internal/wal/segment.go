@@ -25,6 +25,20 @@ func createSegment(id LSN, opts WalOptions) (*segment, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			f.Close()
+		}
+	}()
+	var dir *os.File
+	dir, err = os.Open(opts.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+	if err = dir.Sync(); err != nil {
+		return nil, err
+	}
 	// use the seed as first checksum
 	return &segment{
 		pos: 0,
@@ -83,5 +97,6 @@ func (s *segment) Seek(offset int64, whence int) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	s.pos = n
 	return n, nil
 }
