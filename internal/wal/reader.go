@@ -229,8 +229,8 @@ RecordAssembler:
 
 func (r *Reader) nextSegment() error {
 	id := r.lsn.calculateFilename(r.wal.opts.MaxSegmentSize)
-	lsn := NewLSN(id+1, int64(r.wal.opts.MaxSegmentSize), 0)
-	seg, err := openSegment(lsn, r.wal.opts)
+	r.lsn = NewLSN(id+1, int64(r.wal.opts.MaxSegmentSize), 0)
+	seg, err := openSegment(r.lsn, r.wal.opts)
 	if err != nil {
 		return err
 	}
