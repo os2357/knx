@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"hash"
 	"os"
+	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/hash/xxhash"
 	"blockwatch.cc/knoxdb/internal/types"
@@ -88,96 +89,69 @@ func (w *Wal) Sync() error {
 }
 
 func (w *Wal) Write(rec *Record) (LSN, error) {
-	// Note: this is only an example to show how a record can be written
-	//
+	// write record to active segment
 	// create header
 	var head [28]byte
 	head[0] = byte(rec.Type)
 	head[1] = byte(rec.Tag)
 	LE.PutUint64(head[2:], rec.Entity)
 	LE.PutUint64(head[10:], rec.TxID)
-	LE.PutUint32(head[16:], uint32(len(rec.Data)))
+	LE.PutUint32(head[18:], uint32(len(rec.Data)))
 
 	// calculate chained checksum
 	w.hash.Reset()
 	var b [8]byte
 	LE.PutUint64(b[:], w.csum)
 	w.hash.Write(b[:])
-	w.hash.Write(head[:20])
+	w.hash.Write(head[:22])
 	w.hash.Write(rec.Data)
-	w.hash.Sum(head[20:]) // TODO(abdul): ??
+	w.hash.Sum(head[22:])
 
 	// remember current size and truncate on failed write
 	// calculate the LSN
 	lsn := NewLSN(w.active.id, int64(w.opts.MaxSegmentSize), w.active.pos)
 
-	// split record when active segment has not enough space
-	spaceLeft := int64(w.opts.MaxSegmentSize) - w.active.pos
-	switch {
-	case spaceLeft < 28:
-		// not even the header fits, then roll active and write
-		// the full record into the next active segment
+	data := unsafe.Slice(unsafe.SliceData(head[:]), len(head))
+	dataPos := int64(0)
+	isHeaderWritten := false
+	sizeOfRemainingDataToWrite := int64(28)
 
-		// TODO: maybe pad the current active segment to full size before close
+	for {
+		if w.opts.MaxSegmentSize == int(w.active.pos) {
+			// make sure active file synced first
+			err := w.Sync()
+			if err != nil {
+				return 0, err
+			}
+			err = w.nextSegment()
+			if err != nil {
+				return 0, err
+			}
 
-		err := w.nextSegment()
+			lsn = NewLSN(w.active.id, int64(w.opts.MaxSegmentSize), w.active.pos)
+		}
+
+		spaceLeft := int64(w.opts.MaxSegmentSize) - w.active.pos
+		sizeOfDataToWriteToCurrentFile := sizeOfRemainingDataToWrite
+		if sizeOfRemainingDataToWrite < spaceLeft {
+			sizeOfDataToWriteToCurrentFile = spaceLeft
+		}
+
+		_, err := w.writeData(data[dataPos : dataPos+sizeOfDataToWriteToCurrentFile])
 		if err != nil {
 			return 0, err
 		}
-		lsn = LSN(w.active.id + w.active.pos)
+		sizeOfRemainingDataToWrite -= sizeOfDataToWriteToCurrentFile
+		dataPos -= sizeOfDataToWriteToCurrentFile
 
-		// write header
-		_, err = w.writeHeader(head)
-		if err != nil {
-			return 0, err
-		}
+		if sizeOfRemainingDataToWrite == 0 {
+			if isHeaderWritten {
+				break
+			}
 
-		// write data
-		_, err = w.writeData(rec.Data)
-		if err != nil {
-			return 0, err
-		}
-
-	case spaceLeft < int64(len(rec.Data)+28):
-		// only a part of the data fits, write header and whatever
-		// body data fits, then continue writing the remainder to
-		// the next active segment
-
-		// write header
-		_, err := w.writeHeader(head)
-		if err != nil {
-			return 0, err
-		}
-
-		// write first data part
-		_, err = w.writeData(rec.Data[:spaceLeft-28])
-		if err != nil {
-			return 0, err
-		}
-
-		// roll active segment
-		err = w.nextSegment()
-		if err != nil {
-			return 0, err
-		}
-
-		// write second data part
-		_, err = w.writeData(rec.Data[spaceLeft-28:])
-		if err != nil {
-			return 0, err
-		}
-
-	default:
-		// everything fits
-
-		// write header
-		if _, err := w.writeHeader(head); err != nil {
-			return 0, err
-		}
-
-		// write data
-		if _, err := w.writeData(rec.Data); err != nil {
-			return 0, err
+			isHeaderWritten = true
+			data = unsafe.Slice(unsafe.SliceData(rec.Data[:]), len(rec.Data))
+			dataPos = int64(0)
 		}
 	}
 
@@ -205,21 +179,13 @@ func (w *Wal) nextSegment() error {
 	if err := w.active.Close(); err != nil {
 		return err
 	}
-	seg, err := createSegment(1, w.opts)
+	lsn := NewLSN(w.active.id+1, int64(w.opts.MaxSegmentSize), 0)
+	seg, err := createSegment(lsn, w.opts)
 	if err != nil {
 		return err
 	}
 	w.active = seg
 	return nil
-}
-
-func (w *Wal) writeHeader(head [28]byte) (int, error) {
-	pos, err := w.active.Write(head[:])
-	if err != nil {
-		_ = w.active.Truncate(w.active.pos)
-		return 0, err
-	}
-	return pos, err
 }
 
 func (w *Wal) writeData(data []byte) (int, error) {

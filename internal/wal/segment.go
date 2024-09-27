@@ -4,8 +4,12 @@
 package wal
 
 import (
+	"fmt"
 	"os"
-	"strconv"
+)
+
+const (
+	segmentExt = "SEG"
 )
 
 type segment struct {
@@ -16,7 +20,8 @@ type segment struct {
 
 func createSegment(id LSN, opts WalOptions) (*segment, error) {
 	filename := id.calculateFilename(opts.MaxSegmentSize)
-	f, err := os.OpenFile(strconv.FormatInt(int64(filename), 10), os.O_CREATE|os.O_RDWR, os.ModeExclusive)
+	name := fmt.Sprintf("%d.%s", filename, segmentExt)
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +35,8 @@ func createSegment(id LSN, opts WalOptions) (*segment, error) {
 
 func openSegment(id LSN, opts WalOptions) (*segment, error) {
 	filename := id.calculateFilename(opts.MaxSegmentSize)
-	f, err := os.OpenFile(strconv.FormatInt(int64(filename), 10), os.O_RDWR|os.O_APPEND, os.ModeExclusive)
+	name := fmt.Sprintf("%d.%s", filename, segmentExt)
+	f, err := os.OpenFile(name, os.O_RDWR, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -72,47 +78,10 @@ func (s *segment) Write(buf []byte) (int, error) {
 	return n, nil
 }
 
-// func (s *segment) Write(rec *Record) (lsn LSN, err error) {
-// 	// Note: this is only an example to show how a record can be written
-// 	//
-// 	// create header
-// 	var head [28]byte
-// 	head[0] = byte(rec.Type)
-// 	head[1] = byte(rec.Tag)
-// 	LE.PutUint64(head[2:], rec.Entity)
-// 	LE.PutUint64(head[10:], rec.TxID)
-// 	LE.PutUint32(head[16:], uint32(len(rec.Data)))
-
-// 	// calculate chained checksum
-// 	s.hash.Reset()
-// 	var b [8]byte
-// 	LE.PutUint64(b[:], s.csum)
-// 	s.hash.Write(b[:])
-// 	s.hash.Write(head[:20])
-// 	s.hash.Write(rec.Data)
-// 	s.hash.Sum(head[20:])
-
-// 	// write header
-// 	var n, sz int
-// 	n, err = s.fd.Write(head[:])
-// 	if err != nil {
-// 		return
-// 	}
-// 	sz += n
-
-// 	// write data
-// 	n, err = s.fd.Write(rec.Data)
-// 	if err != nil {
-// 		return
-// 	}
-// 	sz += n
-
-// 	// TODO: mix in the segment id
-// 	lsn = LSN(s.id + s.pos)
-
-// 	// update state
-// 	s.pos += sz
-// 	s.csum = s.hash.Sum64()
-
-// 	return
-// }
+func (s *segment) Seek(offset int64, whence int) (int64, error) {
+	n, err := s.fd.Seek(offset, whence)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}

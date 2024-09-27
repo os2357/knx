@@ -5,7 +5,9 @@ package wal
 
 import (
 	"bytes"
+	"errors"
 	"io"
+	"os"
 
 	"blockwatch.cc/knoxdb/internal/types"
 )
@@ -44,6 +46,10 @@ type Reader struct {
 	wal *Wal
 	buf *bytes.Buffer
 	lsn LSN
+}
+
+func NewReader(wal *Wal) *Reader {
+	return &Reader{wal: wal, buf: bytes.NewBuffer(nil)}
 }
 
 func (r *Reader) WithType(t RecordType) WalReader {
@@ -93,7 +99,7 @@ func (r *Reader) Seek(lsn LSN) error {
 	if err != nil {
 		return err
 	}
-	_, err = seg.fd.Seek(int64(filepos), 0)
+	_, err = seg.Seek(int64(filepos), 0)
 	if err != nil {
 		return err
 	}
@@ -103,11 +109,6 @@ func (r *Reader) Seek(lsn LSN) error {
 }
 
 func (r *Reader) Next() (*Record, error) {
-	// check the seg is not nil
-	// check the lsn no
-	// open 0 segment if it is nil
-	// read file to buffer
-
 	// read protocol
 	// - read large chunks of data (to amortize i/o costs) into a buffer
 	// - then iterate the buffer record by record
@@ -119,5 +120,124 @@ func (r *Reader) Next() (*Record, error) {
 	// - after reading each record, check the chained checksum
 	// - then decide whether we should skip based on filter match
 
+	if r.seg == nil {
+		r.lsn = LSN(r.wal.opts.Seed)
+		err := r.Seek(r.lsn)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = io.Copy(r.buf, r.seg.fd)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	record := &Record{}
+	dataLength := uint32(0)
+
+RecordAssembler:
+	for {
+		if r.buf.Available() == 0 {
+			err := r.nextSegment()
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					break RecordAssembler
+				}
+				return nil, err
+			}
+		}
+
+		switch {
+		case !record.Type.IsValid():
+			typ, err := r.buf.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			record.Type = RecordType(typ)
+		case !record.Tag.IsValid():
+			tag, err := r.buf.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			record.Tag = types.ObjectTag(tag)
+		case !record.isEntityWritten:
+			switch {
+			case r.buf.Available() >= 8:
+				record.Entity = LE.Uint64(r.buf.Next(8))
+				record.isEntityWritten = true
+			default:
+				err := r.nextSegment()
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						break RecordAssembler
+					}
+					return nil, err
+				}
+			}
+		case !record.isTxIDWritten:
+			switch {
+			case r.buf.Available() >= 8:
+				record.TxID = LE.Uint64(r.buf.Next(8))
+				record.isTxIDWritten = true
+			default:
+				err := r.nextSegment()
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						break RecordAssembler
+					}
+					return nil, err
+				}
+			}
+		case !record.isDataLengthWritten:
+			switch {
+			case r.buf.Available() >= 4:
+				dataLength = LE.Uint32(r.buf.Next(4))
+				record.isDataLengthWritten = true
+			default:
+				err := r.nextSegment()
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						break RecordAssembler
+					}
+					return nil, err
+				}
+			}
+		default:
+			switch {
+			case r.buf.Available() >= int(dataLength):
+				record.Data = r.buf.Next(int(dataLength))
+				if !r.flt.Match(record) {
+					record = &Record{}
+					dataLength = uint32(0)
+					continue
+				}
+				return record, nil
+			default:
+				err := r.nextSegment()
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						break RecordAssembler
+					}
+					return nil, err
+				}
+			}
+		}
+	}
 	return nil, io.EOF
+}
+
+func (r *Reader) nextSegment() error {
+	id := r.lsn.calculateFilename(r.wal.opts.MaxSegmentSize)
+	lsn := NewLSN(id+1, int64(r.wal.opts.MaxSegmentSize), 0)
+	seg, err := openSegment(lsn, r.wal.opts)
+	if err != nil {
+		return err
+	}
+	r.seg = seg
+	_, err = io.Copy(r.buf, seg.fd)
+	if err != nil {
+		return err
+	}
+	return nil
 }

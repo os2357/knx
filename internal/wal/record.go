@@ -51,16 +51,23 @@ func (lsn LSN) calculateOffset(sz int) int64 {
 }
 
 type Record struct {
-	Type   RecordType
-	Tag    types.ObjectTag // object kind (db, table, store, enum, etc)
-	TxID   uint64          // unique transaction id this record was belongs to
-	Entity uint64          // object id (tagged hash for db, table, store, enum, etc)
-	Data   []byte          // body with encoded data, may be empty
-	Lsn    LSN             // the record's byte offset in the WAL
+	Type                RecordType
+	Tag                 types.ObjectTag // object kind (db, table, store, enum, etc)
+	TxID                uint64          // unique transaction id this record was belongs to
+	Entity              uint64          // object id (tagged hash for db, table, store, enum, etc)
+	Data                []byte          // body with encoded data, may be empty
+	Lsn                 LSN             // the record's byte offset in the WAL
+	isTxIDWritten       bool
+	isEntityWritten     bool
+	isDataLengthWritten bool
 }
 
 func (r Record) String() string {
 	return fmt.Sprintf("wal: LSN=0x%016x xid=0x%016x  typ=%s tag=%s entity=0x%016x len=%d",
 		r.Lsn, r.TxID, r.Type, r.Tag, r.Entity, len(r.Data),
 	)
+}
+
+func (r Record) IsValid() bool {
+	return r.isTxIDWritten && r.isEntityWritten && r.isDataLengthWritten && r.Tag.IsValid() && r.Tag.IsValid()
 }
