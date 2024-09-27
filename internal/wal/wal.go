@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,8 +14,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"math"
-	"io"
 )
 
 const (
@@ -31,6 +31,7 @@ type Wal struct {
 	metrics        *WalMetrics
 	logger         *log.Logger
 	schemaRegistry map[uint64]*Schema
+	csum           uint64 // Checksum field
 }
 
 type WalOptions struct {
