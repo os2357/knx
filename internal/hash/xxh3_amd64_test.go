@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"blockwatch.cc/knoxdb/internal/cpu"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +42,7 @@ func BenchmarkXXH3Uint32SliceAVX2(b *testing.B) {
 		b.SkipNow()
 	}
 	for _, n := range BenchmarkSizes {
-		a := util.RandUints[uint32](n.N)
+		a := testutil.RandUints[uint32](n.N)
 		res := make([]uint64, n.N)
 		b.Run(n.Name, func(b *testing.B) {
 			b.SetBytes(4 * int64(n.N))
@@ -58,7 +58,7 @@ func BenchmarkXXH3Uint32SliceAVX512(b *testing.B) {
 		b.SkipNow()
 	}
 	for _, n := range BenchmarkSizes {
-		a := util.RandUints[uint32](n.N)
+		a := testutil.RandUints[uint32](n.N)
 		res := make([]uint64, n.N)
 		b.Run(n.Name, func(b *testing.B) {
 			b.SetBytes(4 * int64(n.N))
@@ -100,7 +100,7 @@ func BenchmarkXXH3Uint64SliceAVX2(b *testing.B) {
 		b.SkipNow()
 	}
 	for _, n := range BenchmarkSizes {
-		a := util.RandUints[uint64](n.N)
+		a := testutil.RandUints[uint64](n.N)
 		res := make([]uint64, n.N)
 		b.Run(n.Name, func(b *testing.B) {
 			b.SetBytes(8 * int64(n.N))
@@ -116,7 +116,7 @@ func BenchmarkXXH3Uint64SliceAVX512(b *testing.B) {
 		b.SkipNow()
 	}
 	for _, n := range BenchmarkSizes {
-		a := util.RandUints[uint64](n.N)
+		a := testutil.RandUints[uint64](n.N)
 		res := make([]uint64, n.N)
 		b.Run(n.Name, func(b *testing.B) {
 			b.SetBytes(8 * int64(n.N))

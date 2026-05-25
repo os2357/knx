@@ -389,7 +389,7 @@ func (f *Field) Codec() OpCode {
 		return OpCodeUint32
 
 	case FT_U16:
-		if f.Flags.Is(F_ENUM) {
+		if f.IsEnum() {
 			return OpCodeEnum
 		}
 		return OpCodeUint16

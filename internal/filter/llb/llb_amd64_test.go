@@ -11,7 +11,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/cpu"
 	"blockwatch.cc/knoxdb/internal/hash"
 	"blockwatch.cc/knoxdb/internal/tests"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 )
 
 func TestCardinalityUint32AVX2(t *testing.T) {
@@ -24,7 +24,7 @@ func TestCardinalityUint32AVX2(t *testing.T) {
 	slice := make([]uint32, step)
 	var j int
 	for i := 0; i < 100000; i++ {
-		val := uint32(util.RandIntn(i + step))
+		val := uint32(testutil.RandIntn(i + step))
 		unique[val] = true
 		slice[j] = val
 		j++
@@ -53,7 +53,7 @@ func TestCardinalityUint32AVX512(t *testing.T) {
 	slice := make([]uint32, step)
 	var j int
 	for i := 0; i < 100000; i++ {
-		val := uint32(util.RandIntn(i + step))
+		val := uint32(testutil.RandIntn(i + step))
 		unique[val] = true
 		slice[j] = val
 		j++
@@ -82,7 +82,7 @@ func TestCardinalityUint64AVX2(t *testing.T) {
 	slice := make([]uint64, step)
 	var j int
 	for i := 0; i < 100000; i++ {
-		val := uint64(util.RandIntn(i + step))
+		val := uint64(testutil.RandIntn(i + step))
 		unique[val] = true
 		slice[j] = val
 		j++
@@ -111,7 +111,7 @@ func TestCardinalityUint64AVX512(t *testing.T) {
 	slice := make([]uint64, step)
 	var j int
 	for i := 0; i < 100000; i++ {
-		val := uint64(util.RandIntn(i + step))
+		val := uint64(testutil.RandIntn(i + step))
 		unique[val] = true
 		slice[j] = val
 		j++
@@ -140,11 +140,11 @@ func TestMergeAVX2(t *testing.T) {
 	unique := map[uint64]bool{}
 
 	for i := 1; i <= 300000; i++ {
-		val := util.RandUint64()
+		val := testutil.RandUint64()
 		llb1.Add(hash.Uint64(val))
 		unique[val] = true
 
-		val = util.RandUint64()
+		val = testutil.RandUint64()
 		llb2.Add(hash.Uint64(val))
 		unique[val] = true
 	}
