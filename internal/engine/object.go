@@ -13,6 +13,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
@@ -105,7 +106,7 @@ func (o *TableObject) Encode() ([]byte, error) {
 	buf.Write(b)
 
 	// write options
-	b, err = schema.NewGenericEncoder[Options]().Encode(o.opts, nil)
+	b, err = encode.NewEncoderFor[Options]().Encode(o.opts, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +146,7 @@ func (o *TableObject) Decode(ctx context.Context, rec *wal.Record) error {
 
 	// read options
 	n = int(LE.Uint32(buf.Next(4)))
-	_, err := schema.NewGenericDecoder[Options]().Decode(buf.Next(n), &o.opts)
+	_, err := encode.NewDecoderFor[Options]().Decode(buf.Next(n), &o.opts)
 	if err != nil {
 		return err
 	}
@@ -333,7 +334,7 @@ func (o *IndexObject) Encode() ([]byte, error) {
 	buf.Write(b)
 
 	// write options
-	b, err = schema.NewGenericEncoder[Options]().Encode(o.opts, nil)
+	b, err = encode.NewEncoderFor[Options]().Encode(o.opts, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +378,7 @@ func (o *IndexObject) Decode(ctx context.Context, rec *wal.Record) error {
 
 	// read options
 	n = int(LE.Uint32(buf.Next(4)))
-	_, err := schema.NewGenericDecoder[Options]().Decode(buf.Next(n), &o.opts)
+	_, err := encode.NewDecoderFor[Options]().Decode(buf.Next(n), &o.opts)
 	if err != nil {
 		return err
 	}

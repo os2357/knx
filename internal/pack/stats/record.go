@@ -10,6 +10,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 )
 
 const (
@@ -92,7 +93,7 @@ func NewRecordFromPack(pkg *pack.Package, n int) *Record {
 		view:     schema.NewView(s),
 	}
 	pstats := pkg.Stats()
-	wr := schema.NewWriter(s, binary.LittleEndian)
+	wr := encode.NewWriter(s, binary.LittleEndian)
 	wr.Write(STATS_ROW_KEY, pkg.Key())
 	wr.Write(STATS_ROW_VERSION, pkg.Version())
 	wr.Write(STATS_ROW_SCHEMA, pkg.Schema().Hash)
@@ -125,7 +126,7 @@ func NewRecordFromPack(pkg *pack.Package, n int) *Record {
 
 func (r *Record) Update(pkg *pack.Package) {
 	pstats := pkg.Stats()
-	wr := schema.NewWriter(r.view.Schema(), binary.LittleEndian)
+	wr := encode.NewWriter(r.view.Schema(), binary.LittleEndian)
 	wr.Write(STATS_ROW_KEY, pkg.Key())
 	wr.Write(STATS_ROW_VERSION, pkg.Version())
 	wr.Write(STATS_ROW_SCHEMA, pkg.Schema().Hash)

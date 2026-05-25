@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
-package schema
+package schema_tests
 
 import (
 	"bytes"
@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/stretchr/testify/require"
 )
 
 func TestViewFixed(t *testing.T) {
 	base := NewFixedTypes(int64(0x0faf0faf0faf0faf))
-	baseSchema := MustSchemaOf(FixedTypes{})
+	baseSchema := reflect.MustSchemaFor[FixedTypes]()
 	baseEnc := NewEncoder(baseSchema)
 	buf, err := baseEnc.Encode(&base, nil)
 	require.NoError(t, err)
@@ -32,7 +33,7 @@ func TestViewFixed(t *testing.T) {
 
 func TestViewDynamic(t *testing.T) {
 	base := NewAllTypes(int64(0x0faf0faf0faf0faf))
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	baseEnc := NewEncoder(baseSchema)
 	buf, err := baseEnc.Encode(&base, nil)
 	require.NoError(t, err)
@@ -58,7 +59,7 @@ func testViewGetFail(t *testing.T, view *View, pos int) {
 
 func TestViewGet(t *testing.T) {
 	base := NewAllTypes(int64(0x0faf0faf0faf0faf))
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	baseEnc := NewEncoder(baseSchema)
 	buf, err := baseEnc.Encode(&base, nil)
 	require.NoError(t, err)
@@ -91,7 +92,7 @@ func TestViewGet(t *testing.T) {
 
 func TestViewGetWithVisibility(t *testing.T) {
 	base := NewAllTypes(int64(0x0faf0faf0faf0faf))
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	visSchema, err := baseSchema.DeleteId(2)
 	require.NoError(t, err)
 	visSchema, err = visSchema.DeleteId(4)
@@ -131,7 +132,7 @@ func TestViewGetWithVisibility(t *testing.T) {
 // TestViewSet tests the Set method of the View struct
 func TestViewSet(t *testing.T) {
 	base := NewAllTypes(int64(0x0faf0faf0faf0faf))
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	baseEnc := NewEncoder(baseSchema)
 	buf, err := baseEnc.Encode(&base, nil)
 	require.NoError(t, err)
@@ -196,7 +197,7 @@ func safeSet(t *testing.T, view *View, index int, value any) {
 // when appending values of various types, including edge cases and error conditions.
 func TestViewAppend(t *testing.T) {
 	base := NewAllTypes(int64(0x0faf0faf0faf0faf))
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	baseEnc := NewEncoder(baseSchema)
 	buf, err := baseEnc.Encode(&base, nil)
 	require.NoError(t, err)
@@ -354,7 +355,7 @@ func TestViewAppend(t *testing.T) {
 }
 
 func BenchmarkViewSetPk(b *testing.B) {
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	base := NewAllTypes(int64(0x0faf0faf0faf0faf))
 	baseEnc := NewEncoder(baseSchema)
 	view := NewView(baseSchema)
@@ -369,7 +370,7 @@ func BenchmarkViewSetPk(b *testing.B) {
 }
 
 func BenchmarkViewCut(b *testing.B) {
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	base := NewAllTypes(int64(0x0faf0faf0faf0faf))
 	baseEnc := NewEncoder(baseSchema)
 	buf := bytes.NewBuffer(nil)
@@ -387,7 +388,7 @@ func BenchmarkViewCut(b *testing.B) {
 
 func BenchmarkViewCutSkip(b *testing.B) {
 	var err error
-	baseSchema := MustSchemaOf(AllTypes{})
+	baseSchema := reflect.MustSchemaFor[AllTypes]()
 	baseSchema, err = baseSchema.DeleteId(2)
 	require.NoError(b, err)
 	baseSchema, err = baseSchema.DeleteId(10)

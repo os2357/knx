@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/store"
 	_ "blockwatch.cc/knoxdb/pkg/store/memdb"
 	"github.com/stretchr/testify/require"
@@ -116,7 +116,7 @@ func TestCatalogAddTable(t *testing.T) {
 	tctx, _, commit, abort, err := eng.WithTransaction(ctx)
 	require.NoError(t, err)
 	defer abort()
-	s, err := schema.SchemaOf(&TestTable{})
+	s, err := reflect.SchemaFor[TestTable]()
 	s.WithMeta()
 	require.NoError(t, err)
 	opts := Options{
@@ -173,7 +173,7 @@ func TestCatalogAddIndex(t *testing.T) {
 	tctx, _, commit, abort, err := eng.WithTransaction(ctx)
 	require.NoError(t, err)
 	defer abort()
-	s, err := schema.SchemaOf(&TestTable{})
+	s, err := reflect.SchemaFor[TestTable]()
 	require.NoError(t, err)
 	topts := Options{
 		Engine:   "pack",

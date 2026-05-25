@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
 
 // SchemaOf detects struct schema from Go type. Only use struct types
@@ -21,7 +22,7 @@ import (
 //	// CSV field "name" will be assigned to struct field "Field".
 //	Field int64 `csv:"name"`
 func SchemaOf(m any) (*schema.Schema, error) {
-	return schema.SchemaOfTag(m, "csv")
+	return reflect.SchemaOfTag(m, "csv")
 }
 
 // Parse unquoted and regular quoted fields. This works with

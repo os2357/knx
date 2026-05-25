@@ -4,6 +4,7 @@
 package types
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 type FieldType byte
 
 const (
+	// TODO: rename to short & unify across codebase
+
 	FieldTypeInvalid FieldType = iota
 	FieldTypeTimestamp
 	FieldTypeInt64
@@ -37,7 +40,16 @@ const (
 	FieldTypeBigint
 	FieldTypeDate
 	FieldTypeTime
+
+	// TODO: new types
+	FieldTypeText
+	FieldTypeBlob
+	FieldTypeList
+	FieldTypeMap
+	FieldTypeAny
 )
+
+const MAX_FIXED = uint16(1<<16 - 1)
 
 var (
 	fieldTypeString  = "__timestamp_int64_uint64_float64_boolean_string_bytes_int32_int16_int8_uint32_uint16_uint8_float32_int256_int128_decimal256_decimal128_decimal64_decimal32_bigint_date_time"
@@ -193,4 +205,11 @@ func (i FieldFlags) String() string {
 
 func ParseFieldFlag(s string) FieldFlags {
 	return fieldFlagReverse[s]
+}
+
+func ValidateInt(name string, n, minVal, maxVal int) (int, error) {
+	if n < minVal || (maxVal > 0 && n > maxVal) {
+		return 0, fmt.Errorf("%s %d out of bounds [%d..%d]", name, n, minVal, maxVal)
+	}
+	return n, nil
 }

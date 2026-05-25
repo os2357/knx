@@ -16,6 +16,7 @@ import (
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
@@ -42,7 +43,7 @@ const (
 )
 
 func NewEncoder(s *schema.Schema, w io.Writer) *Encoder {
-	typ := s.NativeStructType()
+	typ := sreflect.NativeStructType(s)
 	return &Encoder{
 		w:      w,
 		s:      s,
@@ -302,7 +303,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 			e.buf = num.NewBigFromBytes(*(*[]byte)(ptr)).Big().Append(e.buf, 10)
 
 		default:
-			return fmt.Errorf("csv: encode field %d (%s): %v", i, f.Name, schema.ErrInvalidValueType)
+			return fmt.Errorf("csv: encode field %d (%s): invalid value type", i, f.Name)
 		}
 		i++
 	}

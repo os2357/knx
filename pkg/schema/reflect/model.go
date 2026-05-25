@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
-package schema
+package reflect
 
 type Model interface {
 	Key() string

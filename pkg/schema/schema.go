@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"reflect"
 	"slices"
 	"sort"
 	"strconv"
@@ -21,8 +20,6 @@ import (
 )
 
 const (
-	MAX_FIXED = uint16(1<<16 - 1)
-
 	defaultVarFieldSize = 32 // variable number of bytes for strings and byte slices
 )
 
@@ -36,8 +33,6 @@ type Schema struct {
 	MaxWireSize int
 	IsFixedSize bool
 	Version     uint32
-	Encode      []OpCode
-	Decode      []OpCode
 }
 
 func NewSchema() *Schema {
@@ -101,7 +96,7 @@ func (s *Schema) NewBuffer(sz int) *bytes.Buffer {
 }
 
 func (s *Schema) IsValid() bool {
-	return len(s.Name) != 0 && len(s.Fields) != 0 && len(s.Encode) != 0
+	return len(s.Name) != 0 && len(s.Fields) != 0 && s.Hash > 0
 }
 
 func (s *Schema) Label() string {
@@ -312,7 +307,7 @@ func (s *Schema) WithField(f *Field) *Schema {
 	if f.IsValid() {
 		f.Id = s.nextFieldId()
 		s.Fields = append(s.Fields, f)
-		s.Encode, s.Decode = nil, nil
+		s.Hash = 0
 	}
 	return s
 }
@@ -491,8 +486,7 @@ func (s *Schema) Select(fields ...string) (*Schema, error) {
 
 func (s *Schema) Sort() *Schema {
 	sort.Slice(s.Fields, func(i, j int) bool { return s.Fields[i].Id < s.Fields[j].Id })
-	s.Encode = nil
-	s.Decode = nil
+	s.Hash = 0
 	s.Finalize()
 	return s
 }
@@ -551,7 +545,7 @@ func (s *Schema) Validate() error {
 	// count special fields, require no duplicate names and ids
 	uniqueNames := make(map[string]struct{})
 	uniqueIds := make(map[uint16]struct{})
-	var firstTimebase *Field
+	var firstTimebase, firstPkField *Field
 
 	for _, f := range s.Fields {
 		// fields must validate
@@ -573,8 +567,18 @@ func (s *Schema) Validate() error {
 			uniqueIds[f.Id] = struct{}{}
 		}
 
+		// check pk field is unique
+		if f.IsPrimary() {
+			if firstPkField != nil {
+				return fmt.Errorf("schema %s: pk flag on multiple fields %q and %q",
+					s.Name, firstPkField.Name, f.Name)
+			} else {
+				firstPkField = f
+			}
+		}
+
 		// check timebase flag is unique
-		if f.Flags.Is(F_TIMEBASE) {
+		if f.IsTimebase() {
 			if firstTimebase != nil {
 				return fmt.Errorf("schema %s: timebase flag on multiple fields %q and %q",
 					s.Name, firstTimebase.Name, f.Name)
@@ -582,16 +586,6 @@ func (s *Schema) Validate() error {
 				firstTimebase = f
 			}
 		}
-	}
-
-	// encode opcodes are defined for all fields
-	if a, b := len(s.Fields), len(s.Encode); a > b {
-		return fmt.Errorf("schema %s: %d fields without encoder opcodes", s.Name, a-b)
-	}
-
-	// decode opcodes are defined for all fields
-	if a, b := len(s.Fields), len(s.Decode); a > b {
-		return fmt.Errorf("schema %s: %d fields without decoder opcodes", s.Name, a-b)
 	}
 
 	// validate indexes if defined
@@ -676,21 +670,13 @@ func (s *Schema) Finalize() *Schema {
 	s.IsFixedSize = true
 	s.Hash = 0
 
-	var b [4]byte
-
 	// generate schema hash from visible fields
+	var b [4]byte
 	h := hash.New()
 	LE.PutUint32(b[:], s.Version)
 	h.Write(b[:])
 
-	// check if we need to generate struct layout info
-	var styp reflect.Type
-	needLayout := len(s.Fields) > 0 && s.Fields[0].Path == nil
-	if needLayout {
-		styp = s.StructType() // use logical types here
-	}
-
-	for i, f := range s.Fields {
+	for _, f := range s.Fields {
 		// collect sizes from visible fields
 		if f.IsVisible() {
 			sz := f.WireSize()
@@ -709,17 +695,10 @@ func (s *Schema) Finalize() *Schema {
 			LE.PutUint16(b[:], f.Fixed)
 			h.Write(b[:2])
 			h.Write([]byte{f.Scale})
-
-			// fill struct type info
-			if needLayout {
-				sf := styp.Field(i)
-				f.Path = sf.Index
-				f.Offset = sf.Offset
-			}
 		}
 	}
+
 	s.Hash = h.Sum64()
-	s.Encode, s.Decode = compileCodecs(s)
 	if s.Name == "" {
 		s.Name = fmt.Sprintf("%016x", s.Hash)
 	}

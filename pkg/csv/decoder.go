@@ -6,6 +6,7 @@ package csv
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -17,11 +18,14 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/stringx"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 )
+
+var ErrInvalidValueType = errors.New("invalid value type")
 
 // A Decoder reads and decodes records from a CSV stream using an interal Reader.
 // A schema with column names and types must be known when creating a decoder. The
@@ -51,13 +55,15 @@ const (
 )
 
 func NewDecoder(s *schema.Schema, r io.Reader) *Decoder {
-	return &Decoder{
+	d := &Decoder{
 		r:      NewReader(r, s.NumVisible()),
 		s:      s,
 		flags:  DecoderFlagStrictSchema | DecoderFlagReadHeader,
 		dateAs: time.DateOnly,    // 2006-01-02
 		timeAs: time.RFC3339Nano, // 2006-01-02T15:04:05.999999999Z07:00
 	}
+	d.initType()
+	return d
 }
 
 func (d *Decoder) initType() {
@@ -65,10 +71,10 @@ func (d *Decoder) initType() {
 		return
 	}
 	if d.flags&DecoderFlagLogicalType > 0 {
-		d.typ = d.s.StructType()
+		d.typ = sreflect.StructType(d.s)
 		d.decode = d.decodeLogical
 	} else {
-		d.typ = d.s.NativeStructType()
+		d.typ = sreflect.NativeStructType(d.s)
 		d.decode = d.decodePhysical
 	}
 	var nStringFields int
@@ -217,7 +223,7 @@ func (d *Decoder) Decode() (any, error) {
 	}
 
 	// init type (only on first call)
-	d.initType()
+	// d.initType()
 
 	// create new struct
 	rval := reflect.New(d.typ)
@@ -245,7 +251,7 @@ func (d *Decoder) DecodeSlice(v []any) (int, error) {
 	v = v[:cap(v)]
 
 	// init type (only on first call)
-	d.initType()
+	// d.initType()
 
 	// reset string pool
 	d.pool.Clear()
@@ -575,7 +581,7 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 			*(*[]byte)(ptr) = bytes.Clone(big.Bytes()) // copy
 
 		default:
-			return &DecodeError{d.r.lineNo, i, f.Name, line[i], schema.ErrInvalidValueType}
+			return &DecodeError{d.r.lineNo, i, f.Name, line[i], ErrInvalidValueType}
 		}
 		i++
 	}
@@ -788,7 +794,7 @@ func (d *Decoder) decodeLogical(base unsafe.Pointer, line []string) error {
 			*(*num.Big)(ptr) = big
 
 		default:
-			return &DecodeError{d.r.lineNo, i, f.Name, line[i], schema.ErrInvalidValueType}
+			return &DecodeError{d.r.lineNo, i, f.Name, line[i], ErrInvalidValueType}
 		}
 		i++
 	}
@@ -1048,7 +1054,7 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 			b.Bytes().Append(big.Bytes())
 
 		default:
-			return &DecodeError{d.r.lineNo, i, f.Name, line[i], schema.ErrInvalidValueType}
+			return &DecodeError{d.r.lineNo, i, f.Name, line[i], ErrInvalidValueType}
 		}
 		i++
 	}

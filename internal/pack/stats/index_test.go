@@ -14,6 +14,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/cast"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +44,7 @@ const (
 )
 
 var (
-	TestSchema = schema.MustSchemaOf(TestStruct{}).WithMeta()
+	TestSchema = reflect.MustSchemaFor[TestStruct]().WithMeta()
 )
 
 func makeTestData(sz int, pk uint64) (res []TestStruct) {
@@ -68,7 +70,7 @@ func makeTestPackage(t testing.TB, key int, pk uint64) *pack.Package {
 		WithMaxRows(TEST_PKG_SIZE).
 		WithStats().
 		Alloc()
-	enc := schema.NewGenericEncoder[TestStruct]()
+	enc := encode.NewEncoderFor[TestStruct]()
 	for _, v := range makeTestData(TEST_PKG_SIZE, pk) {
 		buf, err := enc.Encode(v, nil)
 		require.NoError(t, err)

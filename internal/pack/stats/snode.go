@@ -15,6 +15,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -425,7 +426,7 @@ func (n *SNode) Query(it *Iterator) error {
 	})
 }
 
-func (n *SNode) BuildMetaStats(view *schema.View, wr *schema.Writer) bool {
+func (n *SNode) BuildMetaStats(view *schema.View, wr *encode.Writer) bool {
 	// allocate meta buffer when nil
 	if n.meta == nil {
 		n.meta = make([]byte, wr.Len())

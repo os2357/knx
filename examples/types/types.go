@@ -17,7 +17,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/knox"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
 
 type MyEnum string
@@ -167,7 +168,7 @@ func run() error {
 	// read records back
 	var count int
 	start = time.Now()
-	err = knox.NewGenericQuery[Types]().
+	err = knox.NewQueryFor[Types]().
 		WithTable(table).
 		WithTag("three_million_records").
 		WithLimit(3000000).
@@ -186,7 +187,7 @@ func run() error {
 
 	// read a single entry
 	var single Types
-	_, err = knox.NewGenericQuery[Types]().
+	_, err = knox.NewQueryFor[Types]().
 		WithTable(table).
 		WithTag("two_conditions_single").
 		AndGte("int64", 42).
@@ -259,12 +260,6 @@ func OpenOrCreate(ctx context.Context) (db knox.Database, table knox.Table, err 
 }
 
 func Create(ctx context.Context) (db knox.Database, table knox.Table, err error) {
-	var s *schema.Schema
-	s, err = schema.SchemaOf(&Types{})
-	if err != nil {
-		return
-	}
-
 	opts := append(
 		knox.NewDefaultOptions(),
 		knox.WithPath("./db"),
@@ -280,11 +275,18 @@ func Create(ctx context.Context) (db knox.Database, table knox.Table, err error)
 	}
 
 	log.Info("Creating Enum")
-	_, err = db.CreateEnum(ctx, "my_enum")
+	e, err := db.CreateEnum(ctx, "my_enum")
 	if err != nil {
 		return
 	}
 	err = db.ExtendEnum(ctx, "my_enum", myEnums...)
+	if err != nil {
+		return
+	}
+
+	enums := enum.NewEnumRegistry()
+	enums.Register(0, e)
+	s, err := reflect.SchemaFor[Types](reflect.WithEnums(enums))
 	if err != nil {
 		return
 	}

@@ -14,6 +14,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/query"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/echa/log"
 )
 
@@ -291,7 +292,7 @@ func (q Query) AndRange(field string, from, to any) Query {
 func (q Query) Execute(ctx context.Context, val any) (n int, err error) {
 	// analyze result schema
 	var s *schema.Schema
-	s, err = schema.SchemaOf(val)
+	s, err = sreflect.SchemaOf(val)
 	if err != nil {
 		err = fmt.Errorf("query %s: %v", q.tag, err)
 		return
@@ -377,7 +378,7 @@ func (q Query) Execute(ctx context.Context, val any) (n int, err error) {
 			n = 1
 		}
 	default:
-		err = fmt.Errorf("query %s: %T: %w", q.tag, val, schema.ErrInvalidResultType)
+		err = fmt.Errorf("query %s: %T: %w", q.tag, val, schema.ErrInvalidResult)
 	}
 	return
 }
@@ -473,132 +474,132 @@ func (q Query) MakePlan() (engine.QueryPlan, error) {
 }
 
 // Generic KnoxDB query specialized for result type T
-type GenericQuery[T any] struct {
+type QueryT[T any] struct {
 	Query
 }
 
-func NewGenericQuery[T any]() GenericQuery[T] {
-	schema, err := schema.SchemaFor[T]()
+func NewQueryFor[T any]() QueryT[T] {
+	schema, err := sreflect.SchemaFor[T]()
 	if err != nil {
 		panic(err)
 	}
-	return GenericQuery[T]{
+	return QueryT[T]{
 		NewQuery().WithSchema(schema),
 	}
 }
 
-func (q GenericQuery[T]) WithTag(tag string) GenericQuery[T] {
+func (q QueryT[T]) WithTag(tag string) QueryT[T] {
 	q.Query = q.Query.WithTag(tag)
 	return q
 }
 
-func (q GenericQuery[T]) WithLogger(l log.Logger) GenericQuery[T] {
+func (q QueryT[T]) WithLogger(l log.Logger) QueryT[T] {
 	q.Query = q.Query.WithLogger(l)
 	return q
 }
 
-func (q GenericQuery[T]) WithTable(t Table) GenericQuery[T] {
+func (q QueryT[T]) WithTable(t Table) QueryT[T] {
 	q.Query = q.Query.WithTable(t)
 	return q
 }
 
-func (q GenericQuery[T]) WithCache(enable bool) GenericQuery[T] {
+func (q QueryT[T]) WithCache(enable bool) QueryT[T] {
 	q.Query = q.Query.WithCache(enable)
 	return q
 }
 
-func (q GenericQuery[T]) WithIndex(enable bool) GenericQuery[T] {
+func (q QueryT[T]) WithIndex(enable bool) QueryT[T] {
 	q.Query = q.Query.WithIndex(enable)
 	return q
 }
 
-func (q GenericQuery[T]) WithDebug(enable bool) GenericQuery[T] {
+func (q QueryT[T]) WithDebug(enable bool) QueryT[T] {
 	q.Query = q.Query.WithDebug(enable)
 	return q
 }
 
-func (q GenericQuery[T]) WithStats(enable bool) GenericQuery[T] {
+func (q QueryT[T]) WithStats(enable bool) QueryT[T] {
 	q.Query = q.Query.WithStats(enable)
 	return q
 }
 
-func (q GenericQuery[T]) WithOrder(o OrderType) GenericQuery[T] {
+func (q QueryT[T]) WithOrder(o OrderType) QueryT[T] {
 	q.Query = q.Query.WithOrder(o)
 	return q
 }
 
-func (q GenericQuery[T]) WithDesc() GenericQuery[T] {
+func (q QueryT[T]) WithDesc() QueryT[T] {
 	q.Query = q.Query.WithDesc()
 	return q
 }
 
-func (q GenericQuery[T]) WithAsc() GenericQuery[T] {
+func (q QueryT[T]) WithAsc() QueryT[T] {
 	q.Query = q.Query.WithAsc()
 	return q
 }
 
-func (q GenericQuery[T]) WithLimit(l int) GenericQuery[T] {
+func (q QueryT[T]) WithLimit(l int) QueryT[T] {
 	q.Query = q.Query.WithLimit(l)
 	return q
 }
 
-func (q GenericQuery[T]) AndCondition(conds ...Condition) GenericQuery[T] {
+func (q QueryT[T]) AndCondition(conds ...Condition) QueryT[T] {
 	q.Query = q.Query.AndCondition(conds...)
 	return q
 }
 
-func (q GenericQuery[T]) OrCondition(conds ...Condition) GenericQuery[T] {
+func (q QueryT[T]) OrCondition(conds ...Condition) QueryT[T] {
 	q.Query = q.Query.OrCondition(conds...)
 	return q
 }
 
-func (q GenericQuery[T]) And(field string, mode FilterMode, value any) GenericQuery[T] {
+func (q QueryT[T]) And(field string, mode FilterMode, value any) QueryT[T] {
 	q.Query = q.Query.And(field, mode, value)
 	return q
 }
 
-func (q GenericQuery[T]) Or(field string, mode FilterMode, value any) GenericQuery[T] {
+func (q QueryT[T]) Or(field string, mode FilterMode, value any) QueryT[T] {
 	q.Query = q.Query.Or(field, mode, value)
 	return q
 }
 
-func (q GenericQuery[T]) AndEqual(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndEqual(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeEqual, value)
 }
 
-func (q GenericQuery[T]) AndNotEqual(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndNotEqual(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeNotEqual, value)
 }
 
-func (q GenericQuery[T]) AndIn(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndIn(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeIn, value)
 }
 
-func (q GenericQuery[T]) AndNotIn(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndNotIn(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeNotIn, value)
 }
 
-func (q GenericQuery[T]) AndLt(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndLt(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeLt, value)
 }
 
-func (q GenericQuery[T]) AndLte(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndLte(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeLe, value)
 }
 
-func (q GenericQuery[T]) AndGt(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndGt(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeGt, value)
 }
 
-func (q GenericQuery[T]) AndGte(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndGte(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeGe, value)
 }
 
-func (q GenericQuery[T]) AndRegexp(field string, value any) GenericQuery[T] {
+func (q QueryT[T]) AndRegexp(field string, value any) QueryT[T] {
 	return q.And(field, FilterModeRegexp, value)
 }
 
-func (q GenericQuery[T]) AndRange(field string, from, to any) GenericQuery[T] {
+func (q QueryT[T]) AndRange(field string, from, to any) QueryT[T] {
 	q.Query = q.Query.AndRange(field, from, to)
 	return q
 }
@@ -615,7 +616,7 @@ func (q GenericQuery[T]) AndRange(field string, from, to any) GenericQuery[T] {
 // Passing a pointer to a nil slice allocates a new slice with new elements
 // using the user-defined query limit. Note without explicit query limit
 // this may allocate large amounts of memory.
-func (q GenericQuery[T]) Execute(ctx context.Context, val any) (n int, err error) {
+func (q QueryT[T]) Execute(ctx context.Context, val any) (n int, err error) {
 	// validate val is any of *T, *[]T or *[]*T
 	switch res := val.(type) {
 	case *T:
@@ -707,13 +708,13 @@ func (q GenericQuery[T]) Execute(ctx context.Context, val any) (n int, err error
 		}
 
 	default:
-		err = fmt.Errorf("query %s: %T: %w", q.tag, val, schema.ErrInvalidResultType)
+		err = fmt.Errorf("query %s: %T: %w", q.tag, val, schema.ErrInvalidResult)
 	}
 
 	return
 }
 
-func (q GenericQuery[T]) Stream(ctx context.Context, fn func(*T) error) error {
+func (q QueryT[T]) Stream(ctx context.Context, fn func(*T) error) error {
 	t := new(T)
 	return q.Query.Stream(ctx, func(r QueryRow) error {
 		if err := r.Decode(t); err != nil {
@@ -723,15 +724,15 @@ func (q GenericQuery[T]) Stream(ctx context.Context, fn func(*T) error) error {
 	})
 }
 
-func (q GenericQuery[T]) Delete(ctx context.Context) (int, error) {
+func (q QueryT[T]) Delete(ctx context.Context) (int, error) {
 	return q.Query.Delete(ctx)
 }
 
-func (q GenericQuery[T]) Count(ctx context.Context) (int, error) {
+func (q QueryT[T]) Count(ctx context.Context) (int, error) {
 	return q.Query.Count(ctx)
 }
 
-func (q GenericQuery[T]) Run(ctx context.Context) ([]T, error) {
+func (q QueryT[T]) Run(ctx context.Context) ([]T, error) {
 	res, err := q.Query.Run(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query %s: %v", q.tag, err)

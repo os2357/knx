@@ -64,7 +64,7 @@ func TestWorkload2(t *testing.T) {
 
 	// Validate all rows are inserted correctly
 	count := 0
-	err = knox.NewGenericQuery[tests.Types]().
+	err = knox.NewQueryFor[tests.Types]().
 		WithTable(table).
 		WithTag("validate-stream").
 		// WithDebug(testing.Verbose()). // Enable detailed query logging

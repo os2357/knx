@@ -90,3 +90,16 @@ func ConvertSlice[T, S Number](t []T) (s []S) {
 	}
 	return
 }
+
+type eface struct {
+	typ unsafe.Pointer
+	val unsafe.Pointer
+}
+
+func UnboxAny(v any) unsafe.Pointer {
+	if v == nil {
+		return nil
+	}
+	ef := (*eface)(unsafe.Pointer(&v))
+	return ef.val
+}

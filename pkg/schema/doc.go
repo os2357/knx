@@ -14,14 +14,22 @@ package schema
 // The following struct tag features are available
 //
 // ```
-// pk            mark this field as primary key
-// index={type}  generate db index (hash, int, bits, bloom, bfuse)
+// pk            mark this field as primary key (also generates primary key index)
+// index={type}  generate index over this field (hash, int, composite)
+// fields={a+b}  list of composite index fields
+// extra={a+b}   list of extra include fields for index
+// filter={type} use db column filter (bits, bloom, bfuse)
 // zip={type}    use extra compression (snappy, lz4, zstd, none, (empty))
 // fixed={num}   treat as fixed length field (only byte array, byte slice, string)
 // scale={num}   scale factor (for decimal and time types only)
-// enum          mark field as enum
-// internal      mark field as internal (not exported to users via encode/decode)
 // id={num}      override id value
+// enum          mark as enum
+// metadata      mark as metadata
+// null          mark as nullable
+// timebase      mark as event time source
+// timestamp     type timestamp in nanoseconds
+// date          type date in unix days
+// time          type time in seconds
 // ```
 //
 // A schema is a list of immutable fields with properties like name, data type,
@@ -31,7 +39,7 @@ package schema
 //
 // - the name of a field may be changed
 // - a new field may be added
-// - an existing fields being marked as deleted
+// - an existing fields can be marked as deleted
 //
 // Each change produces a new version of the schema which is identified by a
 // unique hash value.
@@ -41,13 +49,16 @@ package schema
 // - indexed: a database index will be created for this field
 // - enum: the field is an enum type with a private EnumDictionary
 // - deleted: the field is deleted and no longer used
-// - internal: the field is not used for encoding and decoding data
+// - metadata: the field is not used for encoding and decoding data
+// - nullable: values can be null
+// - timebase: timestamp field used as event time source for stream processing
+// - action: CDC action metadata field
 //
 // Flags define how fields are used by record encoders and decoders:
 // - `visible` means a field is used when encoding/decoding binary records from Go structs;
 //    a visible field is never deleted or internal
 // - `active` means the field (internal or not) is in active use, i.e. it is not deleted
-// - `internal` means all non deleted internal fields
+// - `metadata` means all non deleted internal fields
 //
 // Scale factor
 //

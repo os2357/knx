@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +28,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "WithHeader",
 		Src:    &A1V,
-		Schema: schema.MustSchemaOf(A{}),
+		Schema: reflect.MustSchemaOf(A{}),
 		Sep:    ',',
 		Csv:    "s,i,f,b\nHello,42,23.45,true\n",
 		Header: true,
@@ -37,7 +38,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "NoHeader",
 		Src:    &A1V,
-		Schema: schema.MustSchemaOf(A{}),
+		Schema: reflect.MustSchemaOf(A{}),
 		Sep:    ',',
 		Csv:    "Hello,42,23.45,true\n",
 		Header: false,
@@ -47,7 +48,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "Trim",
 		Src:    &A3V,
-		Schema: schema.MustSchemaOf(A{}),
+		Schema: reflect.MustSchemaOf(A{}),
 		Sep:    ',',
 		Csv:    "Hello,42,23.45,true\n",
 		Header: false,
@@ -57,7 +58,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "NoTrim",
 		Src:    &A3V,
-		Schema: schema.MustSchemaOf(A{}),
+		Schema: reflect.MustSchemaOf(A{}),
 		Sep:    ',',
 		Csv:    "  Hello  ,42,23.45,true\n",
 		Header: false,
@@ -67,7 +68,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "Semicolon",
 		Src:    &A1V,
-		Schema: schema.MustSchemaOf(A{}),
+		Schema: reflect.MustSchemaOf(A{}),
 		Sep:    ';',
 		Csv:    "Hello;42;23.45;true\n",
 		Header: false,
@@ -77,7 +78,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "Alltypes",
 		Src:    &BV,
-		Schema: schema.MustSchemaOf(SchemaB{}),
+		Schema: reflect.MustSchemaOf(SchemaB{}),
 		Sep:    ',',
 		Csv:    "-1,-1,-1,-1,1,1,1,1,1.1,1.1,1.00001,1.000000000000001,1.000000000000000001,1.000000000000000000000001,1,1,true,2026-06-07T02:00:01Z,787878,4141,sss,1234\n",
 		Header: false,
@@ -87,7 +88,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "Quote",
 		Src:    &A{`Hello,me`, 1, 1.1, true},
-		Schema: schema.MustSchemaOf(A{}),
+		Schema: reflect.MustSchemaOf(A{}),
 		Sep:    ',',
 		Csv:    "\"Hello,me\",1,1.1,true\n",
 		Header: false,
@@ -97,7 +98,7 @@ var EncoderCases = []encoderTest{
 	{
 		Name:   "DoubleQuote",
 		Src:    &A{`Hello,"me"`, 1, 0.1, true},
-		Schema: schema.MustSchemaOf(A{}),
+		Schema: reflect.MustSchemaOf(A{}),
 		Sep:    ',',
 		Csv:    "\"Hello,\"\"me\"\"\",1,0.1,true\n",
 		Header: false,
@@ -122,12 +123,12 @@ func TestEncode(t *testing.T) {
 
 func TestEncodeSlice(t *testing.T) {
 	w := new(bytes.Buffer)
-	enc := NewEncoder(schema.MustSchemaOf(A{}), w).WithHeader(true)
+	enc := NewEncoder(reflect.MustSchemaOf(A{}), w).WithHeader(true)
 	require.NoError(t, enc.Encode([]A{A1V, A3V, A1V}))
 }
 
 func BenchmarkEncoder(b *testing.B) {
-	s := schema.MustSchemaOf(SchemaB{})
+	s := reflect.MustSchemaOf(SchemaB{})
 	enc := NewEncoder(s, io.Discard)
 	for b.Loop() {
 		require.NoError(b, enc.Encode(&BV))

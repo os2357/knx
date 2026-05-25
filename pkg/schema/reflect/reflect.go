@@ -1,9 +1,10 @@
 // Copyright (c) 2024 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
-package schema
+package reflect
 
 import (
+	"errors"
 	"fmt"
 	"math/bits"
 	"reflect"
@@ -12,49 +13,69 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+	"unsafe"
 
+	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
+)
+
+var (
+	ErrNilValue = errors.New("schema: nil value")
 )
 
 const TAG_NAME = "knox"
 
 var schemaRegistry sync.Map
 
-func LookupSchema(typ reflect.Type) (*Schema, bool) {
+type Option func(*schema.Schema)
+
+type Options struct {
+	enums *enum.EnumRegistry
+}
+
+func WithEnums(r *enum.EnumRegistry) Option {
+	return func(s *schema.Schema) {
+		s.WithEnums(r)
+	}
+}
+
+func LookupSchema(typ reflect.Type) (*schema.Schema, bool) {
 	sval, ok := schemaRegistry.Load(typ)
 	if ok {
-		return sval.(*Schema), ok
+		return sval.(*schema.Schema), ok
 	}
 	return nil, ok
 }
 
-func SchemaFor[T any]() (*Schema, error) {
+func SchemaFor[T any](opts ...Option) (*schema.Schema, error) {
 	var m T
-	return SchemaOf(m)
+	return SchemaOf(m, opts...)
 }
 
-func MustSchemaFor[T any]() *Schema {
-	s, err := SchemaFor[T]()
+func MustSchemaFor[T any](opts ...Option) *schema.Schema {
+	s, err := SchemaFor[T](opts...)
 	if err != nil {
 		panic(err)
 	}
 	return s
 }
 
-func SchemaOf(m any) (*Schema, error) {
-	return SchemaOfTag(m, TAG_NAME)
+func SchemaOf(m any, opts ...Option) (*schema.Schema, error) {
+	return SchemaOfTag(m, TAG_NAME, opts...)
 }
 
-func MustSchemaOf(m any) *Schema {
-	s, err := SchemaOf(m)
+func MustSchemaOf(m any, opts ...Option) *schema.Schema {
+	s, err := SchemaOf(m, opts...)
 	if err != nil {
 		panic(err)
 	}
 	return s
 }
 
-func SchemaOfTag(m any, tag string) (*Schema, error) {
+func SchemaOfTag(m any, tag string, opts ...Option) (*schema.Schema, error) {
 	// interface must not be nil
 	if m == nil {
 		return nil, ErrNilValue
@@ -87,13 +108,13 @@ func SchemaOfTag(m any, tag string) (*Schema, error) {
 	// lookup registry
 	sval, ok := schemaRegistry.Load(typ)
 	if ok {
-		return sval.(*Schema), nil
+		return sval.(*schema.Schema), nil
 	}
 
 	// create new schema
-	s := &Schema{
+	s := &schema.Schema{
 		Name:        fromCamelCase(typ.Name(), "_"),
-		Fields:      make([]*Field, 0),
+		Fields:      make([]*schema.Field, 0),
 		IsFixedSize: true,
 		Version:     1,
 	}
@@ -143,7 +164,12 @@ func SchemaOfTag(m any, tag string) (*Schema, error) {
 	}
 	s.Indexes = idxs
 
-	// compile encoder/decoder opcodes, calculate wire size, lookup enums
+	// apply options
+	for _, o := range opts {
+		o(s)
+	}
+
+	// calculate wire size
 	s.Finalize()
 
 	// validate schema conformance
@@ -159,7 +185,7 @@ func SchemaOfTag(m any, tag string) (*Schema, error) {
 
 // Produces a dynamic struct type only using native types like int64 for Decimal64
 // [16]byte for Int128, etc.
-func (s *Schema) NativeStructType() reflect.Type {
+func NativeStructType(s *Schema) reflect.Type {
 	sfields := make([]reflect.StructField, 0, len(s.Fields))
 	for _, f := range s.Fields {
 		if !f.IsVisible() {
@@ -212,15 +238,16 @@ func (s *Schema) NativeStructType() reflect.Type {
 	return reflect.StructOf(sfields)
 }
 
-// Produces a dynamic struct type compatible with SchemaOf which uses custom types
-// for large numeric values (num.Int128) and decimals (num.Decimal64).
-func (s *Schema) StructType() reflect.Type {
+// Produces a dynamic struct type compatible with SchemaOf which uses
+// custom types for large numeric values (num.Int128) and decimals
+// (num.Decimal64).
+func StructType(s *Schema) reflect.Type {
 	sfields := make([]reflect.StructField, 0, len(s.Fields))
 	for _, f := range s.Fields {
 		if !f.IsVisible() {
 			continue
 		}
-		tag := fmt.Sprintf(`knox:"%s,id=%d`, f.Name, f.Id)
+		tag := fmt.Sprintf(`%s:"%s,id=%d`, TAG_NAME, f.Name, f.Id)
 		if f.IsPrimary() {
 			tag += ",pk"
 		}
@@ -242,11 +269,71 @@ func (s *Schema) StructType() reflect.Type {
 		tag += `"`
 		sfields = append(sfields, reflect.StructField{
 			Name: toTitle(sanitize(f.Name)),
-			Type: f.GoType(),
+			Type: GoType(f),
 			Tag:  reflect.StructTag(tag),
 		})
 	}
 	return reflect.StructOf(sfields)
+}
+
+func GoType(f *Field) reflect.Type {
+	if f.Type == FT_BYTES && f.Fixed > 0 {
+		return reflect.ArrayOf(int(f.Fixed), reflect.TypeFor[byte]())
+	}
+	if f.Type == FT_U16 && f.IsEnum() {
+		return reflect.TypeFor[string]()
+	}
+	return reflect.TypeOf(f.Type.Zero())
+}
+
+// AppendFieldLayout generates a Go struct from schema to
+// identify its memory layout and appends path/index and
+// memory offset to each field. Decoders require this info
+// to address the memory location of every field in this struct.
+func AppendFieldLayout(s *Schema) {
+	// check if this already exists
+	if len(s.Fields) == 0 || s.Fields[0].Path != nil {
+		return
+	}
+
+	// use logical types here
+	styp := StructType(s)
+	for i, f := range s.Fields {
+		// skip invisible fields
+		if !f.IsVisible() {
+			continue
+		}
+		// fill struct type info
+		sf := styp.Field(i)
+		f.Path = sf.Index
+		f.Offset = sf.Offset
+	}
+}
+
+// FieldStructValue resolves a struct field from a struct. When the field
+// is a pointer it allocates the target type and dereferences it
+// so that the return value can consistently be used for interface calls.
+func FieldStructValue(f *Field, rval reflect.Value) reflect.Value {
+	dst := rval.FieldByIndex(f.Path)
+	if dst.Kind() == reflect.Pointer {
+		if dst.IsNil() && dst.CanSet() {
+			dst.Set(reflect.New(dst.Type().Elem()))
+		}
+		dst = dst.Elem()
+	}
+	return dst
+}
+
+// StructPointer unwraps an interface and returns the embedded
+// struct pointer if addressable. Panics if interface is nil
+// or warps an unaddressable value.
+func StructPointer(v any) unsafe.Pointer {
+	rval := reflect.Indirect(reflect.ValueOf(v))
+	assert.Always(rval.IsValid() && rval.Kind() == reflect.Struct, "invalid value",
+		"kind", rval.Kind().String(),
+		"type", rval.Type().String(),
+	)
+	return rval.Addr().UnsafePointer()
 }
 
 var rx = regexp.MustCompile("[^a-zA-Z0-9]+")
@@ -311,14 +398,14 @@ func reflectStructField(f reflect.StructField, tagName string) (field *Field, er
 	field.Name = strings.ToLower(strings.TrimSpace(field.Name))
 
 	// identify field type from Go type
-	err = field.ParseType(f)
+	err = parseFieldType(field, f)
 	if err != nil {
 		err = fmt.Errorf("field %s: %v", field.Name, err)
 		return
 	}
 
 	// parse tags, allow type & fixed override
-	err = field.ParseTag(tag)
+	err = parseFieldTag(field, tag)
 	if err != nil {
 		err = fmt.Errorf("field %s: %v", field.Name, err)
 		return
@@ -344,7 +431,7 @@ func reflectStructField(f reflect.StructField, tagName string) (field *Field, er
 	return
 }
 
-func (f *Field) ParseType(r reflect.StructField) error {
+func parseFieldType(f *Field, r reflect.StructField) error {
 	var (
 		typ   types.FieldType
 		flags types.FieldFlags
@@ -396,12 +483,7 @@ func (f *Field) ParseType(r reflect.StructField) error {
 	case reflect.Float32:
 		typ = FT_F32
 	case reflect.String:
-		if r.Type.String() == "schema.Enum" {
-			typ = FT_U16
-			flags = F_ENUM
-		} else {
-			typ = FT_STRING
-		}
+		typ = FT_STRING
 	case reflect.Bool:
 		typ = FT_BOOL
 	case reflect.Map:
@@ -462,7 +544,7 @@ func (f *Field) ParseType(r reflect.StructField) error {
 	return nil
 }
 
-func (f *Field) ParseTag(tag string) error {
+func parseFieldTag(f *Field, tag string) error {
 	// first part is field name
 	tokens := strings.Split(tag, ",")
 	if len(tokens) < 2 {
@@ -472,7 +554,7 @@ func (f *Field) ParseTag(tag string) error {
 	var (
 		scale    uint8
 		fixed    = f.Fixed
-		maxFixed = MAX_FIXED
+		maxFixed = types.MAX_FIXED
 		maxScale = f.Scale
 		flags    types.FieldFlags
 		compress types.BlockCompression
@@ -608,113 +690,5 @@ func parseInt(val, name string, minVal, maxVal int) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid %s value %s: %v", name, val, err)
 	}
-	return validateInt(name, n, minVal, maxVal)
-}
-
-func validateInt(name string, n, minVal, maxVal int) (int, error) {
-	if n < minVal || (maxVal > 0 && n > maxVal) {
-		return 0, fmt.Errorf("%s %d out of bounds [%d..%d]", name, n, minVal, maxVal)
-	}
-	return n, nil
-}
-
-func compileCodecs(s *Schema) (enc []OpCode, dec []OpCode) {
-	enc = make([]OpCode, len(s.Fields))
-	dec = make([]OpCode, len(s.Fields))
-	for i, f := range s.Fields {
-		ec, dc := OpCodeSkip, OpCodeSkip
-		switch f.Type {
-		case FT_TIMESTAMP:
-			dc, ec = OpCodeTimestamp, OpCodeTimestamp
-
-		case FT_DATE:
-			dc, ec = OpCodeDate, OpCodeDate
-
-		case FT_TIME:
-			dc, ec = OpCodeTime, OpCodeTime
-
-		case FT_I64:
-			dc, ec = OpCodeInt64, OpCodeInt64
-
-		case FT_I32:
-			dc, ec = OpCodeInt32, OpCodeInt32
-
-		case FT_I16:
-			dc, ec = OpCodeInt16, OpCodeInt16
-
-		case FT_I8:
-			dc, ec = OpCodeInt8, OpCodeInt8
-
-		case FT_U64:
-			dc, ec = OpCodeUint64, OpCodeUint64
-
-		case FT_U32:
-			dc, ec = OpCodeUint32, OpCodeUint32
-
-		case FT_U16:
-			if f.Flags.Is(types.FieldFlagEnum) {
-				dc, ec = OpCodeEnum, OpCodeEnum
-			} else {
-				dc, ec = OpCodeUint16, OpCodeUint16
-			}
-
-		case FT_U8:
-			dc, ec = OpCodeUint8, OpCodeUint8
-
-		case FT_F64:
-			dc, ec = OpCodeFloat64, OpCodeFloat64
-
-		case FT_F32:
-			dc, ec = OpCodeFloat32, OpCodeFloat32
-
-		case FT_BOOL:
-			dc, ec = OpCodeBool, OpCodeBool
-
-		case FT_STRING:
-			if f.Fixed > 0 {
-				ec = OpCodeFixedString
-				dc = OpCodeFixedString
-			} else {
-				ec = OpCodeString
-				dc = OpCodeString
-			}
-
-		case FT_BYTES:
-			if f.Fixed > 0 {
-				ec = OpCodeFixedBytes
-				dc = OpCodeFixedBytes
-			} else {
-				ec = OpCodeBytes
-				dc = OpCodeBytes
-			}
-
-		case FT_I256:
-			dc, ec = OpCodeInt256, OpCodeInt256
-
-		case FT_I128:
-			dc, ec = OpCodeInt128, OpCodeInt128
-
-		case FT_D256:
-			dc, ec = OpCodeDecimal256, OpCodeDecimal256
-
-		case FT_D128:
-			dc, ec = OpCodeDecimal128, OpCodeDecimal128
-
-		case FT_D64:
-			dc, ec = OpCodeDecimal64, OpCodeDecimal64
-
-		case FT_D32:
-			dc, ec = OpCodeDecimal32, OpCodeDecimal32
-
-		case FT_BIGINT:
-			dc, ec = OpCodeBigInt, OpCodeBigInt
-		}
-
-		if !f.IsVisible() {
-			ec, dc = OpCodeSkip, OpCodeSkip
-		}
-
-		enc[i], dec[i] = ec, dc
-	}
-	return
+	return types.ValidateInt(name, n, minVal, maxVal)
 }

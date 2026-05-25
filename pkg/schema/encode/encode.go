@@ -1,64 +1,76 @@
 // Copyright (c) 2024 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
-package schema
+package encode
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"reflect"
 	"time"
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
-type GenericEncoder[T any] struct {
+type Option = sreflect.Option
+
+var WithEnums = sreflect.WithEnums
+
+type EncoderT[T any] struct {
 	enc *Encoder
 }
 
-func NewGenericEncoder[T any]() *GenericEncoder[T] {
-	s, err := SchemaFor[T]()
+func NewEncoderFor[T any](opts ...Option) *EncoderT[T] {
+	s, err := sreflect.SchemaFor[T](opts...)
 	if err != nil {
 		panic(err)
 	}
-	return &GenericEncoder[T]{
+	return &EncoderT[T]{
 		enc: NewEncoder(s),
 	}
 }
 
-func (e *GenericEncoder[T]) Schema() *Schema {
+func (e *EncoderT[T]) Schema() *Schema {
 	return e.enc.schema
 }
 
-func (e *GenericEncoder[T]) NewBuffer(sz int) *bytes.Buffer {
+func (e *EncoderT[T]) NewBuffer(sz int) *bytes.Buffer {
 	return e.enc.schema.NewBuffer(sz)
 }
 
-func (e *GenericEncoder[T]) Encode(val T, buf *bytes.Buffer) ([]byte, error) {
+func (e *EncoderT[T]) Encode(val T, buf *bytes.Buffer) ([]byte, error) {
 	return e.enc.Encode(&val, buf)
 }
 
-func (e *GenericEncoder[T]) EncodePtr(val *T, buf *bytes.Buffer) ([]byte, error) {
+func (e *EncoderT[T]) EncodePtr(val *T, buf *bytes.Buffer) ([]byte, error) {
 	return e.enc.Encode(val, buf)
 }
 
-func (e *GenericEncoder[T]) EncodeSlice(slice []T, buf *bytes.Buffer) ([]byte, error) {
+func (e *EncoderT[T]) EncodeSlice(slice []T, buf *bytes.Buffer) ([]byte, error) {
 	return e.enc.EncodeSlice(&slice, buf)
 }
 
-func (e *GenericEncoder[T]) EncodePtrSlice(slice []*T, buf *bytes.Buffer) ([]byte, error) {
+func (e *EncoderT[T]) EncodePtrSlice(slice []*T, buf *bytes.Buffer) ([]byte, error) {
 	return e.enc.EncodeSlice(&slice, buf)
 }
 
 type Encoder struct {
-	schema *Schema
+	schema  *Schema
+	layout  binary.ByteOrder
+	opcodes []OpCode
 }
 
 func NewEncoder(s *Schema) *Encoder {
+	// ensure we know the memory layout
+	sreflect.AppendFieldLayout(s)
 	return &Encoder{
-		schema: s,
+		schema:  s,
+		layout:  binary.NativeEndian,
+		opcodes: CompileCodecs(s),
 	}
 }
 
@@ -80,13 +92,13 @@ func (e *Encoder) Encode(val any, buf *bytes.Buffer) ([]byte, error) {
 		buf = e.NewBuffer(1)
 	}
 	var err error
-	for op, code := range e.schema.Encode {
-		if code == OpCodeSkip {
+	for op, code := range e.opcodes {
+		if code == OC_SKIP {
 			continue
 		}
 		field := e.schema.Fields[op]
 		ptr := unsafe.Add(base, field.Offset)
-		err = writeField(buf, code, field, ptr)
+		err = e.writeField(buf, code, field, ptr)
 		if err != nil {
 			return nil, err
 		}
@@ -114,13 +126,13 @@ func (e *Encoder) EncodeSlice(slice any, buf *bytes.Buffer) ([]byte, error) {
 
 	var err error
 	for i, l := 0, rslice.Len(); i < l; i++ {
-		for op, code := range e.schema.Encode {
-			if code == OpCodeSkip {
+		for op, code := range e.opcodes {
+			if code == OC_SKIP {
 				continue
 			}
 			field := e.schema.Fields[op]
 			ptr := unsafe.Add(base, field.Offset)
-			err = writeField(buf, code, field, ptr)
+			err = e.writeField(buf, code, field, ptr)
 			if err != nil {
 				return nil, err
 			}
@@ -146,13 +158,13 @@ func (e *Encoder) EncodePtrSlice(slice any, buf *bytes.Buffer) ([]byte, error) {
 	var err error
 	for i, l := 0, rslice.Len(); i < l; i++ {
 		base := rslice.Index(i).UnsafePointer()
-		for op, code := range e.schema.Encode {
-			if code == OpCodeSkip {
+		for op, code := range e.opcodes {
+			if code == OC_SKIP {
 				continue
 			}
 			field := e.schema.Fields[op]
 			ptr := unsafe.Add(base, field.Offset)
-			err = writeField(buf, code, field, ptr)
+			err = e.writeField(buf, code, field, ptr)
 			if err != nil {
 				return nil, err
 			}
@@ -161,82 +173,82 @@ func (e *Encoder) EncodePtrSlice(slice any, buf *bytes.Buffer) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr unsafe.Pointer) error {
-	var (
-		err error
-		sz  [4]byte
-	)
+// writes data for a field in native machine byte order layout
+func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr unsafe.Pointer) (err error) {
 	switch code {
 	default:
 		// int, uint, float, bool
 		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Size))
 
-	case OpCodeFixedBytes:
+	case OC_FIXBYTES:
 		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Fixed))
 
-	case OpCodeFixedString:
+	case OC_FIXSTRING:
 		s := *(*string)(ptr)
 		_, err = buf.Write(unsafe.Slice(unsafe.StringData(s), field.Fixed))
 
-	case OpCodeString:
+	case OC_STRING:
 		s := *(*string)(ptr)
-		LE.PutUint32(sz[:], uint32(len(s)))
-		buf.Write(sz[:])
-		_, err = buf.WriteString(s)
+		err = writeU32(buf, len(s), e.layout)
+		if err == nil {
+			_, err = buf.WriteString(s)
+		}
 
-	case OpCodeBytes:
+	case OC_BYTES:
 		b := *(*[]byte)(ptr)
-		LE.PutUint32(sz[:], uint32(len(b)))
-		buf.Write(sz[:])
-		_, err = buf.Write(b)
+		err = writeU32(buf, len(b), e.layout)
+		if err == nil {
+			_, err = buf.Write(b)
+		}
 
-	case OpCodeTimestamp, OpCodeTime, OpCodeDate:
+	case OC_TIMESTAMP, OC_TIME, OC_DATE:
 		tm := *(*time.Time)(ptr)
-		var b [8]byte
-		LE.PutUint64(b[:], uint64(types.TimeScale(field.Scale).ToUnix(tm)))
-		_, err = buf.Write(b[:])
+		err = writeU64(buf,
+			uint64(types.TimeScale(field.Scale).ToUnix(tm)),
+			e.layout,
+		)
 
-	case OpCodeInt256:
+	case OC_I256:
 		v := *(*num.Int256)(ptr)
 		_, err = buf.Write(v.Bytes())
 
-	case OpCodeInt128:
+	case OC_I128:
 		v := *(*num.Int128)(ptr)
 		_, err = buf.Write(v.Bytes())
 
-	case OpCodeDecimal32:
+	case OC_D32:
 		_, err = buf.Write(unsafe.Slice((*byte)(ptr), 4))
 
-	case OpCodeDecimal64:
+	case OC_D64:
 		_, err = buf.Write(unsafe.Slice((*byte)(ptr), 8))
 
-	case OpCodeDecimal128:
+	case OC_D128:
 		v := *(*num.Decimal128)(ptr)
 		_, err = buf.Write(v.Int128().Bytes())
 
-	case OpCodeDecimal256:
+	case OC_D256:
 		v := *(*num.Decimal256)(ptr)
 		_, err = buf.Write(v.Int256().Bytes())
 
-	case OpCodeEnum:
+	case OC_ENUM:
 		if field.Enum == nil {
 			return ErrEnumUndefined
 		}
 		v := *(*string)(ptr)
 		code, ok := field.Enum.Code(v)
 		if !ok {
-			return fmt.Errorf("%s: invalid enum value %q", field.Name, v)
+			err = fmt.Errorf("%s: invalid enum value %q", field.Name, v)
+		} else {
+			err = writeU16(buf, code, e.layout)
 		}
-		var b [2]byte
-		LE.PutUint16(b[:], code)
-		_, err = buf.Write(b[:])
 
-	case OpCodeBigInt:
+	case OC_BIGINT:
 		v := *(*num.Big)(ptr)
 		b := v.Bytes()
-		LE.PutUint32(sz[:], uint32(len(b)))
-		buf.Write(sz[:])
-		_, err = buf.Write(b)
+		err = writeU32(buf, len(b), e.layout)
+		if err == nil {
+			_, err = buf.Write(b)
+		}
 	}
-	return err
+	return
 }

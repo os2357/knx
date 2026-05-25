@@ -10,6 +10,8 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
 
 var _ Table = (*TableImpl)(nil)
@@ -17,7 +19,7 @@ var _ Table = (*TableImpl)(nil)
 type TableImpl struct {
 	db    Database
 	table engine.TableEngine
-	enc   *schema.Encoder
+	enc   *encode.Encoder
 }
 
 func (t TableImpl) Schema() *schema.Schema {
@@ -38,7 +40,7 @@ func (t TableImpl) DB() Database {
 
 func (t TableImpl) Insert(ctx context.Context, val any) (uint64, int, error) {
 	// analyze reflect
-	s, err := schema.SchemaOf(val)
+	s, err := reflect.SchemaOf(val, reflect.WithEnums(t.table.Schema().Enums.Load()))
 	if err != nil {
 		return 0, 0, err
 	}
@@ -46,12 +48,11 @@ func (t TableImpl) Insert(ctx context.Context, val any) (uint64, int, error) {
 	if t.table.Schema().Hash != s.Hash {
 		return 0, 0, schema.ErrSchemaMismatch
 	}
-	s.WithEnums(t.table.Schema().Enums.Load())
 
 	// encode wire (single or slice) - schema is guaranteed the same
 	// but we must use the one derived from Go type for struct read
 	if t.enc == nil {
-		t.enc = schema.NewEncoder(s)
+		t.enc = encode.NewEncoder(s)
 	}
 	buf, err := t.enc.Encode(val, nil)
 	if err != nil {
@@ -81,7 +82,7 @@ func (t TableImpl) Insert(ctx context.Context, val any) (uint64, int, error) {
 
 func (t TableImpl) Update(ctx context.Context, val any) (int, error) {
 	// analyze reflect
-	s, err := schema.SchemaOf(val)
+	s, err := reflect.SchemaOf(val, reflect.WithEnums(t.table.Schema().Enums.Load()))
 	if err != nil {
 		return 0, err
 	}
@@ -89,12 +90,11 @@ func (t TableImpl) Update(ctx context.Context, val any) (int, error) {
 	if t.table.Schema().Hash != s.Hash {
 		return 0, schema.ErrSchemaMismatch
 	}
-	s.WithEnums(t.table.Schema().Enums.Load())
 
 	// encode wire (single or slice) - schema is guaranteed the same
 	// but we must use the one derived from Go type for struct read
 	if t.enc == nil {
-		t.enc = schema.NewEncoder(s)
+		t.enc = encode.NewEncoder(s)
 	}
 	buf, err := t.enc.Encode(val, nil)
 	if err != nil {
@@ -233,25 +233,25 @@ func (t TableImpl) Stream(ctx context.Context, q QueryRequest, fn func(QueryRow)
 	return commit()
 }
 
-// GenericTable[T] implements Table interface for Go struct types
-type GenericTable[T any] struct {
+// TableT[T] implements Table interface for Go struct types
+type TableT[T any] struct {
 	schema *schema.Schema
-	enc    *schema.GenericEncoder[T]
+	enc    *encode.EncoderT[T]
 	table  engine.TableEngine
 	db     Database
 }
 
-func AsGenericTable[T any](t Table) (*GenericTable[T], error) {
-	return FindGenericTable[T](t.DB(), t.Schema().Name)
+func TableFor[T any](t Table) (*TableT[T], error) {
+	return FindTableFor[T](t.DB(), t.Schema().Name)
 }
 
-func FindGenericTable[T any](db Database, name string) (*GenericTable[T], error) {
-	var t T
-	s, err := schema.SchemaOf(t)
+func FindTableFor[T any](db Database, name string) (*TableT[T], error) {
+	table, err := db.FindTable(name)
 	if err != nil {
 		return nil, err
 	}
-	table, err := db.FindTable(name)
+	var t T
+	s, err := reflect.SchemaOf(t, reflect.WithEnums(table.Schema().Enums.Load()))
 	if err != nil {
 		return nil, err
 	}
@@ -259,48 +259,47 @@ func FindGenericTable[T any](db Database, name string) (*GenericTable[T], error)
 	if table.Schema().Hash != s.Hash {
 		return nil, schema.ErrSchemaMismatch
 	}
-	return &GenericTable[T]{
+	return &TableT[T]{
 		schema: table.Schema(),
 		table:  table.(*TableImpl).table,
 		db:     db,
 	}, nil
 }
 
-func (t *GenericTable[T]) Name() string {
+func (t *TableT[T]) Name() string {
 	return t.schema.Name
 }
 
-func (t *GenericTable[T]) Schema() *schema.Schema {
+func (t *TableT[T]) Schema() *schema.Schema {
 	return t.schema
 }
 
-func (t *GenericTable[T]) Engine() engine.TableEngine {
+func (t *TableT[T]) Engine() engine.TableEngine {
 	return t.table
 }
 
-func (t *GenericTable[T]) Metrics() TableMetrics {
+func (t *TableT[T]) Metrics() TableMetrics {
 	return t.table.Metrics()
 }
 
-func (t *GenericTable[T]) Table() Table {
+func (t *TableT[T]) Table() Table {
 	return &TableImpl{
 		table: t.table,
 		db:    t.db,
 	}
 }
 
-func (t *GenericTable[T]) DB() Database {
+func (t *TableT[T]) DB() Database {
 	return t.db
 }
 
-func (t *GenericTable[T]) Insert(ctx context.Context, val any) (uint64, int, error) {
+func (t *TableT[T]) Insert(ctx context.Context, val any) (uint64, int, error) {
 	var (
 		buf []byte
 		err error
 	)
 	if t.enc == nil {
-		t.enc = schema.NewGenericEncoder[T]()
-		t.enc.Schema().WithEnums(t.Schema().Enums.Load())
+		t.enc = encode.NewEncoderFor[T](encode.WithEnums(t.Schema().Enums.Load()))
 	}
 	switch v := val.(type) {
 	case *T:
@@ -310,7 +309,7 @@ func (t *GenericTable[T]) Insert(ctx context.Context, val any) (uint64, int, err
 	case []*T:
 		buf, err = t.enc.EncodePtrSlice(v, nil)
 	default:
-		return 0, 0, fmt.Errorf("insert: %T %w", val, schema.ErrInvalidValueType)
+		return 0, 0, fmt.Errorf("insert: %T %w", val, schema.ErrInvalidValue)
 	}
 	if err != nil {
 		return 0, 0, err
@@ -351,14 +350,13 @@ func (t *GenericTable[T]) Insert(ctx context.Context, val any) (uint64, int, err
 	return pk, n, nil
 }
 
-func (t *GenericTable[T]) Update(ctx context.Context, val any) (int, error) {
+func (t *TableT[T]) Update(ctx context.Context, val any) (int, error) {
 	var (
 		buf []byte
 		err error
 	)
 	if t.enc == nil {
-		t.enc = schema.NewGenericEncoder[T]()
-		t.enc.Schema().WithEnums(t.Schema().Enums.Load())
+		t.enc = encode.NewEncoderFor[T](encode.WithEnums(t.Schema().Enums.Load()))
 	}
 	switch v := val.(type) {
 	case *T:
@@ -368,7 +366,7 @@ func (t *GenericTable[T]) Update(ctx context.Context, val any) (int, error) {
 	case []*T:
 		buf, err = t.enc.EncodePtrSlice(v, nil)
 	default:
-		return 0, fmt.Errorf("update: %T %w", val, schema.ErrInvalidValueType)
+		return 0, fmt.Errorf("update: %T %w", val, schema.ErrInvalidValue)
 	}
 	if err != nil {
 		return 0, err
@@ -394,7 +392,7 @@ func (t *GenericTable[T]) Update(ctx context.Context, val any) (int, error) {
 	return n, nil
 }
 
-func (t *GenericTable[T]) Delete(ctx context.Context, q QueryRequest) (int, error) {
+func (t *TableT[T]) Delete(ctx context.Context, q QueryRequest) (int, error) {
 	plan, err := q.MakePlan()
 	if err != nil {
 		return 0, err
@@ -423,7 +421,7 @@ func (t *GenericTable[T]) Delete(ctx context.Context, q QueryRequest) (int, erro
 	return n, nil
 }
 
-func (t *GenericTable[T]) Count(ctx context.Context, q QueryRequest) (int, error) {
+func (t *TableT[T]) Count(ctx context.Context, q QueryRequest) (int, error) {
 	plan, err := q.MakePlan()
 	if err != nil {
 		return 0, err
@@ -452,10 +450,10 @@ func (t *GenericTable[T]) Count(ctx context.Context, q QueryRequest) (int, error
 	return n, nil
 }
 
-func (t *GenericTable[T]) Query(ctx context.Context, q QueryRequest) ([]T, error) {
-	return (GenericQuery[T]{q.(Query).WithTable(t.Table())}).Run(ctx)
+func (t *TableT[T]) Query(ctx context.Context, q QueryRequest) ([]T, error) {
+	return (QueryT[T]{q.(Query).WithTable(t.Table())}).Run(ctx)
 }
 
-func (t *GenericTable[T]) Stream(ctx context.Context, q QueryRequest, fn func(*T) error) error {
-	return (GenericQuery[T]{q.(Query).WithTable(t.Table())}).Stream(ctx, fn)
+func (t *TableT[T]) Stream(ctx context.Context, q QueryRequest, fn func(*T) error) error {
+	return (QueryT[T]{q.(Query).WithTable(t.Table())}).Stream(ctx, fn)
 }

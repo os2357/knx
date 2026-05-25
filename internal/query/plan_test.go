@@ -19,7 +19,9 @@ import (
 	"blockwatch.cc/knoxdb/pkg/bitmap"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/cast"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,21 +34,16 @@ var (
 )
 
 func init() {
-	var err error
-	testSchema, err = schema.SchemaOf(testStruct{})
-	if err != nil {
-		panic(err)
-	}
-	testSchema = testSchema.WithMeta()
-	testIndexSchema = testSchema.Indexes[1] // hash index on name
-
 	statusEnum := enum.NewEnumDictionary("status")
 	statusEnum.Append("active", "pending", "inactive")
 	statusTag := types.TaggedHash(types.ObjectTagEnum, "status")
 
 	testEnums = enum.NewEnumRegistry()
 	testEnums.Register(statusTag, statusEnum)
-	testSchema.WithEnums(testEnums)
+
+	testSchema = sreflect.MustSchemaFor[testStruct](sreflect.WithEnums(testEnums))
+	testSchema = testSchema.WithMeta()
+	testIndexSchema = testSchema.Indexes[1] // hash index on name
 }
 
 type testStruct struct {
@@ -60,7 +57,7 @@ type testStruct struct {
 }
 
 func (t *testStruct) Encode() []byte {
-	enc := schema.NewEncoder(testSchema)
+	enc := encode.NewEncoder(testSchema)
 	buf, err := enc.Encode(t, nil)
 	if err != nil {
 		panic(err)

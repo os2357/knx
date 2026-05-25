@@ -16,6 +16,7 @@ import (
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
 
 // Columnar (pack-based) results
@@ -375,7 +376,7 @@ func (r *Row) Decode(val any) error {
 	}
 
 	// detect and cache struct schema
-	s, err := schema.SchemaOf(val)
+	s, err := reflect.SchemaOf(val, reflect.WithEnums(r.res.Schema().Enums.Load()))
 	if err != nil {
 		return err
 	}
@@ -385,7 +386,7 @@ func (r *Row) Decode(val any) error {
 			return err
 		}
 		r.maps = maps
-		r.schema = s.WithEnums(r.res.Schema().Enums.Load())
+		r.schema = s
 	}
 	return r.res.pkg.ReadStruct(r.row, val, r.schema, r.maps)
 }

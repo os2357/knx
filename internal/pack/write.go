@@ -227,7 +227,7 @@ func (p *Package) SetValue(col, row int, val any) error {
 	case num.Big:
 		b.Bytes().Set(row, v.Bytes())
 	default:
-		// fallback to reflect for enum types
+		// fallback to reflect for derived types
 		rval := reflect.Indirect(reflect.ValueOf(val))
 		switch rval.Type().Kind() {
 		case reflect.Uint8:

@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
 
 const PACK_SIZE = 1 << 16
@@ -29,8 +30,7 @@ func init() {
 	enums.Register(0, myEnum)
 
 	// init schema and link enums (will lookup myEnum and link to field)
-	s := schema.MustSchemaFor[specialStruct]()
-	s.WithEnums(enums)
+	sreflect.MustSchemaFor[specialStruct](sreflect.WithEnums(enums))
 }
 
 var (
@@ -45,48 +45,48 @@ var (
 		&encodeTestStruct{},
 	}
 
-	scalarStructEnc = schema.NewGenericEncoder[scalarStruct]()
-	scalarStructDec = schema.NewGenericDecoder[scalarStruct]()
+	scalarStructEnc = encode.NewEncoderFor[scalarStruct]()
+	scalarStructDec = encode.NewDecoderFor[scalarStruct]()
 	scalarStructBuf = scalarStructEnc.NewBuffer(1)
 
-	byteStructEnc = schema.NewGenericEncoder[byteStruct]()
-	byteStructDec = schema.NewGenericDecoder[byteStruct]()
+	byteStructEnc = encode.NewEncoderFor[byteStruct]()
+	byteStructDec = encode.NewDecoderFor[byteStruct]()
 	byteStructBuf = byteStructEnc.NewBuffer(1)
 
-	byteUnmarshalStructEnc = schema.NewGenericEncoder[byteUnmarshalStruct]()
-	byteUnmarshalStructDec = schema.NewGenericDecoder[byteUnmarshalStruct]()
+	byteUnmarshalStructEnc = encode.NewEncoderFor[byteUnmarshalStruct]()
+	byteUnmarshalStructDec = encode.NewDecoderFor[byteUnmarshalStruct]()
 	byteUnmarshalStructBuf = byteUnmarshalStructEnc.NewBuffer(1)
 
-	smallStructEnc = schema.NewGenericEncoder[smallStruct]()
-	smallStructDec = schema.NewGenericDecoder[smallStruct]()
+	smallStructEnc = encode.NewEncoderFor[smallStruct]()
+	smallStructDec = encode.NewDecoderFor[smallStruct]()
 	smallStructBuf = smallStructEnc.NewBuffer(1)
 
-	largeStructEnc = schema.NewGenericEncoder[largeStruct]()
-	largeStructDec = schema.NewGenericDecoder[largeStruct]()
+	largeStructEnc = encode.NewEncoderFor[largeStruct]()
+	largeStructDec = encode.NewDecoderFor[largeStruct]()
 	largeStructBuf = largeStructEnc.NewBuffer(1)
 
-	tradeStructEnc = schema.NewGenericEncoder[tradeStruct]()
-	tradeStructDec = schema.NewGenericDecoder[tradeStruct]()
+	tradeStructEnc = encode.NewEncoderFor[tradeStruct]()
+	tradeStructDec = encode.NewDecoderFor[tradeStruct]()
 	tradeStructBuf = tradeStructEnc.NewBuffer(1)
 
 	// lazy init to make sure enum is registered
-	specialStructEnc *schema.GenericEncoder[specialStruct]
-	specialStructDec *schema.GenericDecoder[specialStruct]
+	specialStructEnc *encode.EncoderT[specialStruct]
+	specialStructDec *encode.DecoderT[specialStruct]
 	specialStructBuf *bytes.Buffer
 
-	encodeTestStructEnc *schema.GenericEncoder[encodeTestStruct]
-	encodeTestStructDec *schema.GenericDecoder[encodeTestStruct]
+	encodeTestStructEnc *encode.EncoderT[encodeTestStruct]
+	encodeTestStructDec *encode.DecoderT[encodeTestStruct]
 	encodeTestStructBuf *bytes.Buffer
 )
 
 func makeTypedPackage(typ any, fill int) *Package {
-	s, err := schema.SchemaOf(typ)
+	s, err := sreflect.SchemaOf(typ, sreflect.WithEnums(enums))
 	if err != nil {
 		panic(err)
 	}
 	s.WithEnums(enums)
 	pkg := New().WithMaxRows(PACK_SIZE).WithSchema(s)
-	enc := schema.NewEncoder(s)
+	enc := encode.NewEncoder(s)
 	buf, err := enc.Encode(makeZeroStruct(typ), nil)
 	if err != nil {
 		panic(err)
@@ -96,15 +96,6 @@ func makeTypedPackage(typ any, fill int) *Package {
 	}
 	return pkg
 }
-
-// func makeZeroSlice(v any, n int) reflect.Value {
-// 	rtyp := reflect.TypeOf(v).Elem()
-// 	rslice := reflect.MakeSlice(reflect.SliceOf(rtyp), 0, n)
-// 	for i := 0; i < n; i++ {
-// 		rslice = reflect.Append(rslice, reflect.Zero(rtyp))
-// 	}
-// 	return rslice
-// }
 
 func makeZeroStruct(v any) any {
 	typ := reflect.TypeOf(v).Elem()
@@ -348,8 +339,8 @@ func (s *specialStruct) Decode(buf []byte) error {
 func (s specialStruct) init() {
 	// lazy init on first use to ensure enum is in global registry
 	if specialStructBuf == nil {
-		specialStructEnc = schema.NewGenericEncoder[specialStruct]()
-		specialStructDec = schema.NewGenericDecoder[specialStruct]()
+		specialStructEnc = encode.NewEncoderFor[specialStruct]()
+		specialStructDec = encode.NewDecoderFor[specialStruct]()
 		specialStructBuf = specialStructEnc.NewBuffer(1)
 	}
 }
@@ -395,8 +386,8 @@ func (s *encodeTestStruct) Decode(buf []byte) error {
 func (s encodeTestStruct) init() {
 	// lazy init on first use to ensure enum is in global registry
 	if encodeTestStructBuf == nil {
-		encodeTestStructEnc = schema.NewGenericEncoder[encodeTestStruct]()
-		encodeTestStructDec = schema.NewGenericDecoder[encodeTestStruct]()
+		encodeTestStructEnc = encode.NewEncoderFor[encodeTestStruct]()
+		encodeTestStructDec = encode.NewDecoderFor[encodeTestStruct]()
 		encodeTestStructBuf = encodeTestStructEnc.NewBuffer(1)
 	}
 }

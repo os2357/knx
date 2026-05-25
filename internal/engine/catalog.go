@@ -15,7 +15,9 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"github.com/echa/log"
 )
@@ -367,7 +369,7 @@ func (c *Catalog) DelSchema(ctx context.Context, key uint64) error {
 }
 
 func (c *Catalog) GetOptions(ctx context.Context, key uint64, opts any) error {
-	s, err := schema.SchemaOf(opts)
+	s, err := reflect.SchemaOf(opts)
 	if err != nil {
 		return err
 	}
@@ -379,7 +381,7 @@ func (c *Catalog) GetOptions(ctx context.Context, key uint64, opts any) error {
 	if err != nil {
 		return ErrNoKey
 	}
-	dec := schema.NewDecoder(s)
+	dec := encode.NewDecoder(s)
 	if err := dec.Decode(buf, opts); err != nil {
 		return err
 	}
@@ -390,7 +392,7 @@ func (c *Catalog) PutOptions(ctx context.Context, key uint64, opts any) error {
 	if opts == nil {
 		return nil
 	}
-	s, err := schema.SchemaOf(opts)
+	s, err := reflect.SchemaOf(opts)
 	if err != nil {
 		return err
 	}
@@ -402,7 +404,7 @@ func (c *Catalog) PutOptions(ctx context.Context, key uint64, opts any) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	enc := schema.NewEncoder(s)
+	enc := encode.NewEncoder(s)
 	buf, err := enc.Encode(opts, nil)
 	if err != nil {
 		return err

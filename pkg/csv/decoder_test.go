@@ -11,6 +11,7 @@ import (
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,7 +139,7 @@ var DecoderCases = []decoderTest{
 func TestDecodeSimple(t *testing.T) {
 	for _, c := range DecoderCases {
 		t.Run(c.Name, func(t *testing.T) {
-			s, err := schema.SchemaOfTag(A{}, "csv")
+			s, err := reflect.SchemaOfTag(A{}, "csv")
 			require.NoError(t, err)
 			dec := NewDecoder(s, strings.NewReader(c.Csv)).WithTrim(c.Trim).WithHeader(c.Header)
 			switch v := c.Res.(type) {
@@ -180,7 +181,7 @@ func TestDecodeWithSchema(t *testing.T) {
 }
 
 func TestDecodeWithType(t *testing.T) {
-	s, err := schema.SchemaOf(SchemaB{})
+	s, err := reflect.SchemaOf(SchemaB{})
 	require.NoError(t, err)
 	dec := NewDecoder(s, strings.NewReader(CsvB)).WithHeader(false)
 	val, err := dec.Decode()

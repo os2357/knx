@@ -8,6 +8,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 )
 
 type Node interface {
@@ -85,7 +86,7 @@ func (n *INode) SetVersion(view *schema.View, ver uint32) {
 	view.Reset(nil)
 }
 
-func (n *INode) Update(view *schema.View, wr *schema.Writer, left, right Node) bool {
+func (n *INode) Update(view *schema.View, wr *encode.Writer, left, right Node) bool {
 	// update min/max/sum statistics from left and right children
 	// note right may be nil
 	if right == nil {

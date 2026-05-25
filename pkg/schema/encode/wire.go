@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
-package schema
+package encode
 
 import (
 	"encoding/binary"
@@ -10,10 +10,10 @@ import (
 	"reflect"
 )
 
-// Type cast while encoding to wire format. This accepts all
-// integer types as source an will convert them to the
-// wire format selected by code.
-func EncodeInt(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err error) {
+// writeInt writes an integer value to wire format. Accepts all
+// integer types as interface an converts them to the wire format
+// selected by code.
+func writeInt(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err error) {
 	var (
 		u64 uint64
 		neg bool
@@ -48,19 +48,19 @@ func EncodeInt(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err 
 		width uint
 	)
 	switch code {
-	case OpCodeInt8, OpCodeUint8:
+	case OC_I8, OC_U8:
 		over = (!neg && u64>>8 > 0) || neg && int64(u64)>>8 != -1
 		buf[0] = uint8(u64)
 		width = 1
-	case OpCodeInt16, OpCodeUint16:
+	case OC_I16, OC_U16:
 		over = (!neg && u64>>16 > 0) || neg && int64(u64)>>16 != -1
 		layout.PutUint16(buf[:], uint16(u64))
 		width = 2
-	case OpCodeInt32, OpCodeUint32:
+	case OC_I32, OC_U32:
 		over = (!neg && u64>>32 > 0) || neg && int64(u64)>>32 != -1
 		layout.PutUint32(buf[:], uint32(u64))
 		width = 4
-	case OpCodeInt64, OpCodeUint64:
+	case OC_I64, OC_U64:
 		layout.PutUint64(buf[:], u64)
 		width = 8
 	}
@@ -72,10 +72,10 @@ func EncodeInt(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err 
 	return
 }
 
-// Type cast while encoding to wire format. This accepts all
-// float types as source an will convert them to the
+// writeFloat writes a floating point valye in wire format.
+// Accepts all float types as interface an converts to the
 // wire format selected by code.
-func EncodeFloat(w io.Writer, code OpCode, val any) (err error) {
+func writeFloat(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err error) {
 	var f64 float64
 	switch v := val.(type) {
 	case float64:
@@ -86,19 +86,16 @@ func EncodeFloat(w io.Writer, code OpCode, val any) (err error) {
 		return ErrInvalidValueType
 	}
 	switch code {
-	case OpCodeFloat32:
-		var b [4]byte
-		LE.PutUint32(b[:], math.Float32bits(float32(f64)))
-		_, err = w.Write(b[:])
-	case OpCodeFloat64:
-		var b [8]byte
-		LE.PutUint64(b[:], math.Float64bits(f64))
-		_, err = w.Write(b[:])
+	case OC_F32:
+		err = writeU32(w, math.Float32bits(float32(f64)), layout)
+	case OC_F64:
+		err = writeU64(w, math.Float64bits(f64), layout)
 	}
 	return
 }
 
-func EncodeBytes(w io.Writer, val any, fixed uint16, layout binary.ByteOrder) (err error) {
+// writeBytes writes a fixed or variable length byte slice in wire format.
+func writeBytes(w io.Writer, val any, fixed uint16, layout binary.ByteOrder) (err error) {
 	var b []byte
 	// type cast values
 	switch v := val.(type) {
@@ -128,9 +125,7 @@ func EncodeBytes(w io.Writer, val any, fixed uint16, layout binary.ByteOrder) (e
 		}
 		_, err = w.Write(b[:fixed])
 	} else {
-		var buf [4]byte
-		layout.PutUint32(buf[:], uint32(len(b)))
-		_, err = w.Write(buf[:])
+		err = writeU32(w, len(b), layout)
 		if err == nil {
 			_, err = w.Write(b)
 		}
@@ -139,11 +134,39 @@ func EncodeBytes(w io.Writer, val any, fixed uint16, layout binary.ByteOrder) (e
 	return
 }
 
-func EncodeBool(w io.Writer, b bool) (err error) {
+// writeBool writes a bool in wire format.
+func writeBool(w io.Writer, b bool) (err error) {
 	if b {
 		_, err = w.Write([]byte{1})
 	} else {
 		_, err = w.Write([]byte{0})
 	}
 	return
+}
+
+// writeU16 writes a uint16 in given layout to wire.
+// used for writing enum codes.
+func writeU16[T int | uint16](w io.Writer, v T, layout binary.ByteOrder) error {
+	var buf [2]byte
+	layout.PutUint16(buf[:], uint16(v))
+	_, err := w.Write(buf[:])
+	return err
+}
+
+// writeU32 writes a uint32 in given layout to wire.
+// used for writing string/byte lengths and float32 bits.
+func writeU32[T int | uint32](w io.Writer, v T, layout binary.ByteOrder) error {
+	var buf [4]byte
+	layout.PutUint32(buf[:], uint32(v))
+	_, err := w.Write(buf[:])
+	return err
+}
+
+// writeU64 writes a uint64 in given layout to wire.
+// used for writing float64 bits, timestamps.
+func writeU64[T int64 | uint64](w io.Writer, v T, layout binary.ByteOrder) error {
+	var buf [8]byte
+	layout.PutUint64(buf[:], uint64(v))
+	_, err := w.Write(buf[:])
+	return err
 }

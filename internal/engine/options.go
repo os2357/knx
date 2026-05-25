@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/internal/wal"
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"github.com/echa/log"
 )
@@ -53,12 +53,12 @@ func (o Options) Apply(opts ...Option) Options {
 }
 
 func (o Options) MarshalBinary() ([]byte, error) {
-	enc := schema.NewGenericEncoder[Options]()
+	enc := encode.NewEncoderFor[Options]()
 	return enc.Encode(o, nil)
 }
 
 func (o *Options) UnmarshalBinary(buf []byte) error {
-	dec := schema.NewGenericDecoder[Options]()
+	dec := encode.NewDecoderFor[Options]()
 	_, err := dec.Decode(buf, o)
 	return err
 }

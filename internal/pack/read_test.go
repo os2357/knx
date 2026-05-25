@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +16,7 @@ func TestReadStruct(t *testing.T) {
 	for _, v := range testStructs {
 		t.Run(fmt.Sprintf("%T", v), func(t *testing.T) {
 			pkg := makeTypedPackage(v, PACK_SIZE)
-			s, err := schema.SchemaOf(v)
+			s, err := reflect.SchemaOf(v)
 			require.NoError(t, err)
 			maps, err := s.MapSchema(s)
 			require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestReadStruct(t *testing.T) {
 func TestReadChildStruct(t *testing.T) {
 	pkg := makeTypedPackage(&encodeTestStruct{}, PACK_SIZE)
 	dst := &encodeTestSubStruct{}
-	dstSchema, err := schema.SchemaOf(dst)
+	dstSchema, err := reflect.SchemaOf(dst)
 	require.NoError(t, err)
 	maps, err := pkg.schema.MapSchema(dstSchema)
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestReadChildStruct(t *testing.T) {
 func BenchmarkReadStruct(b *testing.B) {
 	for _, v := range testStructs {
 		pkg := makeTypedPackage(v, PACK_SIZE)
-		s, _ := schema.SchemaOf(v)
+		s, _ := reflect.SchemaOf(v)
 		maps, _ := s.MapSchema(s)
 		b.Run(fmt.Sprintf("%T/%d", v, PACK_SIZE), func(b *testing.B) {
 			b.ReportAllocs()

@@ -12,15 +12,16 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/stretchr/testify/require"
 )
 
-var testSchema = schema.MustSchemaOf(schema.BaseModel{})
+var testSchema = reflect.MustSchemaFor[reflect.BaseModel]()
 
 func TestSegmentInsert(t *testing.T) {
 	seg := newSegment(testSchema.WithMeta(), 42, 8).setState(SegmentStateActive)
-	enc := schema.NewGenericEncoder[schema.BaseModel]()
+	enc := encode.NewEncoderFor[reflect.BaseModel]()
 	require.Equal(t, uint32(42), seg.Id())
 	require.NotNil(t, seg.Data())
 	require.NotNil(t, seg.Tomb())
@@ -32,7 +33,7 @@ func TestSegmentInsert(t *testing.T) {
 	require.False(t, seg.ContainsRid(1))
 
 	// insert val
-	buf, err := enc.Encode(schema.BaseModel{Id: 1}, nil)
+	buf, err := enc.Encode(reflect.BaseModel{Id: 1}, nil)
 	require.NoError(t, err)
 	seg.InsertRecord(1, 1, buf)
 	require.Equal(t, 1, seg.Data().Len())
@@ -52,15 +53,15 @@ func TestSegmentInsert(t *testing.T) {
 
 func TestSegmentUpdate(t *testing.T) {
 	seg := newSegment(testSchema.WithMeta(), 42, 8).setState(SegmentStateActive)
-	enc := schema.NewGenericEncoder[schema.BaseModel]()
+	enc := encode.NewEncoderFor[reflect.BaseModel]()
 
 	// insert val1
-	buf, err := enc.Encode(schema.BaseModel{Id: 1}, nil)
+	buf, err := enc.Encode(reflect.BaseModel{Id: 1}, nil)
 	require.NoError(t, err)
 	seg.InsertRecord(1, 1, buf)
 
 	// update val
-	buf, err = enc.Encode(schema.BaseModel{Id: 2}, nil)
+	buf, err = enc.Encode(reflect.BaseModel{Id: 2}, nil)
 	require.NoError(t, err)
 	seg.UpdateRecord(1, 2, 1, buf)
 	require.True(t, seg.ContainsTx(1))
@@ -82,13 +83,13 @@ func TestSegmentUpdate(t *testing.T) {
 
 func TestSegmentDelete(t *testing.T) {
 	seg := newSegment(testSchema.WithMeta(), 42, 8).setState(SegmentStateActive)
-	enc := schema.NewGenericEncoder[schema.BaseModel]()
+	enc := encode.NewEncoderFor[reflect.BaseModel]()
 
 	// insert val 1 & 2 and commit
-	buf, err := enc.Encode(schema.BaseModel{Id: 1}, nil)
+	buf, err := enc.Encode(reflect.BaseModel{Id: 1}, nil)
 	require.NoError(t, err)
 	seg.InsertRecord(1, 1, buf)
-	buf, err = enc.Encode(schema.BaseModel{Id: 2}, nil)
+	buf, err = enc.Encode(reflect.BaseModel{Id: 2}, nil)
 	require.NoError(t, err)
 	seg.InsertRecord(1, 2, buf)
 	seg.CommitTx(1)
@@ -125,28 +126,28 @@ func TestSegmentMatch(t *testing.T) {
 	// insert, update, delete mix
 	// snapshot at 3rd xid
 	seg := newSegment(testSchema.WithMeta(), 42, 8).setState(SegmentStateActive)
-	enc := schema.NewGenericEncoder[schema.BaseModel]()
+	enc := encode.NewEncoderFor[reflect.BaseModel]()
 
 	// xid 1 committed
-	buf, err := enc.Encode(schema.BaseModel{Id: 1}, nil)
+	buf, err := enc.Encode(reflect.BaseModel{Id: 1}, nil)
 	require.NoError(t, err)
 	seg.InsertRecord(1, 1, buf)
 	seg.CommitTx(1)
 
 	// xid 2 aborted
-	buf, err = enc.Encode(schema.BaseModel{Id: 2}, nil)
+	buf, err = enc.Encode(reflect.BaseModel{Id: 2}, nil)
 	require.NoError(t, err)
 	seg.InsertRecord(2, 2, buf)
 	seg.AbortTx(2)
 
 	// xid 3 committed, replaces rid 1
-	buf, err = enc.Encode(schema.BaseModel{Id: 1}, nil)
+	buf, err = enc.Encode(reflect.BaseModel{Id: 1}, nil)
 	require.NoError(t, err)
 	seg.UpdateRecord(3, 2, 1, buf)
 	seg.CommitTx(3)
 
 	// xid 4 open
-	buf, err = enc.Encode(schema.BaseModel{Id: 3}, nil)
+	buf, err = enc.Encode(reflect.BaseModel{Id: 3}, nil)
 	require.NoError(t, err)
 	seg.InsertRecord(4, 3, buf)
 
@@ -185,9 +186,9 @@ func TestSegmentStateUpdates(t *testing.T) {
 		setState(SegmentStateActive).
 		WithState(engine.NewObjectState("test")).
 		setCheckpoint(42)
-	enc := schema.NewGenericEncoder[schema.BaseModel]()
+	enc := encode.NewEncoderFor[reflect.BaseModel]()
 	makeRecord := func(i int) []byte {
-		buf, err := enc.Encode(schema.BaseModel{Id: uint64(i)}, nil)
+		buf, err := enc.Encode(reflect.BaseModel{Id: uint64(i)}, nil)
 		require.NoError(t, err)
 		return buf
 	}

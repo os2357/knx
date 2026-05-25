@@ -5,23 +5,16 @@ package schema
 
 import (
 	"errors"
-	"io"
 )
 
 var (
-	ErrNilValue          = errors.New("nil value")
-	ErrDuplicateName     = errors.New("duplicate name")
-	ErrInvalidValue      = errors.New("invalid value")
-	ErrInvalidValueType  = errors.New("invalid value type")
-	ErrInvalidResultType = errors.New("invalid result type")
-	ErrInvalidField      = errors.New("invalid field")
-	ErrOverflow          = errors.New("integer overflow")
-	ErrShortValue        = errors.New("value too short")
-	ErrShortBuffer       = io.ErrShortBuffer
-	ErrSchemaMismatch    = errors.New("schema mismatch")
-	ErrDeletePrimary     = errors.New("cannot delete primary key field")
-	ErrDeleteIndexed     = errors.New("cannot delete indexed field")
-	ErrRenameEnum        = errors.New("cannot rename enum field")
-	ErrEnumUndefined     = errors.New("enum translation not registered")
-	ErrNoMeta            = errors.New("missing metadata fields")
+	ErrDuplicateName  = errors.New("schema: duplicate name")
+	ErrInvalidField   = errors.New("schema: invalid field")
+	ErrInvalidValue   = errors.New("schema: invalid value type")
+	ErrInvalidResult  = errors.New("schema: invalid result type")
+	ErrShortBuffer    = errors.New("schema: short buffer")
+	ErrSchemaMismatch = errors.New("schema: mismatch")
+	ErrDeletePrimary  = errors.New("schema: cannot delete primary key field")
+	ErrRenameEnum     = errors.New("schema: cannot rename enum field")
+	ErrNoMeta         = errors.New("schema: missing metadata fields")
 )

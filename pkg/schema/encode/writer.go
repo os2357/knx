@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
-package schema
+package encode
 
 import (
 	"bytes"
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -120,15 +119,14 @@ func (w *Writer) Write(i int, val any) error {
 				err = ErrShortValue
 			}
 		} else {
-			// variable size
-			// w.dyn[i] = bytes.Clone(buf)
+			// variable size, reference buf (no copy)
 			w.dyn[i] = buf
 		}
 
 	case FT_TIMESTAMP:
 		switch tm := val.(type) {
 		case time.Time:
-			w.layout.PutUint64(w.buf[x:y], uint64(types.TimeScale(field.Scale).ToUnix(tm)))
+			w.layout.PutUint64(w.buf[x:y], uint64(TimeScale(field.Scale).ToUnix(tm)))
 		case int64:
 			w.layout.PutUint64(w.buf[x:y], uint64(tm))
 		default:
@@ -276,7 +274,6 @@ func (w *Writer) Write(i int, val any) error {
 			err = ErrInvalidValueType
 		}
 		// variable size (already in new allocated []byte)
-		// b.dyn[i] = bytes.Clone(buf)
 		w.dyn[i] = buf
 
 	default:
@@ -320,9 +317,7 @@ func (w *Writer) Bytes() []byte {
 		} else {
 			// write dynamic field
 			val := w.dyn[n]
-			var l [4]byte
-			LE.PutUint32(l[:], uint32(len(val)))
-			buf.Write(l[:])
+			writeU32(buf, len(val), w.layout)
 			buf.Write(val)
 		}
 		n++

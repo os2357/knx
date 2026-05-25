@@ -220,7 +220,7 @@ func TestWorkload5(t *testing.T) {
 		for i := range ins {
 			ins[i] = NewTestValue(i + 1)
 		}
-		table, err := knox.FindGenericTable[tests.AllTypes](knox.WrapEngine(db.Load()), tableName)
+		table, err := knox.FindTableFor[tests.AllTypes](knox.WrapEngine(db.Load()), tableName)
 		require.NoError(t, err)
 		pk, n, err := table.Insert(context.Background(), ins)
 		require.NoError(t, err)
@@ -271,7 +271,7 @@ func TestWorkload5(t *testing.T) {
 					if round < int(lastCrash.Load()) {
 						return nil
 					}
-					table, err := knox.FindGenericTable[tests.AllTypes](
+					table, err := knox.FindTableFor[tests.AllTypes](
 						knox.WrapEngine(db.Load()),
 						tableName,
 					)
@@ -305,7 +305,7 @@ func TestWorkload5(t *testing.T) {
 
 					// load record if exists
 					var val tests.AllTypes
-					n, err := knox.NewGenericQuery[tests.AllTypes]().
+					n, err := knox.NewQueryFor[tests.AllTypes]().
 						WithTag("update-"+strconv.Itoa(round)).
 						// WithDebug(true).
 						WithTable(table).
@@ -365,7 +365,7 @@ func TestWorkload5(t *testing.T) {
 					if round < int(lastCrash.Load()) {
 						return nil
 					}
-					table, err := knox.FindGenericTable[tests.AllTypes](
+					table, err := knox.FindTableFor[tests.AllTypes](
 						knox.WrapEngine(db.Load()),
 						tableName,
 					)
@@ -378,7 +378,7 @@ func TestWorkload5(t *testing.T) {
 
 					// load record if exists
 					var val tests.AllTypes
-					n, err := knox.NewGenericQuery[tests.AllTypes]().
+					n, err := knox.NewQueryFor[tests.AllTypes]().
 						WithTag("delete-"+strconv.Itoa(round)).
 						WithTable(table.Table()).
 						AndEqual("id", id).
@@ -401,7 +401,7 @@ func TestWorkload5(t *testing.T) {
 					}
 
 					// delete by id
-					n, err = knox.NewGenericQuery[tests.AllTypes]().
+					n, err = knox.NewQueryFor[tests.AllTypes]().
 						WithTag("delete-"+strconv.Itoa(round)).
 						// WithDebug(true).
 						WithTable(table.Table()).
@@ -445,7 +445,7 @@ func TestWorkload5(t *testing.T) {
 
 					// point query
 					var val tests.AllTypes
-					_, err = knox.NewGenericQuery[tests.AllTypes]().
+					_, err = knox.NewQueryFor[tests.AllTypes]().
 						WithTag("query-"+strconv.Itoa(round)).
 						// WithDebug(testing.Verbose()).
 						WithTable(table).
@@ -482,7 +482,7 @@ func TestWorkload5(t *testing.T) {
 						return wrapErr(err)
 					}
 
-					err = knox.NewGenericQuery[tests.AllTypes]().
+					err = knox.NewQueryFor[tests.AllTypes]().
 						WithTag("stream-"+strconv.Itoa(round)).
 						// WithDebug(testing.Verbose()).
 						WithTable(table).

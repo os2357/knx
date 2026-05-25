@@ -4,6 +4,7 @@
 package stats
 
 import (
+	"errors"
 	"slices"
 
 	"blockwatch.cc/knoxdb/internal/arena"
@@ -16,8 +17,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
+	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"blockwatch.cc/knoxdb/pkg/util"
@@ -449,7 +450,8 @@ func BuildFuseFilter[T uint8 | uint16](b *block.Block) (*fuse.BinaryFuse[T], err
 
 	default:
 		// BlockFloat32/64, BlockBool and unknown/future types have no filter
-		return nil, schema.ErrInvalidValueType
+		assert.Unreachable("invalid block type for fuse", b.Type())
+		return nil, errors.New("fuse: invalid block type")
 	}
 
 	// need unique values for filter construction

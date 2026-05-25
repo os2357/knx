@@ -8,11 +8,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"math"
-	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
@@ -28,7 +25,6 @@ type (
 )
 
 const (
-	FT_TIMESTAMP = types.FieldTypeTimestamp
 	FT_I8        = types.FieldTypeInt8
 	FT_I16       = types.FieldTypeInt16
 	FT_I32       = types.FieldTypeInt32
@@ -51,6 +47,7 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
+	FT_TIMESTAMP = types.FieldTypeTimestamp
 
 	F_PRIMARY  = types.FieldFlagPrimary
 	F_FIXED    = types.FieldFlagFixed
@@ -254,16 +251,6 @@ func ParseFieldFlags(s string) (FieldFlags, error) {
 	return flags, nil
 }
 
-func (f *Field) GoType() reflect.Type {
-	if f.Type == FT_BYTES && f.Fixed > 0 {
-		return reflect.ArrayOf(int(f.Fixed), reflect.TypeFor[byte]())
-	}
-	if f.Type == FT_U16 && f.IsEnum() {
-		return reflect.TypeFor[string]()
-	}
-	return reflect.TypeOf(f.Type.Zero())
-}
-
 func (f *Field) WithName(n string) *Field {
 	f.Name = n
 	return f
@@ -271,6 +258,11 @@ func (f *Field) WithName(n string) *Field {
 
 func (f *Field) WithFlags(v FieldFlags) *Field {
 	f.Flags = v
+	return f
+}
+
+func (f *Field) WithEnum(d *enum.EnumDictionary) *Field {
+	f.Enum = d
 	return f
 }
 
@@ -317,7 +309,7 @@ func (f *Field) Validate() error {
 		default:
 			return fmt.Errorf("field[%s]: scale unsupported on type %s", f.Name, f.Type)
 		}
-		if _, err := validateInt("scale", int(f.Scale), int(minScale), int(maxScale)); err != nil {
+		if _, err := types.ValidateInt("scale", int(f.Scale), int(minScale), int(maxScale)); err != nil {
 			return fmt.Errorf("field[%s]: %v", f.Name, err)
 		}
 	}
@@ -331,7 +323,7 @@ func (f *Field) Validate() error {
 
 	// require fixed on string/byte fields only
 	if f.Fixed != 0 {
-		if _, err := validateInt("fixed", int(f.Fixed), 1, int(MAX_FIXED)); err != nil {
+		if _, err := types.ValidateInt("fixed", int(f.Fixed), 1, int(types.MAX_FIXED)); err != nil {
 			return fmt.Errorf("field[%s]: %v", f.Name, err)
 		}
 		switch f.Type {
@@ -343,363 +335,19 @@ func (f *Field) Validate() error {
 	}
 
 	// require uint16 for enum types
-	if f.Flags.Is(F_ENUM) && f.Type != FT_U16 {
+	if f.IsEnum() && f.Type != FT_U16 {
 		return fmt.Errorf("field[%s]: invalid type %s for enum, requires uint16", f.Name, f.Type)
+	}
+	if f.IsEnum() && f.Enum == nil {
+		return fmt.Errorf("field[%s]: nil enum registry", f.Name)
 	}
 
 	// require timebase flag only to be used with timestamp fields
-	if f.Flags.Is(F_TIMEBASE) && f.Type != FT_TIMESTAMP {
+	if f.IsTimebase() && f.Type != FT_TIMESTAMP {
 		return fmt.Errorf("field[%s]: invalid use of timebase flag on type %s", f.Name, f.Type)
 	}
 
 	return nil
-}
-
-func (f *Field) Codec() OpCode {
-	if !f.IsVisible() {
-		return OpCodeSkip
-	}
-
-	switch f.Type {
-	case FT_TIMESTAMP:
-		return OpCodeTimestamp
-
-	case FT_DATE:
-		return OpCodeDate
-
-	case FT_TIME:
-		return OpCodeTime
-
-	case FT_I64:
-		return OpCodeInt64
-
-	case FT_I32:
-		return OpCodeInt32
-
-	case FT_I16:
-		return OpCodeInt16
-
-	case FT_I8:
-		return OpCodeInt8
-
-	case FT_U64:
-		return OpCodeUint64
-
-	case FT_U32:
-		return OpCodeUint32
-
-	case FT_U16:
-		if f.IsEnum() {
-			return OpCodeEnum
-		}
-		return OpCodeUint16
-
-	case FT_U8:
-		return OpCodeUint8
-
-	case FT_F64:
-		return OpCodeFloat64
-
-	case FT_F32:
-		return OpCodeFloat32
-
-	case FT_BOOL:
-		return OpCodeBool
-
-	case FT_STRING:
-		if f.Fixed > 0 {
-			return OpCodeFixedString
-		} else {
-			return OpCodeString
-		}
-
-	case FT_BYTES:
-		if f.Fixed > 0 {
-			return OpCodeFixedBytes
-		} else {
-			return OpCodeBytes
-		}
-
-	case FT_I256:
-		return OpCodeInt256
-
-	case FT_I128:
-		return OpCodeInt128
-
-	case FT_D256:
-		return OpCodeDecimal256
-
-	case FT_D128:
-		return OpCodeDecimal128
-
-	case FT_D64:
-		return OpCodeDecimal64
-
-	case FT_D32:
-		return OpCodeDecimal32
-
-	case FT_BIGINT:
-		return OpCodeBigInt
-
-	default:
-		return OpCodeInvalid
-	}
-}
-
-// Encoder to serialize individual field values to wire format.
-// Use to generate composite indexes or hashes for joins. Note
-// this function encodes length-prefixed inline strings.
-func (f *Field) Encode(w io.Writer, val any, layout binary.ByteOrder) (err error) {
-	if val == nil {
-		return ErrNilValue
-	}
-
-	// init error, will be overwritten by write branches below
-	err = ErrInvalidValueType
-
-	switch code := f.Codec(); code {
-	default:
-		err = EncodeInt(w, code, val, layout)
-
-	case OpCodeFixedString,
-		OpCodeFixedBytes,
-		OpCodeString,
-		OpCodeBytes:
-
-		err = EncodeBytes(w, val, f.Fixed, layout)
-
-	case OpCodeBool:
-		b, ok := val.(bool)
-		if ok {
-			err = EncodeBool(w, b)
-		}
-
-	case OpCodeTimestamp, OpCodeDate, OpCodeTime:
-		tv, ok := val.(time.Time)
-		if ok {
-			err = EncodeInt(w, OpCodeUint64, types.TimeScale(f.Scale).ToUnix(tv), layout)
-		}
-
-	case OpCodeFloat32:
-		switch v := val.(type) {
-		case float32:
-			err = EncodeInt(w, OpCodeUint32, math.Float32bits(v), layout)
-		case float64:
-			err = EncodeInt(w, OpCodeUint32, math.Float32bits(float32(v)), layout)
-		}
-
-	case OpCodeFloat64:
-		switch v := val.(type) {
-		case float32:
-			err = EncodeInt(w, OpCodeUint64, math.Float64bits(float64(v)), layout)
-		case float64:
-			err = EncodeInt(w, OpCodeUint64, math.Float64bits(v), layout)
-		}
-
-	case OpCodeInt128:
-		v, ok := val.(num.Int128)
-		if ok {
-			_, err = w.Write(v.Bytes())
-		}
-
-	case OpCodeInt256:
-		v, ok := val.(num.Int256)
-		if ok {
-			_, err = w.Write(v.Bytes())
-		}
-
-	case OpCodeDecimal32:
-		v, ok := val.(num.Decimal32)
-		if ok {
-			err = EncodeInt(w, OpCodeUint32, uint32(v.Int32()), layout)
-		}
-
-	case OpCodeDecimal64:
-		v, ok := val.(num.Decimal64)
-		if ok {
-			err = EncodeInt(w, OpCodeUint64, uint64(v.Int64()), layout)
-		}
-
-	case OpCodeDecimal128:
-		v, ok := val.(num.Decimal128)
-		if ok {
-			_, err = w.Write(v.Int128().Bytes())
-		}
-
-	case OpCodeDecimal256:
-		v, ok := val.(num.Decimal256)
-		if ok {
-			_, err = w.Write(v.Int256().Bytes())
-		}
-
-	case OpCodeEnum:
-		err = EncodeInt(w, OpCodeUint16, val.(uint16), layout)
-
-	case OpCodeBigInt:
-		v, ok := val.(num.Big)
-		if ok {
-			err = EncodeBytes(w, v.Bytes(), 0, layout)
-		}
-	}
-	return
-}
-
-// Simple per field decoder used to wire-decode individual typed values
-// found in query conditions.
-func (f *Field) Decode(r io.Reader, layout binary.ByteOrder) (val any, err error) {
-	var (
-		buf [32]byte
-		n   int
-	)
-	switch f.Type {
-	case FT_TIMESTAMP, FT_TIME:
-		_, err = r.Read(buf[:8])
-		val = time.Unix(0, int64(layout.Uint64(buf[:8]))).UTC()
-
-	case FT_DATE:
-		_, err = r.Read(buf[:8])
-		val = types.FromUnixDays(int64(layout.Uint64(buf[:8])))
-
-	case FT_I64:
-		_, err = r.Read(buf[:8])
-		val = int64(layout.Uint64(buf[:8]))
-
-	case FT_I32:
-		_, err = r.Read(buf[:4])
-		val = int32(layout.Uint32(buf[:4]))
-
-	case FT_I16:
-		_, err = r.Read(buf[:2])
-		val = int16(layout.Uint16(buf[:2]))
-
-	case FT_I8:
-		_, err = r.Read(buf[:1])
-		val = int8(buf[0])
-
-	case FT_U64:
-		_, err = r.Read(buf[:8])
-		val = layout.Uint64(buf[:8])
-
-	case FT_U32:
-		_, err = r.Read(buf[:4])
-		val = layout.Uint32(buf[:4])
-
-	case FT_U16:
-		_, err = r.Read(buf[:2])
-		val = layout.Uint16(buf[:2])
-
-	case FT_U8:
-		_, err = r.Read(buf[:1])
-		val = buf[0]
-
-	case FT_F64:
-		_, err = r.Read(buf[:8])
-		val = math.Float64frombits(layout.Uint64(buf[:8]))
-
-	case FT_F32:
-		_, err = r.Read(buf[:4])
-		val = math.Float32frombits(layout.Uint32(buf[:4]))
-
-	case FT_BOOL:
-		_, err = r.Read(buf[:1])
-		val = buf[0] > 0
-
-	case FT_STRING:
-		if f.Fixed > 0 {
-			b := make([]byte, f.Fixed)
-			n, err = r.Read(b)
-			if n < int(f.Fixed) {
-				return nil, ErrShortBuffer
-			}
-			val = string(b[:n])
-		} else {
-			_, err = r.Read(buf[:4])
-			if err != nil {
-				return
-			}
-			u32 := layout.Uint32(buf[:4])
-			b := make([]byte, int(u32))
-			n, err = r.Read(b)
-			val = string(b[:n])
-		}
-
-	case FT_BYTES:
-		if f.Fixed > 0 {
-			b := make([]byte, f.Fixed)
-			n, err = r.Read(b)
-			if n < int(f.Fixed) {
-				return nil, ErrShortBuffer
-			}
-			val = string(b[:n])
-		} else {
-			_, err = r.Read(buf[:4])
-			if err != nil {
-				return
-			}
-			u32 := layout.Uint32(buf[:4])
-			b := make([]byte, int(u32))
-			n, err = r.Read(b)
-			val = b[:n]
-		}
-
-	case FT_I256:
-		_, err = r.Read(buf[:32])
-		i256 := num.Int256FromBytes(buf[:32])
-		val = i256
-
-	case FT_I128:
-		_, err = r.Read(buf[:16])
-		i128 := num.Int128FromBytes(buf[:16])
-		val = i128
-
-	case FT_D256:
-		_, err = r.Read(buf[:32])
-		d256 := num.NewDecimal256(num.Int256FromBytes(buf[:32]), f.Scale)
-		val = d256
-
-	case FT_D128:
-		_, err = r.Read(buf[:16])
-		d128 := num.NewDecimal128(num.Int128FromBytes(buf[:16]), f.Scale)
-		val = d128
-
-	case FT_D64:
-		_, err = r.Read(buf[:8])
-		d64 := num.NewDecimal64(int64(layout.Uint64(buf[:8])), f.Scale)
-		val = d64
-
-	case FT_D32:
-		_, err = r.Read(buf[:4])
-		d32 := num.NewDecimal32(int32(layout.Uint32(buf[:4])), f.Scale)
-		val = d32
-
-	case FT_BIGINT:
-		_, err = r.Read(buf[:4])
-		if err != nil {
-			return
-		}
-		u32 := layout.Uint32(buf[:4])
-		b := make([]byte, int(u32))
-		n, err = r.Read(b)
-		val = num.NewBigFromBytes(b[:n])
-
-	default:
-		err = ErrInvalidField
-	}
-	return
-}
-
-// StructValue resolves a struct field from a struct. When the field
-// is a pointer it allocates the target type and dereferences it
-// so that the return value can consistently be used for interface calls.
-func (f *Field) StructValue(rval reflect.Value) reflect.Value {
-	dst := rval.FieldByIndex(f.Path)
-	if dst.Kind() == reflect.Pointer {
-		if dst.IsNil() && dst.CanSet() {
-			dst.Set(reflect.New(dst.Type().Elem()))
-		}
-		dst = dst.Elem()
-	}
-	return dst
 }
 
 func (f *Field) WriteTo(w *bytes.Buffer) error {
@@ -766,6 +414,11 @@ func (f *Field) ReadFrom(buf *bytes.Buffer) (err error) {
 
 	// init related properties
 	f.Size = uint16(f.Type.Size())
+
+	// alloc enum dict
+	if f.IsEnum() {
+		f.Enum = enum.NewEnumDictionary(f.Name)
+	}
 
 	return f.Validate()
 }

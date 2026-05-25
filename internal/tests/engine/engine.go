@@ -13,7 +13,8 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/internal/engine"
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/require"
 )
@@ -111,15 +112,18 @@ func NewDatabase(t testing.TB, typs ...any) (*engine.Engine, func()) {
 
 	ctx := context.Background()
 	// t.Logf("NEW enum=my_enum")
-	_, err := db.CreateEnum(ctx, "my_enum")
+	e, err := db.CreateEnum(ctx, "my_enum")
 	require.NoError(t, err, "Failed to create enum")
 
 	err = db.ExtendEnum(ctx, "my_enum", myEnums...)
 	require.NoError(t, err, "Failed to extend enum")
 
+	enums := enum.NewEnumRegistry()
+	enums.Register(0, e)
+
 	// Create tables and indexes for given types
 	for _, typ := range typs {
-		s, err := schema.SchemaOf(typ)
+		s, err := reflect.SchemaOf(typ, reflect.WithEnums(enums))
 		require.NoError(t, err, "Failed to generate schema for type %T", typ)
 		s = s.WithMeta()
 		opts := NewTestTableOptions(t, "", "")
@@ -142,7 +146,7 @@ func NewDatabase(t testing.TB, typs ...any) (*engine.Engine, func()) {
 			t.Log("Cleanup up after test.")
 		}
 		for _, typ := range typs {
-			s, _ := schema.SchemaOf(typ)
+			s, _ := reflect.SchemaOf(typ)
 			for _, is := range s.Indexes {
 				require.NoError(t, db.DropIndex(ctx, is.Name))
 			}

@@ -1,31 +1,18 @@
 // Copyright (c) 2024 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
-package schema
+package schema_tests
 
 import (
-	"bytes"
-	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"math/bits"
 	"strings"
 	"testing"
-	"time"
 
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-// Register a global enum and dictionary for all schema tests
-type MyEnum string
-
-var (
-	enums  *enum.EnumRegistry
-	myEnum *enum.EnumDictionary
 )
 
 func TestMain(m *testing.M) {
@@ -38,17 +25,14 @@ func TestMain(m *testing.M) {
 	enums.Register(0, myEnum)
 
 	// init schema and link enums (will lookup myEnum and link to field)
-	s := MustSchemaFor[encodeTestStruct]()
-	s.WithEnums(enums)
-	s = MustSchemaFor[AllTypes]()
-	s.WithEnums(enums)
+	reflect.MustSchemaFor[AllTypes](reflect.WithEnums(enums))
 
 	m.Run()
 }
 
 type schemaTest struct {
 	name      string
-	build     func() (*Schema, error)
+	build     func(...reflect.Option) (*Schema, error)
 	fields    string
 	idxfields string
 	idxtyps   []IndexType
@@ -58,393 +42,13 @@ type schemaTest struct {
 	scales    []uint8
 	fixed     []uint16
 	isFixed   bool
-	encode    []OpCode
-	decode    []OpCode
 	iserr     bool
 }
-
-// not supported, used for error checks only
-type Stringer []string
-
-func (s Stringer) String() string {
-	return strings.Join(s, ",")
-}
-
-func (s Stringer) MarshalText() ([]byte, error) {
-	return []byte(strings.Join(s, ",")), nil
-}
-
-func (s *Stringer) UnmarshalText(b []byte) error {
-	*s = strings.Split(string(b), ",")
-	return nil
-}
-
-// not supported, used for error checks only
-type Byter [][]byte
-
-func (b Byter) MarshalBinary() ([]byte, error) {
-	return bytes.Join(b, []byte{0}), nil
-}
-
-func (b *Byter) UnmarshalBinary(buf []byte) error {
-	*b = bytes.Split(buf, []byte{0})
-	return nil
-}
-
-// not supported, used for error checks only
-type StringerStruct struct{}
-
-func (s StringerStruct) MarshalText() ([]byte, error) {
-	return []byte{}, nil
-}
-
-func (s *StringerStruct) UnmarshalText(b []byte) error {
-	return nil
-}
-
-// not supported, used for error checks only
-type ByterStruct struct{}
-
-func (s ByterStruct) MarshalBinary() ([]byte, error) {
-	return []byte{}, nil
-}
-
-func (s *ByterStruct) UnmarshalBinary(b []byte) error {
-	return nil
-}
-
-// not supported, used for error checks only
-type MapType map[int]int
-
-func (MapType) MarshalBinary() ([]byte, error) {
-	return []byte{}, nil
-}
-
-func (*MapType) UnmarshalBinary(_ []byte) error {
-	return nil
-}
-
-type NoModelNoTag struct {
-	Id uint64
-}
-
-type NoModelTag struct {
-	Id uint64 `knox:",pk"`
-}
-
-type InvalidPkType struct {
-	Id int64 `knox:",pk"`
-}
-
-type NoModelTagName struct {
-	Id uint64 `knox:"tagid,pk"`
-}
-
-type ModelName struct {
-	BaseModel // defines id as pk
-}
-
-func (ModelName) Key() string { return "model_name" }
-
-type NoModelPrivate struct {
-	NoModelTagName         // anon embed will promote fields
-	_              string  // non exported
-	B              string  `knox:"-"` // exported but skipped
-	_              [2]byte // padding
-}
-
-type AllTypes struct {
-	BaseModel
-	Int64   int64          `knox:"i64"`
-	Int32   int32          `knox:"i32"`
-	Int16   int16          `knox:"i16"`
-	Int8    int8           `knox:"i8"`
-	Uint64  uint64         `knox:"u64"`
-	Uint32  uint32         `knox:"u32"`
-	Uint16  uint16         `knox:"u16"`
-	Uint8   uint8          `knox:"u8"`
-	Float64 float64        `knox:"f64"`
-	Float32 float32        `knox:"f32"`
-	D32     num.Decimal32  `knox:"d32,scale=5"`
-	D64     num.Decimal64  `knox:"d64,scale=15"`
-	D128    num.Decimal128 `knox:"d128,scale=18"`
-	D256    num.Decimal256 `knox:"d256,scale=24"`
-	I128    num.Int128     `knox:"i128"`
-	I256    num.Int256     `knox:"i256"`
-	Bool    bool           `knox:"bool"`
-	Time    time.Time      `knox:"time"`
-	Hash    []byte         `knox:"bytes"`
-	Array   [2]byte        `knox:"array[2]"`
-	String  string         `knox:"string"`
-	MyEnum  MyEnum         `knox:"my_enum,enum"`
-	Big     num.Big        `knox:"big"`
-}
-
-func NewAllTypes(i int64) AllTypes {
-	return AllTypes{
-		BaseModel: BaseModel{
-			Id: uint64(i),
-		},
-		Int64:   i,
-		Int32:   int32(i),
-		Int16:   int16(i),
-		Int8:    int8(i),
-		Uint64:  uint64(i),
-		Uint32:  uint32(i),
-		Uint16:  uint16(i),
-		Uint8:   uint8(i),
-		Float64: float64(i),
-		Float32: float32(i),
-		D32:     num.NewDecimal32(int32(i), 5),
-		D64:     num.NewDecimal64(i, 15),
-		D128:    num.NewDecimal128(num.Int128FromInt64(i), 18),
-		D256:    num.NewDecimal256(num.Int256FromInt64(i), 24),
-		I128:    num.Int128FromInt64(i),
-		I256:    num.Int256FromInt64(i),
-		Bool:    i%2 == 1,
-		Time:    time.Unix(0, i).UTC(),
-		Hash:    binary.BigEndian.AppendUint64(nil, uint64(i)),
-		Array:   [2]byte{byte(i >> 8 & 0xf), byte(i & 0xf)},
-		String:  fmt.Sprintf("%016x", i),
-		MyEnum:  MyEnum("a"),
-		Big:     num.NewBig(i),
-	}
-}
-
-type FixedTypes struct {
-	BaseModel
-	FixedBytes  [20]byte `knox:"fixed_bytes"`
-	FixedString string   `knox:"fixed_string,fixed=20"`
-}
-
-func NewFixedTypes(i int64) FixedTypes {
-	b := binary.LittleEndian.AppendUint64(nil, uint64(i))
-	buf := bytes.Repeat(b, 3)[:20]
-	return FixedTypes{
-		BaseModel: BaseModel{
-			Id: uint64(i),
-		},
-		FixedBytes:  [20]byte(buf),
-		FixedString: hex.EncodeToString(buf[:10]),
-	}
-}
-
-type NativeTypes struct {
-	BaseModel
-	Int  int  `knox:"int"`
-	Uint uint `knox:"uint"`
-}
-
-type TimeTypes struct {
-	TimestampNs time.Time `knox:"tsn,timestamp,scale=ns"`
-	TimestampUs time.Time `knox:"tsu,timestamp,scale=us"`
-	TimestampMs time.Time `knox:"tsm,timestamp,scale=ms"`
-	TimestampS  time.Time `knox:"tss,timestamp,scale=s"`
-	TimeNs      time.Time `knox:"tmn,time,scale=ns"`
-	TimeUs      time.Time `knox:"tmu,time,scale=us"`
-	TimeMs      time.Time `knox:"tmm,time,scale=ms"`
-	TimeS       time.Time `knox:"tms,time,scale=s"`
-	Date        time.Time `knox:"dt,date"`
-}
-
-type MarshalerTypes struct {
-	BaseModel
-	Stringer Stringer `knox:"stringer"`
-	Byter    Byter    `knox:"byter"`
-}
-
-type MarshalerStructTypes struct {
-	BaseModel
-	Stringer StringerStruct `knox:"stringer"`
-	Byter    ByterStruct    `knox:"byter"`
-}
-
-type MarshalerMapTypes struct {
-	BaseModel
-	Map MapType `knox:"map"`
-}
-
-type NoMarshalerTypes struct {
-	BaseModel
-	Embed MarshalerStructTypes `knox:"no_marshalers"`
-}
-
-type NoMarshalerSliceTypes struct {
-	BaseModel
-	Slice []int64 `knox:"no_marshalers"`
-}
-
-type OtherStruct struct {
-	Other uint64
-}
-
-type MultipleAnonStructs struct {
-	NoModelTagName // Id, tag: tagid,pk
-	OtherStruct    // Other
-}
-
-// Fields with the same name at the same depth
-// cancel one another out. reflect.VisibleFields()
-// will not return such fields and we cannot use them.
-type MultipleAnonStructsWithCanceledNames struct {
-	NoModelTagName // Id
-	NoModelNoTag   // Id
-}
-
-type NoMarshalerMapTypes struct {
-	BaseModel
-	Map map[int]int `knox:"no_map"`
-}
-
-type PointerTypes struct {
-	BaseModel
-	Ptr *int `knox:"ptr"`
-}
-
-type DuplicatePkType struct {
-	BaseModel
-	Val uint64 `knox:"val,pk"`
-}
-
-type DuplicateAnonPkType struct {
-	BaseModel
-	NoModelTag
-	NoModelNoTag
-}
-
-type DuplicateField struct {
-	BaseModel
-	A int64 `knox:"x"`
-	B int64 `knox:"x"`
-}
-
-type InvalidFixedType struct {
-	BaseModel
-	F int64 `knox:",fixed=1"`
-}
-
-type InvalidFixedMissing struct {
-	BaseModel
-	F []byte `knox:",fixed"`
-}
-
-type InvalidFixedNaN struct {
-	BaseModel
-	F []byte `knox:",fixed=x"`
-}
-
-type InvalidFixedZero struct {
-	BaseModel
-	F []byte `knox:",fixed=0"`
-}
-
-type InvalidFixedNeg struct {
-	BaseModel
-	F []byte `knox:",fixed=-1"`
-}
-
-type InvalidFixedTooLarge struct {
-	BaseModel
-	F [20]byte `knox:",fixed=21"`
-}
-
-type InvalidScaleType struct {
-	BaseModel
-	F int64 `knox:",scale=1"`
-}
-
-type InvalidScaleMissing struct {
-	BaseModel
-	D num.Decimal32 `knox:",scale"`
-}
-
-type InvalidScaleNaN struct {
-	BaseModel
-	D num.Decimal32 `knox:",scale=x"`
-}
-
-type InvalidScaleNeg struct {
-	BaseModel
-	D num.Decimal32 `knox:",scale=-1"`
-}
-
-type InvalidScaleTooLarge struct {
-	BaseModel
-	D num.Decimal32 `knox:",scale=36"`
-}
-
-type HashIndex struct {
-	BaseModel
-	Hash [32]byte `knox:"hash,index=hash"`
-}
-
-type IntegerIndex struct {
-	BaseModel
-	Int int64 `knox:"i64,index=int"`
-}
-
-type BloomFilter struct {
-	BaseModel
-	Int int64 `knox:"i64,filter=bloom3b"`
-}
-
-type InvalidIndexType struct {
-	BaseModel
-	Int int64 `knox:",index=undefined"`
-}
-
-type InvalidIndexFieldType struct {
-	BaseModel
-	B []byte `knox:",index=int"`
-}
-
-type InvalidBloomFilter struct {
-	BaseModel
-	B []byte `knox:",index=bloomx"`
-}
-
-type MetaFields struct {
-	BaseModel
-	I64 int64  `knox:"i64,metadata"`
-	U64 uint64 `knox:"u64"`
-}
-
-const (
-	OC_I8        = OpCodeInt8
-	OC_I16       = OpCodeInt16
-	OC_I32       = OpCodeInt32
-	OC_I64       = OpCodeInt64
-	OC_U8        = OpCodeUint8
-	OC_U16       = OpCodeUint16
-	OC_U32       = OpCodeUint32
-	OC_U64       = OpCodeUint64
-	OC_F32       = OpCodeFloat32
-	OC_F64       = OpCodeFloat64
-	OC_BOOL      = OpCodeBool
-	OC_FIXSTRING = OpCodeFixedString
-	OC_FIXBYTES  = OpCodeFixedBytes
-	OC_STRING    = OpCodeString
-	OC_BYTES     = OpCodeBytes
-	OC_TIMESTAMP = OpCodeTimestamp
-	OC_I128      = OpCodeInt128
-	OC_I256      = OpCodeInt256
-	OC_D32       = OpCodeDecimal32
-	OC_D64       = OpCodeDecimal64
-	OC_D128      = OpCodeDecimal128
-	OC_D256      = OpCodeDecimal256
-	OC_ENUM      = OpCodeEnum
-	OC_SKIP      = OpCodeSkip
-	OC_BIGINT    = OpCodeBigInt
-	OC_DATE      = OpCodeDate
-	OC_TIME      = OpCodeTime
-)
 
 var (
 	// arch dependent, only used for tests
 	FT_INT  = [2]FieldType{FT_I32, FT_I64}[bits.UintSize/32-1]
 	FT_UINT = [2]FieldType{FT_U32, FT_U64}[bits.UintSize/32-1]
-	OC_INT  = [2]OpCode{OC_I32, OC_I64}[bits.UintSize/32-1]
-	OC_UINT = [2]OpCode{OC_U32, OC_U64}[bits.UintSize/32-1]
 )
 
 // Testcase Definition
@@ -459,8 +63,6 @@ var (
 //	    scales:  []uint8{},
 //	    fixed:   []uint16{},
 //	    isFixed: true,
-//	    encode:  []OpCode{},
-//	    decode:  []OpCode{},
 //	    err:     false,
 //	},
 var schemaTestCases = []schemaTest{
@@ -471,35 +73,35 @@ var schemaTestCases = []schemaTest{
 	// schema name from Go type
 	{
 		name:    "no_model_tag",
-		build:   SchemaFor[NoModelTag],
+		build:   reflect.SchemaFor[NoModelTag],
 		fields:  "id",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
 		fixed:   []uint16{0},
 		isFixed: true,
-		encode:  []OpCode{OC_U64},
-		decode:  []OpCode{OC_U64},
+		// encode:  []OpCode{OC_U64},
+		// decode:  []OpCode{OC_U64},
 	},
 
 	// schema name from Model type
 	{
 		name:    "model_name",
-		build:   SchemaFor[ModelName],
+		build:   reflect.SchemaFor[ModelName],
 		fields:  "id",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
 		fixed:   []uint16{0},
 		isFixed: true,
-		encode:  []OpCode{OC_U64},
-		decode:  []OpCode{OC_U64},
+		// encode:  []OpCode{OC_U64},
+		// decode:  []OpCode{OC_U64},
 	},
 
 	// error: invalid generic type
 	{
 		name:  "invalid_T",
-		build: SchemaFor[Model],
+		build: reflect.SchemaFor[Model],
 		iserr: true,
 	},
 
@@ -510,56 +112,56 @@ var schemaTestCases = []schemaTest{
 	// struct names only, private and anon fields
 	{
 		name:    "no_model_private",
-		build:   SchemaFor[NoModelPrivate],
+		build:   reflect.SchemaFor[NoModelPrivate],
 		fields:  "tagid",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
 		fixed:   []uint16{0},
 		isFixed: true,
-		encode:  []OpCode{OC_U64},
-		decode:  []OpCode{OC_U64},
+		// encode:  []OpCode{OC_U64},
+		// decode:  []OpCode{OC_U64},
 	},
 
 	// struct tag names replace struct names
 	{
 		name:    "no_model_tag_name",
-		build:   SchemaFor[NoModelTagName],
+		build:   reflect.SchemaFor[NoModelTagName],
 		fields:  "tagid",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
 		fixed:   []uint16{0},
 		isFixed: true,
-		encode:  []OpCode{OC_U64},
-		decode:  []OpCode{OC_U64},
+		// encode:  []OpCode{OC_U64},
+		// decode:  []OpCode{OC_U64},
 	},
 
 	// multiple anon (embedded) structs
 	{
 		name:    "multiple_anon_structs",
-		build:   SchemaFor[MultipleAnonStructs],
+		build:   reflect.SchemaFor[MultipleAnonStructs],
 		fields:  "tagid,other",
 		typs:    []FieldType{FT_U64, FT_U64},
 		flags:   []FieldFlags{F_PRIMARY, 0},
 		scales:  []uint8{0, 0},
 		fixed:   []uint16{0, 0},
 		isFixed: true,
-		encode:  []OpCode{OC_U64, OC_U64},
-		decode:  []OpCode{OC_U64, OC_U64},
+		// encode:  []OpCode{OC_U64, OC_U64},
+		// decode:  []OpCode{OC_U64, OC_U64},
 	},
 
 	// error: non-struct type
 	{
 		name:  "no struct type",
-		build: SchemaFor[[]string],
+		build: reflect.SchemaFor[[]string],
 		iserr: true,
 	},
 
 	// error: canceled field names (empty list)
 	{
 		name:  "all names canceled",
-		build: SchemaFor[MultipleAnonStructsWithCanceledNames],
+		build: reflect.SchemaFor[MultipleAnonStructsWithCanceledNames],
 		iserr: true,
 	},
 
@@ -570,35 +172,36 @@ var schemaTestCases = []schemaTest{
 	// all supported types
 	{
 		name:    "all_types",
-		build:   SchemaFor[AllTypes],
+		build:   reflect.SchemaFor[AllTypes],
 		fields:  "id,i64,i32,i16,i8,u64,u32,u16,u8,f64,f32,d32,d64,d128,d256,i128,i256,bool,time,bytes,array[2],string,my_enum,big",
 		typs:    []FieldType{FT_U64, FT_I64, FT_I32, FT_I16, FT_I8, FT_U64, FT_U32, FT_U16, FT_U8, FT_F64, FT_F32, FT_D32, FT_D64, FT_D128, FT_D256, FT_I128, FT_I256, FT_BOOL, FT_TIMESTAMP, FT_BYTES, FT_BYTES, FT_STRING, FT_U16, FT_BIGINT},
 		flags:   []FieldFlags{F_PRIMARY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, types.FieldFlagEnum, 0},
 		scales:  []uint8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 15, 18, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		fixed:   []uint16{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
 		isFixed: false,
-		encode:  []OpCode{OC_U64, OC_I64, OC_I32, OC_I16, OC_I8, OC_U64, OC_U32, OC_U16, OC_U8, OC_F64, OC_F32, OC_D32, OC_D64, OC_D128, OC_D256, OC_I128, OC_I256, OC_BOOL, OC_TIMESTAMP, OC_BYTES, OC_FIXBYTES, OC_STRING, OC_ENUM, OC_BIGINT},
-		decode:  []OpCode{OC_U64, OC_I64, OC_I32, OC_I16, OC_I8, OC_U64, OC_U32, OC_U16, OC_U8, OC_F64, OC_F32, OC_D32, OC_D64, OC_D128, OC_D256, OC_I128, OC_I256, OC_BOOL, OC_TIMESTAMP, OC_BYTES, OC_FIXBYTES, OC_STRING, OC_ENUM, OC_BIGINT},
+		// encode:  []OpCode{OC_U64, OC_I64, OC_I32, OC_I16, OC_I8, OC_U64, OC_U32, OC_U16, OC_U8, OC_F64, OC_F32, OC_D32, OC_D64, OC_D128, OC_D256, OC_I128, OC_I256, OC_BOOL, OC_TIMESTAMP, OC_BYTES, OC_FIXBYTES, OC_STRING, OC_ENUM, OC_BIGINT},
+		// decode:  []OpCode{OC_U64, OC_I64, OC_I32, OC_I16, OC_I8, OC_U64, OC_U32, OC_U16, OC_U8, OC_F64, OC_F32, OC_D32, OC_D64, OC_D128, OC_D256, OC_I128, OC_I256, OC_BOOL, OC_TIMESTAMP, OC_BYTES, OC_FIXBYTES, OC_STRING, OC_ENUM, OC_BIGINT},
 	},
 
 	// fixed bytes and string
 	{
 		name:    "fixed_types",
-		build:   SchemaFor[FixedTypes],
+		build:   reflect.SchemaFor[FixedTypes],
 		fields:  "id,fixed_bytes,fixed_string",
 		typs:    []FieldType{FT_U64, FT_BYTES, FT_STRING},
 		flags:   []FieldFlags{F_PRIMARY, 0, 0},
 		scales:  []uint8{0, 0, 0},
 		fixed:   []uint16{0, 20, 20},
 		isFixed: true,
-		encode:  []OpCode{OC_U64, OC_FIXBYTES, OC_FIXSTRING},
-		decode:  []OpCode{OC_U64, OC_FIXBYTES, OC_FIXSTRING},
+		// encode:  []OpCode{OC_U64, OC_FIXBYTES, OC_FIXSTRING},
+		// decode:  []OpCode{OC_U64, OC_FIXBYTES, OC_FIXSTRING},
 	},
 
+	// DEPRECATED: Marshalers are too expensive to test for during encoding
 	// // struct with binary & text (un)marshaler
 	// {
 	// 	name:    "marshaler_struct_types",
-	// 	build:   SchemaFor[MarshalerStructTypes],
+	// 	build:   reflect.SchemaFor[MarshalerStructTypes],
 	// 	fields:  "id,stringer,byter",
 	// 	typs:    []FieldType{FT_U64, FT_STRING, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY, 0, 0},
@@ -612,7 +215,7 @@ var schemaTestCases = []schemaTest{
 	// // map with binary & text (un)marshaler
 	// {
 	// 	name:    "marshaler_map_types",
-	// 	build:   SchemaFor[MarshalerMapTypes],
+	// 	build:   reflect.SchemaFor[MarshalerMapTypes],
 	// 	fields:  "id,map",
 	// 	typs:    []FieldType{FT_U64, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY, 0},
@@ -626,7 +229,7 @@ var schemaTestCases = []schemaTest{
 	// // slice with binary & text (un)marshaler
 	// {
 	// 	name:    "marshaler_types",
-	// 	build:   SchemaFor[MarshalerTypes],
+	// 	build:   reflect.SchemaFor[MarshalerTypes],
 	// 	fields:  "id,stringer,byter",
 	// 	typs:    []FieldType{FT_U64, FT_STRING, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY | F_INDEXED, 0, 0},
@@ -640,154 +243,154 @@ var schemaTestCases = []schemaTest{
 	// native int/uint
 	{
 		name:    "native_types",
-		build:   SchemaFor[NativeTypes],
+		build:   reflect.SchemaFor[NativeTypes],
 		fields:  "id,int,uint",
 		typs:    []FieldType{FT_U64, FT_INT, FT_UINT},
 		flags:   []FieldFlags{F_PRIMARY, 0, 0},
 		scales:  []uint8{0, 0, 0},
 		fixed:   []uint16{0, 0, 0},
 		isFixed: true,
-		encode:  []OpCode{OC_U64, OC_INT, OC_UINT},
-		decode:  []OpCode{OC_U64, OC_INT, OC_UINT},
+		// encode:  []OpCode{OC_U64, OC_INT, OC_UINT},
+		// decode:  []OpCode{OC_U64, OC_INT, OC_UINT},
 	},
 
 	// date/time/timestamp
 	{
 		name:    "time_types",
-		build:   SchemaFor[TimeTypes],
+		build:   reflect.SchemaFor[TimeTypes],
 		fields:  "tsn,tsu,tsm,tss,tmn,tmu,tmm,tms,dt",
 		typs:    []FieldType{FT_TIMESTAMP, FT_TIMESTAMP, FT_TIMESTAMP, FT_TIMESTAMP, FT_TIME, FT_TIME, FT_TIME, FT_TIME, FT_DATE},
 		flags:   []FieldFlags{0, 0, 0, 0, 0, 0, 0, 0, 0},
 		scales:  []uint8{0, 1, 2, 3, 0, 1, 2, 3, 4},
 		fixed:   []uint16{0, 0, 0, 0, 0, 0, 0, 0, 0},
 		isFixed: true,
-		encode:  []OpCode{OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIME, OC_TIME, OC_TIME, OC_TIME, OC_DATE},
-		decode:  []OpCode{OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIME, OC_TIME, OC_TIME, OC_TIME, OC_DATE},
+		// encode:  []OpCode{OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIME, OC_TIME, OC_TIME, OC_TIME, OC_DATE},
+		// decode:  []OpCode{OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIME, OC_TIME, OC_TIME, OC_TIME, OC_DATE},
 	},
 
 	// error: unsupported struct binary & text (un)marshaler
 	{
 		name:  "struct (un)marshaler",
-		build: SchemaFor[MarshalerStructTypes],
+		build: reflect.SchemaFor[MarshalerStructTypes],
 		iserr: true,
 	},
 
 	// error: unsupported map binary & text (un)marshaler
 	{
 		name:  "struct (un)marshaler",
-		build: SchemaFor[MarshalerMapTypes],
+		build: reflect.SchemaFor[MarshalerMapTypes],
 		iserr: true,
 	},
 
 	// error: unsupported slice binary & text (un)marshaler
 	{
 		name:  "slice (un)marshaler",
-		build: SchemaFor[MarshalerTypes],
+		build: reflect.SchemaFor[MarshalerTypes],
 		iserr: true,
 	},
 
 	// error: unsupported struct type without marshaler
 	{
 		name:  "no struct marshaler",
-		build: SchemaFor[NoMarshalerTypes],
+		build: reflect.SchemaFor[NoMarshalerTypes],
 		iserr: true,
 	},
 
 	// error: unsupported slice type without marshaler
 	{
 		name:  "no slice marshaler",
-		build: SchemaFor[NoMarshalerSliceTypes],
+		build: reflect.SchemaFor[NoMarshalerSliceTypes],
 		iserr: true,
 	},
 
 	// error: unsupported slice type without marshaler
 	{
 		name:  "no map marshaler",
-		build: SchemaFor[NoMarshalerMapTypes],
+		build: reflect.SchemaFor[NoMarshalerMapTypes],
 		iserr: true,
 	},
 
 	// error: unsupported ptr type
 	{
 		name:  "invalid pointer",
-		build: SchemaFor[PointerTypes],
+		build: reflect.SchemaFor[PointerTypes],
 		iserr: true,
 	},
 
 	// error: using fixed on illegal type
 	{
 		name:  "invalid fixed type",
-		build: SchemaFor[InvalidFixedType],
+		build: reflect.SchemaFor[InvalidFixedType],
 		iserr: true,
 	},
 
 	// error: fixed value missing
 	{
 		name:  "invalid fixed missing",
-		build: SchemaFor[InvalidFixedMissing],
+		build: reflect.SchemaFor[InvalidFixedMissing],
 		iserr: true,
 	},
 
 	// error: fixed NaN
 	{
 		name:  "invalid fixed NaN",
-		build: SchemaFor[InvalidFixedNaN],
+		build: reflect.SchemaFor[InvalidFixedNaN],
 		iserr: true,
 	},
 
 	// error: fixed = 0
 	{
 		name:  "invalid fixed=0",
-		build: SchemaFor[InvalidFixedZero],
+		build: reflect.SchemaFor[InvalidFixedZero],
 		iserr: true,
 	},
 
 	// error: fixed < 0
 	{
 		name:  "invalid fixed<0",
-		build: SchemaFor[InvalidFixedNeg],
+		build: reflect.SchemaFor[InvalidFixedNeg],
 		iserr: true,
 	},
 
 	// error: fixed > array bounds
 	{
 		name:  "invalid fixed too large",
-		build: SchemaFor[InvalidFixedTooLarge],
+		build: reflect.SchemaFor[InvalidFixedTooLarge],
 		iserr: true,
 	},
 
 	// error: using scale on illegal type
 	{
 		name:  "invalid scale type",
-		build: SchemaFor[InvalidScaleType],
+		build: reflect.SchemaFor[InvalidScaleType],
 		iserr: true,
 	},
 
 	// error: scale value missing
 	{
 		name:  "invalid scale missing",
-		build: SchemaFor[InvalidScaleMissing],
+		build: reflect.SchemaFor[InvalidScaleMissing],
 		iserr: true,
 	},
 
 	// error: scale NaN
 	{
 		name:  "invalid scale NaN",
-		build: SchemaFor[InvalidScaleNaN],
+		build: reflect.SchemaFor[InvalidScaleNaN],
 		iserr: true,
 	},
 
 	// error: scale < 0
 	{
 		name:  "invalid scale<0",
-		build: SchemaFor[InvalidScaleNeg],
+		build: reflect.SchemaFor[InvalidScaleNeg],
 		iserr: true,
 	},
 
 	// error: decimal out of range
 	{
 		name:  "invalid scale too large",
-		build: SchemaFor[InvalidScaleTooLarge],
+		build: reflect.SchemaFor[InvalidScaleTooLarge],
 		iserr: true,
 	},
 
@@ -795,38 +398,40 @@ var schemaTestCases = []schemaTest{
 	// Primary key tests
 	// -----------------
 
-	// error: missing pk field
+	// DEPRECATED: pk field is optional so that schema can be used
+	// for other use cases than database tables
+	// // error: missing pk field
 	// {
 	// 	name:  "no_model_no_tag",
-	// 	build: SchemaFor[NoModelNoTag],
+	// 	build: reflect.SchemaFor[NoModelNoTag],
 	// 	iserr: true,
 	// },
 
 	// error: pk type != uint64
 	{
 		name:  "no_uint64_pk",
-		build: SchemaFor[InvalidPkType],
+		build: reflect.SchemaFor[InvalidPkType],
 		iserr: true,
 	},
 
 	// error: duplicate pk field
-	// {
-	// 	name:  "duplicate_pk",
-	// 	build: SchemaFor[DuplicatePkType],
-	// 	iserr: true,
-	// },
+	{
+		name:  "duplicate_pk",
+		build: reflect.SchemaFor[DuplicatePkType],
+		iserr: true,
+	},
 
 	// error: duplicate pk field in anon struct
 	{
 		name:  "duplicate_anon_pk",
-		build: SchemaFor[DuplicateAnonPkType],
+		build: reflect.SchemaFor[DuplicateAnonPkType],
 		iserr: true,
 	},
 
 	// error: duplicate field name
 	{
 		name:  "duplicate_field",
-		build: SchemaFor[DuplicateField],
+		build: reflect.SchemaFor[DuplicateField],
 		iserr: true,
 	},
 
@@ -837,7 +442,7 @@ var schemaTestCases = []schemaTest{
 	// hash index
 	{
 		name:      "hash_index",
-		build:     SchemaFor[HashIndex],
+		build:     reflect.SchemaFor[HashIndex],
 		fields:    "id,hash",
 		typs:      []FieldType{FT_U64, FT_BYTES},
 		flags:     []FieldFlags{F_PRIMARY, 0},
@@ -846,14 +451,14 @@ var schemaTestCases = []schemaTest{
 		scales:    []uint8{0, 0},
 		fixed:     []uint16{0, 32},
 		isFixed:   true,
-		encode:    []OpCode{OC_U64, OC_FIXBYTES},
-		decode:    []OpCode{OC_U64, OC_FIXBYTES},
+		// encode:    []OpCode{OC_U64, OC_FIXBYTES},
+		// decode:    []OpCode{OC_U64, OC_FIXBYTES},
 	},
 
 	// integer index
 	{
 		name:      "integer_index",
-		build:     SchemaFor[IntegerIndex],
+		build:     reflect.SchemaFor[IntegerIndex],
 		fields:    "id,i64",
 		typs:      []FieldType{FT_U64, FT_I64},
 		flags:     []FieldFlags{F_PRIMARY, 0},
@@ -862,14 +467,14 @@ var schemaTestCases = []schemaTest{
 		scales:    []uint8{0, 0},
 		fixed:     []uint16{0, 0},
 		isFixed:   true,
-		encode:    []OpCode{OC_U64, OC_I64},
-		decode:    []OpCode{OC_U64, OC_I64},
+		// encode:    []OpCode{OC_U64, OC_I64},
+		// decode:    []OpCode{OC_U64, OC_I64},
 	},
 
 	// bloom filter
 	{
 		name:      "bloom_filter",
-		build:     SchemaFor[BloomFilter],
+		build:     reflect.SchemaFor[BloomFilter],
 		fields:    "id,i64",
 		typs:      []FieldType{FT_U64, FT_I64},
 		flags:     []FieldFlags{F_PRIMARY, 0},
@@ -879,28 +484,28 @@ var schemaTestCases = []schemaTest{
 		scales:    []uint8{0, 0},
 		fixed:     []uint16{0, 0},
 		isFixed:   true,
-		encode:    []OpCode{OC_U64, OC_I64},
-		decode:    []OpCode{OC_U64, OC_I64},
+		// encode:    []OpCode{OC_U64, OC_I64},
+		// decode:    []OpCode{OC_U64, OC_I64},
 	},
 
 	// error: invalid index type
 	{
 		name:  "invalid index type",
-		build: SchemaFor[InvalidIndexType],
+		build: reflect.SchemaFor[InvalidIndexType],
 		iserr: true,
 	},
 
 	// error: invalid field type for index (int: only (u)int fields)
 	{
 		name:  "invalid index field type",
-		build: SchemaFor[InvalidIndexFieldType],
+		build: reflect.SchemaFor[InvalidIndexFieldType],
 		iserr: true,
 	},
 
 	// error: invalid bloom filter
 	{
 		name:  "invalid bloom filter name",
-		build: SchemaFor[InvalidBloomFilter],
+		build: reflect.SchemaFor[InvalidBloomFilter],
 		iserr: true,
 	},
 
@@ -909,15 +514,15 @@ var schemaTestCases = []schemaTest{
 	// -----------------
 	{
 		name:    "meta_fields",
-		build:   SchemaFor[MetaFields],
+		build:   reflect.SchemaFor[MetaFields],
 		fields:  "id,i64,u64",
 		typs:    []FieldType{FT_U64, FT_I64, FT_U64},
 		flags:   []FieldFlags{F_PRIMARY, F_METADATA, 0},
 		scales:  []uint8{0, 0, 0},
 		fixed:   []uint16{0, 0, 0},
 		isFixed: true,
-		encode:  []OpCode{OC_U64, OC_SKIP, OC_U64},
-		decode:  []OpCode{OC_U64, OC_SKIP, OC_U64},
+		// encode:  []OpCode{OC_U64, OC_SKIP, OC_U64},
+		// decode:  []OpCode{OC_U64, OC_SKIP, OC_U64},
 	},
 }
 
@@ -937,8 +542,6 @@ func TestSchemaDetect(t *testing.T) {
 			}
 			require.Len(t, c.scales, numFields)
 			require.Len(t, c.fixed, numFields)
-			require.Len(t, c.encode, numFields)
-			require.Len(t, c.decode, numFields)
 
 			s, err := c.build()
 			if c.iserr {
@@ -997,15 +600,15 @@ func TestSchemaDetect(t *testing.T) {
 			// is fixed
 			require.Equal(t, c.isFixed, s.IsFixedSize, "is_fixed")
 			// encoder opcodes
-			require.ElementsMatch(t, c.encode, s.Encode, "encoders")
+			// require.ElementsMatch(t, c.encode, s.Encode, "encoders")
 			// decoder opcodes
-			require.ElementsMatch(t, c.decode, s.Decode, "decoders")
+			// require.ElementsMatch(t, c.decode, s.Decode, "decoders")
 		})
 	}
 }
 
 func TestSchemaMarshal(t *testing.T) {
-	s, err := SchemaFor[AllTypes]()
+	s, err := reflect.SchemaFor[AllTypes]()
 	require.NoError(t, err)
 	buf, err := s.MarshalBinary()
 	require.NoError(t, err)
@@ -1036,7 +639,10 @@ func TestSchemaMarshal(t *testing.T) {
 // TestSchemaIsValid checks if the Schema.IsValid() method correctly identifies
 // valid and invalid schema configurations.
 func TestSchemaIsValid(t *testing.T) {
-	s := NewSchema().WithName("test")
+	s := NewSchema()
+	require.False(t, s.IsValid())
+
+	s.WithName("test")
 	require.False(t, s.IsValid())
 
 	s.WithField(&Field{Name: "field1", Type: FT_I64})
@@ -1303,7 +909,7 @@ func TestSchemaMapSchema(t *testing.T) {
 }
 
 func TestSchemaDeleteField(t *testing.T) {
-	s, err := SchemaFor[AllTypes]()
+	s, err := reflect.SchemaFor[AllTypes]()
 	require.NoError(t, err)
 	beforeSz := s.WireSize()
 	beforeLen := s.NumFields()

@@ -6,6 +6,7 @@ package stats
 import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"golang.org/x/exp/constraints"
 )
 
@@ -29,7 +30,7 @@ func MakeSchema(s *schema.Schema) *schema.Schema {
 		WithVersion(s.Version)
 
 	// add pack stats fields
-	for _, f := range schema.MustSchemaOf(&Record{}).Fields {
+	for _, f := range reflect.MustSchemaFor[Record]().Fields {
 		statsSchema.WithField(f)
 	}
 

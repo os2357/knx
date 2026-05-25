@@ -70,7 +70,7 @@ func TestWorkload3(t *testing.T) {
 				var fromAccount, toAccount Ledger
 
 				// Load the "from" account
-				_, err := knox.NewGenericQuery[Ledger]().
+				_, err := knox.NewQueryFor[Ledger]().
 					WithTable(table).
 					AndEqual("id", data[from].Id).
 					Execute(ctx, &fromAccount)
@@ -78,7 +78,7 @@ func TestWorkload3(t *testing.T) {
 				require.Equal(t, data[from].Id, fromAccount.Id, "Loaded 'from' account ID mismatch")
 
 				// Load the "to" account
-				_, err = knox.NewGenericQuery[Ledger]().
+				_, err = knox.NewQueryFor[Ledger]().
 					WithTable(table).
 					AndEqual("id", data[to].Id).
 					Execute(ctx, &toAccount)
@@ -109,7 +109,7 @@ func TestWorkload3(t *testing.T) {
 
 	// Validate total balance consistency and individual account
 	totalBalance := int64(0)
-	err = knox.NewGenericQuery[Ledger]().
+	err = knox.NewQueryFor[Ledger]().
 		WithTable(table).
 		Stream(ctx, func(res *Ledger) error {
 			if res.Id%2 == 1 {
@@ -128,7 +128,7 @@ func TestWorkload3(t *testing.T) {
 	// Validate point access
 	for _, a := range data {
 		var account Ledger
-		_, err := knox.NewGenericQuery[Ledger]().
+		_, err := knox.NewQueryFor[Ledger]().
 			WithTable(table).
 			AndEqual("id", a.Id).
 			Execute(ctx, &account)

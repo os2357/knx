@@ -14,6 +14,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"github.com/stretchr/testify/require"
 )
@@ -132,7 +133,7 @@ func CreateIndex(t *testing.T, e *engine.Engine, te engine.TableEngine, ie engin
 func FillIndex(t *testing.T, e *engine.Engine, ie engine.IndexEngine) *pack.Package {
 	t.Helper()
 	ctx := engine.WithEngine(context.Background(), e)
-	enc := schema.NewEncoder(ie.Table().Schema())
+	enc := encode.NewEncoder(ie.Table().Schema())
 	pkg := pack.New().WithSchema(ie.Table().Schema()).WithMaxRows(1 << 11).Alloc()
 	meta := &schema.Meta{}
 	for i := range 6 {

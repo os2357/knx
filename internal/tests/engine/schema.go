@@ -16,6 +16,7 @@ import (
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/cast"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
 
 var (
@@ -32,7 +33,9 @@ var (
 var myEnums = []string{"one", "two", "three", "four"}
 
 var (
-	enums *enum.EnumRegistry
+	enums          *enum.EnumRegistry
+	allTypesSchema *schema.Schema
+	securitySchema *schema.Schema
 )
 
 // call this from TestMain() in any package that uses AllTypes
@@ -50,8 +53,8 @@ func RegisterEnum() {
 	enums.Register(0, myEnum)
 
 	// init schema and link enums (will lookup myEnum and link to field)
-	s := schema.MustSchemaFor[AllTypes]()
-	s.WithEnums(enums)
+	allTypesSchema = reflect.MustSchemaFor[AllTypes](reflect.WithEnums(enums))
+	securitySchema = reflect.MustSchemaFor[Security](reflect.WithEnums(enums))
 }
 
 // Types defines the schema for Workload1 and Workload2.
@@ -79,11 +82,6 @@ func NewRandomTypes(i int) *Types {
 		MyEnum:    myEnums[i%len(myEnums)],
 	}
 }
-
-var (
-	allTypesSchema = schema.MustSchemaOf(AllTypes{})
-	securitySchema = schema.MustSchemaOf(Security{})
-)
 
 type AllTypes struct {
 	Id      uint64         `knox:"id,pk"`

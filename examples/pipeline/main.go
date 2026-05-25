@@ -15,6 +15,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
+	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
 
 func main() {
@@ -43,7 +45,7 @@ type Generator struct {
 	limit int
 	maxsz int
 	pkg   *pack.Package
-	enc   *schema.Encoder
+	enc   *encode.Encoder
 	buf   *bytes.Buffer
 	err   error
 }
@@ -58,7 +60,7 @@ func NewGenerator(maxsz, limit int) *Generator {
 
 func (gen *Generator) Next(context.Context) (*pack.Package, operator.Result) {
 	if gen.pkg == nil {
-		s, err := schema.SchemaOf(Record{})
+		s, err := reflect.SchemaFor[Record]()
 		if err != nil {
 			gen.err = err
 			return nil, operator.ResultError
@@ -67,7 +69,7 @@ func (gen *Generator) Next(context.Context) (*pack.Package, operator.Result) {
 		if enum, ok := s.Enums.Load().Lookup(tag); ok {
 			enum.Append(myEnums...)
 		}
-		gen.enc = schema.NewEncoder(s)
+		gen.enc = encode.NewEncoder(s)
 		gen.buf = gen.enc.NewBuffer(1)
 		gen.pkg = pack.New().
 			WithKey(0).

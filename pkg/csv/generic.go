@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"blockwatch.cc/knoxdb/pkg/schema"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/echa/log"
 )
 
@@ -19,7 +19,7 @@ type GenericDecoder[L, P any] struct {
 func NewGenericDecoder[L, P any](r io.Reader) *GenericDecoder[L, P] {
 	var t L
 	return &GenericDecoder[L, P]{
-		dec: NewDecoder(schema.MustSchemaOf(t), r),
+		dec: NewDecoder(sreflect.MustSchemaOf(t), r),
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/cast"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 )
 
 func convertSchema(is *schema.IndexSchema) (*schema.Schema, Converter, error) {
@@ -194,7 +195,7 @@ func (c *SimpleHashConverter) QueryKeys(node *filter.Node) []uint64 {
 	switch flt.Mode {
 	case types.FilterModeEqual:
 		// single
-		_ = f0.Encode(buf, flt.Value, LE)
+		_ = encode.EncodeField(buf, f0, flt.Value, LE)
 		return []uint64{hash.Hash(buf.Bytes())}
 
 	case types.FilterModeIn, types.FilterModeNotIn:
@@ -206,7 +207,7 @@ func (c *SimpleHashConverter) QueryKeys(node *filter.Node) []uint64 {
 		res := make([]uint64, rval.Len())
 		for i := range res {
 			buf.Reset()
-			_ = f0.Encode(buf, rval.Index(i).Interface(), LE)
+			_ = encode.EncodeField(buf, f0, rval.Index(i).Interface(), LE)
 			res[i] = hash.Hash(buf.Bytes())
 		}
 		return res
@@ -325,7 +326,7 @@ func (c *CompositeHashConverter) QueryKeys(node *filter.Node) []uint64 {
 			// empty result if we cannot build a hash from all index fields
 			return nil
 		}
-		field.Encode(buf, node.Filter.Value, LE)
+		encode.EncodeField(buf, field, node.Filter.Value, LE)
 		// set skip flags signalling this condition has been processed
 		node.Skip = true
 		delete(eq, field.Name)

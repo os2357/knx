@@ -11,6 +11,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/operator/join"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/echa/log"
 )
 
@@ -173,7 +174,7 @@ func (j Join) Execute(ctx context.Context, val any) error {
 
 	// analyze result schema
 	var s *schema.Schema
-	s, err = schema.SchemaOf(val)
+	s, err = sreflect.SchemaOf(val)
 	if err != nil {
 		return err
 	}
@@ -228,7 +229,7 @@ func (j Join) Execute(ctx context.Context, val any) error {
 			return r.Decode(val)
 		})
 	default:
-		err = fmt.Errorf("join %s: %T: %w", j.tag, val, schema.ErrInvalidResultType)
+		err = fmt.Errorf("join %s: %T: %w", j.tag, val, schema.ErrInvalidResult)
 	}
 	return err
 }

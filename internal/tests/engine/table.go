@@ -14,6 +14,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -153,7 +154,7 @@ func InsertData(t *testing.T, e *engine.Engine, tab engine.TableEngine) {
 	}
 
 	var cnt int
-	enc := schema.NewEncoder(tab.Schema())
+	enc := encode.NewEncoder(tab.Schema())
 	for _, rec := range data {
 		buf, err := enc.Encode(rec, nil)
 		require.NoError(t, err)
@@ -252,7 +253,7 @@ func InsertRowsReadOnlyTableTest(t *testing.T, e *engine.Engine, tab engine.Tabl
 	defer abort()
 	require.NoError(t, err)
 
-	enc := schema.NewEncoder(tab.Schema())
+	enc := encode.NewEncoder(tab.Schema())
 	buf, err := enc.Encode(NewAllTypes(10), nil)
 	require.NoError(t, err)
 
@@ -272,7 +273,7 @@ func UpdateRowsTableTest(t *testing.T, e *engine.Engine, tab engine.TableEngine,
 	idx := query.NewMockIndex(idxSchema, xroar.New())
 	tab.ConnectIndex(idx)
 
-	enc := schema.NewEncoder(tab.Schema())
+	enc := encode.NewEncoder(tab.Schema())
 	data := make([]*AllTypes, 10)
 	for i := range data {
 		data[i] = NewAllTypes(i)

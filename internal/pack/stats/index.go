@@ -20,6 +20,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"blockwatch.cc/knoxdb/pkg/util"
@@ -203,7 +204,7 @@ type Index struct {
 	epoch        uint32                // epoch sequence number
 	schema       *schema.Schema        // statistics schema (meta + min + max)
 	view         *schema.View          // helper to extract tree node data from wire format
-	wr           *schema.Writer        // wire format builder (writer only)
+	wr           *encode.Writer        // wire format builder (writer only)
 	table        engine.TableEngine    // table back-reference used for index GC
 	rx           int                   // index of the data pack's rowid column
 	px           int                   // index of the data pack's primary key column
@@ -274,7 +275,7 @@ func (idx *Index) WithSchema(s *schema.Schema) *Index {
 		idx.rx = idx.px
 	}
 	idx.view = schema.NewView(idx.schema)
-	idx.wr = schema.NewWriter(idx.schema, binary.LittleEndian)
+	idx.wr = encode.NewWriter(idx.schema, binary.LittleEndian)
 	idx.tomb.WithSchema(s, idx.schema, idx.use).WithBucketKey(idx.keys[STATS_TOMB_KEY])
 	return idx
 }
