@@ -370,8 +370,8 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 				fields[i].Id,
 				fields[i].Name,
 				fields[i].Type,
-				printValue(s, fields[i], md.Min(i)),
-				printValue(s, fields[i], md.Max(i)),
+				printValue(fields[i], md.Min(i)),
+				printValue(fields[i], md.Max(i)),
 				sz,
 				info,
 			})
@@ -385,7 +385,7 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 	}
 }
 
-func printValue(s *schema.Schema, f *schema.Field, val any) any {
+func printValue(f *schema.Field, val any) any {
 	switch f.Type {
 	case types.FieldTypeBytes:
 		return LimitStringEllipsis(fmt.Sprintf("%v", val), 33)
