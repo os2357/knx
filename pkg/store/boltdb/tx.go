@@ -58,6 +58,35 @@ func (tx *tx) Bucket(key []byte) (store.Bucket, error) {
 	return &bucket{tx: tx, bucket: b}, nil
 }
 
+// BucketPath returns a top-level or nested bucket with a given path
+// or nil and ErrBucketNotFound if a bucket does not exits along the path.
+func (tx *tx) BucketPath(path ...[]byte) (store.Bucket, error) {
+	// Ensure transaction state is valid.
+	if tx.IsClosed() {
+		return nil, store.ErrTxClosed
+	}
+
+	// Ensure path
+	if len(path) == 0 {
+		return nil, store.ErrIncompatibleValue
+	}
+
+	// find top bucket
+	b := tx.tx.Bucket(path[0])
+	if b == nil {
+		return nil, store.ErrBucketNotFound
+	}
+
+	// find nested bucket
+	for _, key := range path[1:] {
+		b = b.Bucket(key)
+		if b == nil {
+			return nil, store.ErrBucketNotFound
+		}
+	}
+	return &bucket{tx: tx, bucket: b}, nil
+}
+
 // CreateBucket creates and returns a new top-level bucket with the given key.
 // If the bucket already exists it is returned without error.
 func (tx *tx) CreateBucket(key []byte, _ ...store.BucketOption) (store.Bucket, error) {

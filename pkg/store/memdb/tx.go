@@ -71,12 +71,38 @@ func (tx *tx) Bucket(key []byte) (store.Bucket, error) {
 	if tx.IsClosed() {
 		return nil, store.ErrTxClosed
 	}
-	effectiveKey := bucketizedKey(0, key)
-	id, ok := tx.db.buckets[string(effectiveKey)]
+	id, ok := tx.db.buckets[string(bucketizedKey(0, key))]
 	if !ok {
 		return nil, store.ErrBucketNotFound
 	}
 	return &bucket{tx: tx, id: id}, nil
+}
+
+// BucketPath returns a top-level or nested bucket with a given path
+// or nil and ErrBucketNotFound if a bucket does not exits along the path.
+func (tx *tx) BucketPath(path ...[]byte) (store.Bucket, error) {
+	// Ensure transaction state is valid.
+	if tx.IsClosed() {
+		return nil, store.ErrTxClosed
+	}
+
+	// Ensure path
+	if len(path) == 0 {
+		return nil, store.ErrIncompatibleValue
+	}
+
+	// find nested bucket
+	var (
+		id uint32
+		ok bool
+	)
+	for _, key := range path {
+		id, ok = tx.db.buckets[string(bucketizedKey(id, key))]
+		if !ok {
+			return nil, store.ErrBucketNotFound
+		}
+	}
+	return &bucket{id: id, tx: tx}, nil
 }
 
 // Buckets returns an iterator for top-level buckets.

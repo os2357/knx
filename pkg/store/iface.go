@@ -155,6 +155,10 @@ type Tx interface {
 	// ErrBucketNotFound if a bucket with this name does not exist.
 	Bucket(key []byte) (Bucket, error)
 
+	// BucketPath returns a top-level or nested bucket with a given path
+	// or nil and ErrBucketNotFound if a bucket does not exits along the path.
+	BucketPath(path ...[]byte) (Bucket, error)
+
 	// Buckets returns an iterator for top-level buckets.
 	Buckets() iter.Seq2[[]byte, Bucket]
 
