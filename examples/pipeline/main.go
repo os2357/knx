@@ -11,9 +11,10 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/operator"
 	"blockwatch.cc/knoxdb/internal/pack"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
+	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 func main() {
@@ -62,7 +63,8 @@ func (gen *Generator) Next(context.Context) (*pack.Package, operator.Result) {
 			gen.err = err
 			return nil, operator.ResultError
 		}
-		if enum, ok := s.Enums.Load().Lookup("my_enum"); ok {
+		tag := types.TaggedHash(types.ObjectTagEnum, "my_enum")
+		if enum, ok := s.Enums.Load().Lookup(tag); ok {
 			enum.Append(myEnums...)
 		}
 		gen.enc = schema.NewEncoder(s)
@@ -159,8 +161,8 @@ func MakeRecord(i int) *Record {
 		Id:        0, // empty, will be set by insert
 		Timestamp: time.Now().UTC(),
 		Date:      time.Now().UTC(),
-		Hash:      [32]byte(util.RandBytes(32)),
-		String:    hex.EncodeToString(util.RandBytes(4)),
+		Hash:      [32]byte(testutil.RandBytes(32)),
+		String:    hex.EncodeToString(testutil.RandBytes(4)),
 		Bool:      true,
 		MyEnum:    MyEnum(myEnums[i%4]),
 		// typed ints

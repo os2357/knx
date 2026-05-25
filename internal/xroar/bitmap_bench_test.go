@@ -20,7 +20,7 @@ import (
 	"runtime"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 )
 
 // go test -bench BenchmarkMemoryUsage -run -
@@ -55,14 +55,14 @@ func BenchmarkIntersectionRoaring(b *testing.B) {
 	sz := int64(150000)
 	initsize := 65000
 	for i := 0; i < initsize; i++ {
-		s1.Set(uint64(util.RandInt64n(sz)))
+		s1.Set(uint64(testutil.RandInt64n(sz)))
 	}
 
 	s2 := New()
 	sz = int64(100000000)
 	initsize = 65000
 	for i := 0; i < initsize; i++ {
-		s2.Set(uint64(util.RandInt64n((sz))))
+		s2.Set(uint64(testutil.RandInt64n((sz))))
 	}
 	b.StartTimer()
 
@@ -78,7 +78,7 @@ func BenchmarkSet(b *testing.B) {
 	sz := uint64(1e6)
 	s := New()
 	for b.Loop() {
-		s.Set(util.RandUint64n(sz))
+		s.Set(testutil.RandUint64n(sz))
 	}
 }
 
@@ -87,7 +87,7 @@ func BenchmarkMerge10K(b *testing.B) {
 	for i := range 10000 {
 		bm := New()
 		for range 1000 {
-			x := util.RandUint64() % 1e8 // 10M.
+			x := testutil.RandUint64() % 1e8 // 10M.
 			bm.Set(x)
 		}
 		bitmaps[i] = bm

@@ -16,8 +16,8 @@ import (
 	"sync/atomic"
 
 	"blockwatch.cc/knoxdb/internal/hash"
-	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
 const (
@@ -31,7 +31,7 @@ type Schema struct {
 	Hash        uint64
 	Fields      []*Field
 	Indexes     []*IndexSchema
-	Enums       atomic.Pointer[EnumRegistry]
+	Enums       atomic.Pointer[enum.EnumRegistry]
 	MinWireSize int
 	MaxWireSize int
 	IsFixedSize bool
@@ -66,20 +66,11 @@ func (s *Schema) WithVersion(v uint32) *Schema {
 	return s
 }
 
-func (s *Schema) WithField(f *Field) *Schema {
-	if f.IsValid() {
-		f.Id = s.nextFieldId()
-		s.Fields = append(s.Fields, f)
-		s.Encode, s.Decode = nil, nil
-	}
-	return s
-}
-
-func (s *Schema) WithEnums(r *EnumRegistry) *Schema {
+func (s *Schema) WithEnums(r *enum.EnumRegistry) *Schema {
 	s.Enums.Store(r)
 	for _, f := range s.Fields {
 		if f.IsEnum() {
-			if e, ok := r.Lookup(f.Name); ok {
+			if e, ok := r.Find(f.Name); ok {
 				f.Enum = e
 			}
 		}
@@ -121,10 +112,6 @@ func (s *Schema) Label() string {
 	return b.String()
 }
 
-func (s *Schema) TaggedHash(tag types.ObjectTag) uint64 {
-	return types.TaggedHash(tag, s.Name)
-}
-
 func (s *Schema) Equal(x *Schema) bool {
 	return s != nil && x != nil && s.Hash == x.Hash
 }
@@ -161,16 +148,6 @@ func (s *Schema) NumVisible() int {
 	return n
 }
 
-func (s *Schema) NumMeta() int {
-	var n int
-	for _, f := range s.Fields {
-		if f.IsMeta() && f.IsActive() {
-			n++
-		}
-	}
-	return n
-}
-
 func (s *Schema) Names() []string {
 	list := make([]string, len(s.Fields))
 	for i, f := range s.Fields {
@@ -193,16 +170,6 @@ func (s *Schema) VisibleNames() []string {
 	list := make([]string, 0, len(s.Fields))
 	for _, f := range s.Fields {
 		if f.IsVisible() {
-			list = append(list, f.Name)
-		}
-	}
-	return list
-}
-
-func (s *Schema) MetaNames() []string {
-	list := make([]string, 0, len(s.Fields))
-	for _, f := range s.Fields {
-		if f.IsMeta() && f.IsActive() {
 			list = append(list, f.Name)
 		}
 	}
@@ -241,16 +208,6 @@ func (s *Schema) VisibleIds() []uint16 {
 	list := make([]uint16, 0, len(s.Fields))
 	for _, f := range s.Fields {
 		if f.IsVisible() {
-			list = append(list, f.Id)
-		}
-	}
-	return list
-}
-
-func (s *Schema) MetaIds() []uint16 {
-	list := make([]uint16, 0, len(s.Fields))
-	for _, f := range s.Fields {
-		if f.IsMeta() && f.IsActive() {
 			list = append(list, f.Id)
 		}
 	}
@@ -328,24 +285,6 @@ func (s *Schema) PkIndex() int {
 	return -1
 }
 
-func (s *Schema) RowId() *Field {
-	for _, f := range s.Fields {
-		if f.Id == MetaRid && f.IsMeta() && f.IsActive() {
-			return f
-		}
-	}
-	return &Field{}
-}
-
-func (s *Schema) RowIdIndex() int {
-	for i, f := range s.Fields {
-		if f.Id == MetaRid && f.IsMeta() && f.IsActive() {
-			return i
-		}
-	}
-	return -1
-}
-
 func (s *Schema) Clone() *Schema {
 	clone := &Schema{
 		Name:    s.Name,
@@ -367,6 +306,15 @@ func (s *Schema) Clone() *Schema {
 		}
 	}
 	return clone
+}
+
+func (s *Schema) WithField(f *Field) *Schema {
+	if f.IsValid() {
+		f.Id = s.nextFieldId()
+		s.Fields = append(s.Fields, f)
+		s.Encode, s.Decode = nil, nil
+	}
+	return s
 }
 
 func (s *Schema) AddField(f *Field) (*Schema, error) {
@@ -769,25 +717,11 @@ func (s *Schema) Finalize() *Schema {
 				f.Offset = sf.Offset
 			}
 		}
-
-		// try lookup enum from global registry using tag '0' or generate new enum
-		if f.Is(types.FieldFlagEnum) {
-			s.Enums.CompareAndSwap(nil, NewEnumRegistry())
-			enums := s.Enums.Load()
-			if _, ok := enums.Lookup(f.Name); !ok {
-				e, ok := LookupEnum(0, f.Name)
-				if !ok {
-					e = NewEnumDictionary(f.Name)
-				}
-				enums.Register(e)
-				f.Enum = e
-			}
-		}
 	}
 	s.Hash = h.Sum64()
 	s.Encode, s.Decode = compileCodecs(s)
 	if s.Name == "" {
-		s.Name = util.U64String(s.Hash).String()
+		s.Name = fmt.Sprintf("%016x", s.Hash)
 	}
 
 	return s
@@ -814,7 +748,7 @@ func (s *Schema) String() string {
 		var typ string
 		switch f.Type {
 		case FT_TIME, FT_TIMESTAMP:
-			typ = f.Type.String() + "(" + TimeScale(f.Scale).ShortName() + ")"
+			typ = f.Type.String() + "(" + types.TimeScale(f.Scale).ShortName() + ")"
 		case FT_D32, FT_D64, FT_D128, FT_D256:
 			typ = f.Type.String() + "(" + strconv.Itoa(int(f.Scale)) + ")"
 		case FT_STRING, FT_BYTES:

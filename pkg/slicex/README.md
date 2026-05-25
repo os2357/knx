@@ -7,75 +7,59 @@ This package contains extended features over the standard Go slices package whic
 ```go
 import "blockwatch.cc/knoxdb/pkg/slicex"
 
-func NewOrderedNumbers(x S) *OrderedNumbers
-func (o *OrderedNumbers) SetNonZero() *OrderedNumbers
-func (o *OrderedNumbers) SetUnique() *OrderedNumbers
-func (o *OrderedNumbers) Insert(v ...E) *OrderedNumbers
-func (o *OrderedNumbers) Remove(v ...E) *OrderedNumbers
-func (o OrderedNumbers) Index(v E) int
-func (o OrderedNumbers) IndexStart(val T, start int) (int, bool) {
-func (o OrderedNumbers) Contains(v E) bool
-func (o OrderedNumbers) ContainsAny(v ...E) bool
-func (o OrderedNumbers) ContainsAll(v ...E) bool
-func (o OrderedNumbers) ContainsRange(a, b T) bool
-func (o OrderedNumbers) MinMax() (min T, max T) {
-func (o OrderedNumbers) Intersect(v *OrderedNumbers) *OrderedNumbers
+// Unsorted Integer slices (using optimized Radix Sort)
+Intersect[T Integer](s, t []T) []T 
+IntersectRange[T Integer](s []T, from, to T) []T
+Range[T Integer](s []T) (T, T, bool)
+Remove[T Integer](s []T, t ...T) []T 
+Union[T Integer](s, t []T) []T 
+Unique[T Integer](s []T) []T 
 
-func NewOrderedStrings(x S) *OrderedStrings
-...
+// Unsorted Float slices (slices.Sort)
+IntersectFloat[T Float](s, t []T) []T
+IntersectRangeFloat[T Float](s []T, from, to T) []T 
+UnionFloat[T Float](s, t []T) []T 
+RangeFloat[T Float](s []T) (T, T, bool) 
+RemoveFloat[T Float](s []T, t ...T) []T
+UniqueFloat[T Float](s []T) []T 
 
-func NewOrderedBytes(x S) *OrderedBytes
-...
+// Pre-sorted Integer/Float slices
+ContainsSorted[T Integer | Float](s []T, v T) bool
+ContainsRangeSorted[T Integer | Float](s []T, from, to T) bool 
+IntersectRangeSorted[T Integer | Float](s []T, from, to T) []T 
+RangeSorted[T Integer | Float](s []T) (T, T, bool) 
+RemoveSorted[T Integer | Float](s []T, t ...T) []T 
+RemoveZeros[T Integer | Float](s []T) []T
+
+// Unsorted byte slices
+IntersectBytes(s, t [][]byte) [][]byte
+IntersectRangeBytes(s [][]byte, from, to []byte) [][]byte
+RangeBytes(s [][]byte) ([]byte, []byte)
+RemoveBytes(s [][]byte, t ...[]byte) [][]byte
+UnionBytes(s, t [][]byte) [][]byte
+UniqueBytes(s [][]byte) [][]byte
+
+// Pre-sorted byte slices
+ContainsBytesSorted(s [][]byte, val []byte) bool
+ContainsBytesRangeSorted(s [][]byte, from, to []byte) bool
+RangeBytesSorted(s [][]byte) ([]byte, []byte)
+
+// Strings
+UniqueStrings(s []string) []string
+UniqueStringsStable(s []string) []string
 ```
 
-### Go slices (official)
-
-```go
-import "slices"
-
-func BinarySearch(x S, target E) (int, bool)
-func BinarySearchFunc(x S, target T, cmp func(E, T) int) (int, bool)
-func Clip(s S) S
-func Clone(s S) S
-func Compact(s S) S
-func CompactFunc(s S, eq func(E, E) bool) S
-func Compare(s1, s2 S) int
-func CompareFunc(s1 S1, s2 S2, cmp func(E1, E2) int) int
-func Contains(s S, v E) bool
-func ContainsFunc(s S, f func(E) bool) bool
-func Delete(s S, i, j int) S
-func DeleteFunc(s S, del func(E) bool) S
-func Equal(s1, s2 S) bool
-func EqualFunc(s1 S1, s2 S2, eq func(E1, E2) bool) bool
-func Grow(s S, n int) S
-func Index(s S, v E) int
-func IndexFunc(s S, f func(E) bool) int
-func Insert(s S, i int, v ...E) S
-func IsSorted(x S) bool
-func IsSortedFunc(x S, cmp func(a, b E) int) bool
-func Max(x S) E
-func MaxFunc(x S, cmp func(a, b E) int) E
-func Min(x S) E
-func MinFunc(x S, cmp func(a, b E) int) E
-func Replace(s S, i, j int, v ...E) S
-func Reverse(s S)
-func Sort(x S)
-func SortFunc(x S, cmp func(a, b E) int)
-func SortStableFunc(x S, cmp func(a, b E) int)
-```
 
 ## Algorithms
 
 Vector algorithms for sorted slices based on binary search from Go's sort package. All ordered/comparable types `constraints.Ordered` (signed, unsigned, float, string, arrays) are supported by generic functions and special types via `OrderedBytes` and `OrderedStrings`.
 
 Algorithms are available for
-- `removeZeros[T](s []T) []T`
-- `removeDuplicates(s []T) []T`
+- `unique(s []T) []T`
 - `contains[T](s []T, e T, optimzed bool) bool`
-- `index[T](s []T, e T, last int, optimzed bool) (int, bool)`
 - `containsRange[T](s []T from, to T) bool`
-- `intersect[T](x, y, out []T) []T`
-- `merge[T](s [T], unique bool, v ...T) []T`
+- `intersect[T](dst, x, y []T) []T`
+- `mergeUnique[T](s [T], v ...T) []T`
 
 ## Range coverage algorithm
 

@@ -69,7 +69,7 @@ func TestInt256Unique(t *testing.T) {
 
 	for _, c := range tests {
 		t.Run(c.n, func(t *testing.T) {
-			res := Int256Union(c.a, c.b)
+			res := UnionInt256(c.a, c.b)
 			assert.Equal(t, c.r, res)
 		})
 	}
@@ -128,7 +128,7 @@ func TestInt256Intersect(t *testing.T) {
 
 	for _, c := range tests {
 		t.Run(c.n, func(t *testing.T) {
-			res := Int256Intersect(c.a, c.b)
+			res := IntersectInt256(c.a, c.b)
 			assert.Equal(t, c.r, res)
 		})
 	}
@@ -187,7 +187,7 @@ func TestInt256Difference(t *testing.T) {
 
 	for _, c := range tests {
 		t.Run(c.n, func(t *testing.T) {
-			res := Int256Difference(c.a, c.b)
+			res := DifferenceInt256(c.a, c.b)
 			assert.Equal(t, c.r, res)
 		})
 	}
@@ -271,7 +271,7 @@ func TestInt256RemoveRange(t *testing.T) {
 
 	for _, v := range tests {
 		for _, r := range v.Ranges {
-			assert.Equal(t, r.Expected, Int256RemoveRange(v.Slice, i256(r.From), i256(r.To)), r.Name)
+			assert.Equal(t, r.Expected, RemoveRangeInt256(v.Slice, i256(r.From), i256(r.To)), r.Name)
 		}
 	}
 }
@@ -354,7 +354,7 @@ func TestInt256IntersectRange(t *testing.T) {
 
 	for _, v := range tests {
 		for _, r := range v.Ranges {
-			assert.Equal(t, r.Expected, Int256IntersectRange(v.Slice, i256(r.From), i256(r.To)), r.Name)
+			assert.Equal(t, r.Expected, IntersectRangeInt256(v.Slice, i256(r.From), i256(r.To)), r.Name)
 		}
 	}
 }

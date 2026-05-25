@@ -18,8 +18,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/store"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // LookupIterator is used during query execution to find interesting
@@ -43,7 +43,7 @@ type LookupIterator struct {
 }
 
 func NewLookupIterator(idx *Index, keys []uint64, useCache bool) *LookupIterator {
-	util.Sort(keys, 0)
+	slicex.Sort(keys, 0)
 	return &LookupIterator{
 		keys:     keys,
 		idx:      idx,
@@ -396,8 +396,8 @@ var (
 )
 
 // convert filter value to uvarint key
-func makePrefix(typ block.BlockType, val any) []byte {
-	switch typ {
+func makePrefix(typ filter.ValueType, val any) []byte {
+	switch types.BlockType(typ) {
 	case block.BlockInt64:
 		return num.EncodeUvarint(uint64(val.(int64)))
 	case block.BlockInt32:

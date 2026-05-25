@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"blockwatch.cc/knoxdb/internal/types"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,7 +79,7 @@ var indexTestCases = []indexTest{
 	// allowed index compisitions
 	{
 		name:      "hash index",
-		build:     GenericSchema[HashIndex],
+		build:     SchemaFor[HashIndex],
 		idxnames:  []string{"hash_index_id_index", "hash_index_hash_index"},
 		idxfields: []string{"id", "hash"},
 		idxextra:  []string{"", ""},
@@ -87,7 +87,7 @@ var indexTestCases = []indexTest{
 	},
 	{
 		name:      "integer index",
-		build:     GenericSchema[IntegerIndex],
+		build:     SchemaFor[IntegerIndex],
 		idxnames:  []string{"integer_index_id_index", "integer_index_i64_index"},
 		idxfields: []string{"id", "i64"},
 		idxextra:  []string{"", ""},
@@ -95,7 +95,7 @@ var indexTestCases = []indexTest{
 	},
 	{
 		name:      "integer index with extra",
-		build:     GenericSchema[IntegerIndexWithExtra],
+		build:     SchemaFor[IntegerIndexWithExtra],
 		idxnames:  []string{"integer_index_with_extra_id_index", "integer_index_with_extra_i64_index"},
 		idxfields: []string{"id", "i64"},
 		idxextra:  []string{"", "i62"},
@@ -103,7 +103,7 @@ var indexTestCases = []indexTest{
 	},
 	{
 		name:      "composite index",
-		build:     GenericSchema[CompositeIndex],
+		build:     SchemaFor[CompositeIndex],
 		idxnames:  []string{"composite_index_id_index", "composite_index_c1"},
 		idxfields: []string{"id", "i64,i66"},
 		idxextra:  []string{"", ""},
@@ -111,7 +111,7 @@ var indexTestCases = []indexTest{
 	},
 	{
 		name:      "double composite index",
-		build:     GenericSchema[DoubleCompositeIndex],
+		build:     SchemaFor[DoubleCompositeIndex],
 		idxnames:  []string{"double_composite_index_id_index", "double_composite_index_c1", "double_composite_index_c2"},
 		idxfields: []string{"id", "i64,i65", "i65,i66"},
 		idxextra:  []string{"", "", "i64,i66"},
@@ -121,32 +121,32 @@ var indexTestCases = []indexTest{
 	// errors
 	{
 		name:  "invalid integer index with fields",
-		build: GenericSchema[BadIntegerIndexWithFields],
+		build: SchemaFor[BadIntegerIndexWithFields],
 		iserr: true,
 	},
 	{
 		name:  "invalid index type",
-		build: GenericSchema[InvalidIndexType],
+		build: SchemaFor[InvalidIndexType],
 		iserr: true,
 	},
 	{
 		name:  "invalid index field type",
-		build: GenericSchema[InvalidIndexFieldType],
+		build: SchemaFor[InvalidIndexFieldType],
 		iserr: true,
 	},
 	{
 		name:  "invalid composite index with missing field",
-		build: GenericSchema[BadCompositeIndexMissingField],
+		build: SchemaFor[BadCompositeIndexMissingField],
 		iserr: true,
 	},
 	{
 		name:  "invalid composite index with duplicate field",
-		build: GenericSchema[BadCompositeIndexDuplicateField],
+		build: SchemaFor[BadCompositeIndexDuplicateField],
 		iserr: true,
 	},
 	{
 		name:  "invalid composite index with duplicate extra field",
-		build: GenericSchema[BadCompositeIndexDuplicateExtraField],
+		build: SchemaFor[BadCompositeIndexDuplicateExtraField],
 		iserr: true,
 	},
 }
@@ -155,7 +155,7 @@ func TestIndexParsing(t *testing.T) {
 	for _, c := range indexTestCases {
 		t.Run(c.name, func(t *testing.T) {
 			// check test data consistency
-			require.NotNil(t, c.build, "must define GenericSchema[T] function in testcase")
+			require.NotNil(t, c.build, "must define SchemaFor[T] function in testcase")
 			require.Equal(t, len(c.idxfields), len(c.idxextra), "must have equal number of idx and extra field definitions")
 			require.Equal(t, len(c.idxfields), len(c.idxtyps), "must have equal number of idx and type definitions")
 			require.Equal(t, len(c.idxfields), len(c.idxnames), "must have equal number of idx and name definitions")

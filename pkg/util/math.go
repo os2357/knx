@@ -4,42 +4,9 @@
 package util
 
 import (
-	"bytes"
 	"cmp"
 	"math/bits"
-
-	"golang.org/x/exp/constraints"
 )
-
-func MinBytes(a, b []byte) []byte {
-	if bytes.Compare(a, b) < 0 {
-		return a
-	}
-	return b
-}
-
-func MaxBytes(a, b []byte) []byte {
-	if bytes.Compare(a, b) > 0 {
-		return a
-	}
-	return b
-}
-
-func Cmp[T cmp.Ordered](a, b T) int {
-	return cmp.Compare(a, b)
-}
-
-// false < true
-func CmpBool(a, b bool) int {
-	switch {
-	case a == b:
-		return 0
-	case b:
-		return -1
-	default:
-		return 1
-	}
-}
 
 func Max[T cmp.Ordered](vals ...T) T {
 	var zero T
@@ -104,39 +71,6 @@ func MinMax[T cmp.Ordered](vals ...T) (T, T) {
 	return min, max
 }
 
-func Clamp[T cmp.Ordered](val, min, max T) T {
-	return Min(Max(val, min), max)
-}
-
-func NonZero[T cmp.Ordered](x ...T) T {
-	var zero T
-	for _, v := range x {
-		if v != zero {
-			return v
-		}
-	}
-	return zero
-}
-
-func NonZeroMin[T cmp.Ordered](x ...T) T {
-	var min, zero T
-	for _, v := range x {
-		if v != zero {
-			if min == zero {
-				min = v
-			} else {
-				min = Min(min, v)
-			}
-		}
-	}
-	return min
-}
-
-func Abs[T constraints.Signed](n T) T {
-	y := int64(n) >> 63
-	return T((int64(n) ^ y) - y)
-}
-
 func Log2(i int) int {
 	return bits.UintSize - bits.LeadingZeros(uint(i)) - 1
 }
@@ -147,4 +81,17 @@ func Log2ceil(i int) int {
 		v++
 	}
 	return v
+}
+
+// Donald Knuth, The Art of Computer Programming, Volume 2, Section 4.6.3
+func Pow[T Integer](a, b T) (c T) {
+	c = 1
+	for b > 0 {
+		if b&1 != 0 {
+			c *= a
+		}
+		b >>= 1
+		a *= a
+	}
+	return c
 }

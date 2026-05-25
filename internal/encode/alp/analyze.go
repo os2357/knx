@@ -89,7 +89,7 @@ func Analyze[T Float, E Int](src []T) Analysis {
 	// bit width estimation we start minv at zero.
 	if nZero > 0 {
 		maxE = 0
-		nonZeroSample = slicex.RemoveZeroFloats(sample)
+		nonZeroSample = slicex.RemoveZeros(sample)
 	}
 
 	// Search for an exponent/factor combination which minimizes compression size.

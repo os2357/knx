@@ -19,16 +19,16 @@ import (
 // In, Contains
 type floatInSetMatcher[T types.Float] struct {
 	noopMatcher
-	slice  slicex.OrderedFloats[T]
+	slice  []T
 	hashes []uint64
 }
 
-func (m *floatInSetMatcher[T]) Weight() int { return m.slice.Len() }
+func (m *floatInSetMatcher[T]) Weight() int { return len(m.slice) }
 
-func (m *floatInSetMatcher[T]) Len() int { return m.slice.Len() }
+func (m *floatInSetMatcher[T]) Len() int { return len(m.slice) }
 
 func (m *floatInSetMatcher[T]) Value() any {
-	return m.slice.Values
+	return m.slice
 }
 
 func (m *floatInSetMatcher[T]) WithValue(val any) {
@@ -38,16 +38,16 @@ func (m *floatInSetMatcher[T]) WithValue(val any) {
 func (m *floatInSetMatcher[T]) WithSlice(slice any) {
 	data := slice.([]T)
 	slices.Sort(data)
-	m.slice.Values = data
+	m.slice = data
 	m.hashes = hash.Vec(data, m.hashes)
 }
 
 func (m floatInSetMatcher[T]) MatchValue(v any) bool {
-	return m.slice.Contains(v.(T))
+	return slicex.ContainsSorted(m.slice, v.(T))
 }
 
 func (m floatInSetMatcher[T]) MatchRange(from, to any) bool {
-	return m.slice.ContainsRange(from.(T), to.(T))
+	return slicex.ContainsRangeSorted(m.slice, from.(T), to.(T))
 }
 
 func (m floatInSetMatcher[T]) MatchFilter(flt filter.Filter) bool {
@@ -59,13 +59,13 @@ func (m floatInSetMatcher[T]) MatchVector(b *block.Block, bits, mask *bitset.Bit
 	acc := block.NewAccessor[T](b)
 	if mask != nil {
 		for i := range mask.Iterator() {
-			if m.slice.Contains(acc.Get(i)) {
+			if slicex.ContainsSorted(m.slice, acc.Get(i)) {
 				bits.Set(i)
 			}
 		}
 	} else {
 		for i, v := range acc.Slice() {
-			if m.slice.Contains(v) {
+			if slicex.ContainsSorted(m.slice, v) {
 				bits.Set(i)
 			}
 		}
@@ -73,7 +73,7 @@ func (m floatInSetMatcher[T]) MatchVector(b *block.Block, bits, mask *bitset.Bit
 }
 
 func (m floatInSetMatcher[T]) MatchRangeVectors(mins, maxs *block.Block, bits, mask *bitset.Bitset) {
-	setMin, setMax := m.slice.MinMax()
+	setMin, setMax, _ := slicex.RangeSorted(m.slice)
 	rg := newFactory(mins.Type()).New(FilterModeRange)
 	rg.WithValue(RangeValue{setMin, setMax})
 	rg.MatchRangeVectors(mins, maxs, bits, mask)
@@ -83,15 +83,15 @@ func (m floatInSetMatcher[T]) MatchRangeVectors(mins, maxs *block.Block, bits, m
 
 type floatNotInSetMatcher[T types.Float] struct {
 	noopMatcher
-	slice slicex.OrderedFloats[T]
+	slice []T
 }
 
-func (m *floatNotInSetMatcher[T]) Weight() int { return m.slice.Len() }
+func (m *floatNotInSetMatcher[T]) Weight() int { return len(m.slice) }
 
-func (m *floatNotInSetMatcher[T]) Len() int { return m.slice.Len() }
+func (m *floatNotInSetMatcher[T]) Len() int { return len(m.slice) }
 
 func (m *floatNotInSetMatcher[T]) Value() any {
-	return m.slice.Values
+	return m.slice
 }
 
 func (m *floatNotInSetMatcher[T]) WithValue(val any) {
@@ -101,15 +101,15 @@ func (m *floatNotInSetMatcher[T]) WithValue(val any) {
 func (m *floatNotInSetMatcher[T]) WithSlice(slice any) {
 	bits := slice.([]T)
 	slices.Sort(bits)
-	m.slice.Values = bits
+	m.slice = bits
 }
 
 func (m floatNotInSetMatcher[T]) MatchValue(v any) bool {
-	return !m.slice.Contains(v.(T))
+	return !slicex.ContainsSorted(m.slice, v.(T))
 }
 
 func (m floatNotInSetMatcher[T]) MatchRange(from, to any) bool {
-	return !m.slice.ContainsRange(from.(T), to.(T))
+	return !slicex.ContainsRangeSorted(m.slice, from.(T), to.(T))
 }
 
 func (m floatNotInSetMatcher[T]) MatchFilter(_ filter.Filter) bool {
@@ -122,13 +122,13 @@ func (m floatNotInSetMatcher[T]) MatchVector(b *block.Block, bits, mask *bitset.
 	acc := block.NewAccessor[T](b)
 	if mask != nil {
 		for i := range mask.Iterator() {
-			if !m.slice.Contains(acc.Get(i)) {
+			if !slicex.ContainsSorted(m.slice, acc.Get(i)) {
 				bits.Set(i)
 			}
 		}
 	} else {
 		for i, v := range acc.Slice() {
-			if !m.slice.Contains(v) {
+			if !slicex.ContainsSorted(m.slice, v) {
 				bits.Set(i)
 			}
 		}

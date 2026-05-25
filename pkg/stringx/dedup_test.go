@@ -7,15 +7,15 @@ import (
 	"bytes"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDedupPoolAppend(t *testing.T) {
 	pool := NewDedupPool(64)
-	unique := util.RandByteSlices(32, 8) // 32x length 8
+	unique := testutil.RandByteSlices(32, 8) // 32x length 8
 	for i := range 64 {
-		v := unique[util.RandIntn(len(unique))]
+		v := unique[testutil.RandIntn(len(unique))]
 		n := pool.Append(v)
 		require.Equal(t, i, n, "append index")
 		require.Equal(t, i+1, pool.Len(), "len")
@@ -26,21 +26,21 @@ func TestDedupPoolAppend(t *testing.T) {
 
 func TestDedupPoolSet(t *testing.T) {
 	pool := NewDedupPool(64)
-	pool.Append(util.RandBytes(8))
+	pool.Append(testutil.RandBytes(8))
 	require.Panics(t, func() { pool.Set(0, []byte{0}) })
 }
 
 func TestDedupPoolDelete(t *testing.T) {
 	pool := NewDedupPool(64)
-	pool.Append(util.RandBytes(8))
+	pool.Append(testutil.RandBytes(8))
 	require.Panics(t, func() { pool.Delete(0, 1) })
 }
 
 func TestDedupPoolCmp(t *testing.T) {
 	for range 16 {
 		pool := NewDedupPool(64)
-		pool.AppendMany(util.RandByteSlices(64, 8)...) // 64x length 8
-		a, b := util.RandIntn(64), util.RandIntn(64)
+		pool.AppendMany(testutil.RandByteSlices(64, 8)...) // 64x length 8
+		a, b := testutil.RandIntn(64), testutil.RandIntn(64)
 		require.Equal(t, bytes.Compare(pool.Get(a), pool.Get(b)), pool.Cmp(a, b), "cmp")
 	}
 }
@@ -76,7 +76,7 @@ func TestDedupPoolExtremes(t *testing.T) {
 
 func TestDedupPoolIterators(t *testing.T) {
 	pool := NewDedupPool(64)
-	data := util.RandByteSlices(64, 8) // 64x length 8
+	data := testutil.RandByteSlices(64, 8) // 64x length 8
 	pool.AppendMany(data...)
 
 	// values

@@ -3,9 +3,11 @@
 
 package util
 
-import "maps"
-
-import "sync/atomic"
+import (
+	"iter"
+	"maps"
+	"sync/atomic"
+)
 
 // LockFreeMap is a concurrent Go map implementation that uses atomic
 // operations instead of a mutex to manage concurrent access. It has
@@ -63,6 +65,10 @@ func (m *LockFreeMap[K, V]) Del(k K) {
 
 func (m *LockFreeMap[K, V]) Map() map[K]V {
 	return *m.val.Load().(*map[K]V)
+}
+
+func (m *LockFreeMap[K, V]) Iter() iter.Seq2[K, V] {
+	return maps.All(*m.val.Load().(*map[K]V))
 }
 
 func (m *LockFreeMap[K, V]) Clear() {

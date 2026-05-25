@@ -10,13 +10,12 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 var null = []byte(`null`)
 
 type Bucket interface {
-	WithDimensions(util.TimeRange, util.TimeUnit) Bucket
+	WithDimensions(TimeRange, TimeUnit) Bucket
 	WithReducer(ReducerFunc) Bucket
 	WithName(string) Bucket
 	WithIndex(int) Bucket

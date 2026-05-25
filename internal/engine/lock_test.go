@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
@@ -103,7 +103,7 @@ func TestLockConcurrent(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				time.Sleep(time.Duration(util.RandIntn(10)) * time.Millisecond)
+				time.Sleep(time.Duration(testutil.RandIntn(10)) * time.Millisecond)
 				m.Done(XID(j))
 			}
 			return nil

@@ -10,6 +10,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/cast"
+	"blockwatch.cc/knoxdb/pkg/schema/parse"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 )
 
@@ -82,11 +84,7 @@ func ParseCondition(key, val string, s *schema.Schema) (c Condition, err error) 
 		return
 	}
 	c.Name = field.Name
-	var enum *schema.EnumDictionary
-	if s.HasEnums() {
-		enum, _ = s.Enums.Load().Lookup(c.Name)
-	}
-	parser := schema.NewParser(field.Type, field.Scale, enum)
+	parser := parse.NewParser(field.Type, field.Scale, field.Enum)
 	switch c.Mode {
 	case types.FilterModeRange:
 		v1, v2, ok := strings.Cut(val, ",")
@@ -157,7 +155,7 @@ func (c Condition) Compile(s *schema.Schema) (*filter.Node, error) {
 		node := filter.NewNode().AddLeaf(
 			&filter.Filter{
 				Name:    s.Pk().Name,
-				Type:    s.Pk().Type.BlockType(),
+				Type:    filter.ValueType(s.Pk().Type.BlockType()),
 				Mode:    types.FilterModeTrue,
 				Index:   s.PkIndex(),
 				Id:      s.PkId(),
@@ -183,16 +181,11 @@ func (c Condition) Compile(s *schema.Schema) (*filter.Node, error) {
 		// Cast types of condition values since we allow external use.
 		// The wire format code path is safe because data encoding follows
 		// schema field types.
-		var enum *schema.EnumDictionary
-		if s.HasEnums() {
-			enum, _ = s.Enums.Load().Lookup(c.Name)
-		}
-		caster := schema.NewCaster(field.Type, field.Scale, enum)
+		caster := cast.NewCaster(field.Type, field.Scale, field.Enum)
 
 		// init matcher impl from value(s)
 		var (
-			node *filter.Node
-			err  error
+			err error
 		)
 		switch c.Mode {
 		case types.FilterModeIn, types.FilterModeNotIn:
@@ -229,17 +222,15 @@ func (c Condition) Compile(s *schema.Schema) (*filter.Node, error) {
 
 		// use the subtree node from rewrite above or create a new child
 		// node from matcher
-		if node == nil {
-			node = filter.NewNode().AddLeaf(&filter.Filter{
-				Name:    c.Name,
-				Type:    field.Type.BlockType(),
-				Mode:    c.Mode,
-				Index:   fx,
-				Id:      field.Id,
-				Value:   c.Value,
-				Matcher: matcher,
-			})
-		}
+		node := filter.NewNode().AddLeaf(&filter.Filter{
+			Name:    c.Name,
+			Type:    filter.ValueType(field.Type.BlockType()),
+			Mode:    c.Mode,
+			Index:   fx,
+			Id:      field.Id,
+			Value:   c.Value,
+			Matcher: matcher,
+		})
 
 		return node, nil
 	}

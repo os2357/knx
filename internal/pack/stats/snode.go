@@ -160,7 +160,7 @@ func (n *SNode) AppendPack(src *pack.Package) bool {
 		var minv, maxv any
 		if b == nil {
 			// use zero values for invalid blocks (deleted from schema)
-			minv = b.Type().Zero()
+			minv = filter.ValueType(b.Type()).Zero()
 			maxv = minv
 		} else {
 			// reference min/max statistics
@@ -218,12 +218,13 @@ func (n *SNode) UpdatePack(src *pack.Package) bool {
 		maxo := pkg.Block(maxx).Get(k)
 
 		// set min/max when different
-		if !b.Type().EQ(mino, minv) {
+		typ := filter.ValueType(b.Type())
+		if !typ.EQ(mino, minv) {
 			// fmt.Printf("> F#%d min[%d] %v -> %v\n", i, minx, mino, minv)
 			pkg.Block(minx).Set(k, minv)
 			n.dirty = true
 		}
-		if !b.Type().EQ(maxo, maxv) {
+		if !typ.EQ(maxo, maxv) {
 			// fmt.Printf("> F#%d max[%d] %v -> %v\n", i, maxx, maxo, maxv)
 			pkg.Block(maxx).Set(k, maxv)
 			n.dirty = true
@@ -486,7 +487,7 @@ func (n *SNode) BuildMetaStats(view *schema.View, wr *schema.Writer) bool {
 			}
 		}
 		// set dirty flag when any of the statistics has actually changed
-		dirty = dirty || !b.Type().EQ(curr, val)
+		dirty = dirty || !filter.ValueType(b.Type()).EQ(curr, val)
 
 		// write val to builder (even if not changed)
 		wr.Write(i, val)

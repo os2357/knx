@@ -96,15 +96,14 @@ func run() (err error) {
 	log.SetLevel(lvl)
 
 	dbname := filepath.Base(filepath.Dir(filepath.Clean(flags.Arg(0))))
-	opts := wal.WalOptions{
-		Seed:           types.TaggedHash(types.ObjectTagDatabase, dbname),
-		Path:           flags.Arg(0),
-		MaxSegmentSize: size,
-		RecoveryMode:   mode,
-		Logger:         log.Log,
-	}
-	log.Debugf("Opening wal for db %s at %s in mode %s", dbname, opts.Path, opts.RecoveryMode)
-	w, err := wal.Open(wal.LSN(lsn), opts)
+	log.Debugf("Opening wal for db %s at %s in mode %s", dbname, flags.Arg(0), mode)
+	w, err := wal.Open(wal.LSN(lsn),
+		wal.WithSeed(types.TaggedHash(types.ObjectTagDatabase, dbname)),
+		wal.WithPath(flags.Arg(0)),
+		wal.WithMaxSegmentSize(size),
+		wal.WithRecoveryMode(mode),
+		wal.WithLogger(log.Log),
+	)
 	if err != nil {
 		return err
 	}

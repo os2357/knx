@@ -13,11 +13,10 @@ import (
 	"time"
 	"unicode"
 
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/stringx"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 const (
@@ -611,26 +610,22 @@ func tryTime(buf []byte, tfm, dfm string) (fieldFlag, string, int) {
 	}
 	if dfm != "" {
 		if _, err := time.Parse(dfm, s); err == nil {
-			return fDate, dfm, int(schema.TIME_SCALE_DAY)
+			return fDate, dfm, int(types.TIME_SCALE_DAY)
 		}
 	}
 
 	// try knoxdb standard formats
-	f, scale, timeOnly, ok := schema.DetectTimeFormat(s)
+	f, scale, timeOnly, ok := types.DetectTimeFormat(s)
 	if ok {
 		if timeOnly {
 			return fTime, f, int(scale)
 		}
-		if scale == schema.TIME_SCALE_DAY {
+		if scale == types.TIME_SCALE_DAY {
 			return fDate, f, int(scale)
 		}
 		return fTimestamp, f, int(scale)
 	}
 
-	// try other formats
-	if f, err := util.DetectTimeFormat(s); err == nil {
-		return fTimestamp, f, 0
-	}
 	return 0, "", 0
 }
 

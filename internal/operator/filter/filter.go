@@ -9,7 +9,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 var (
@@ -21,7 +20,7 @@ var (
 
 type Filter struct {
 	Name    string     // schema field name
-	Type    BlockType  // block type (we need for opimizing filter trees)
+	Type    ValueType  // block type (we need for opimizing filter trees)
 	Mode    FilterMode // eq|ne|gt|gte|lt|lte|rg|in|nin|re
 	Index   int        // field index (use with pack.Package.Block() and schema.View.Get())
 	Id      uint16     // field unique id (used as storage key)
@@ -34,7 +33,7 @@ func NewFilter(f *schema.Field, idx int, mode FilterMode, val any) *Filter {
 	m.WithValue(val)
 	return &Filter{
 		Name:    f.Name,
-		Type:    f.Type.BlockType(),
+		Type:    ValueType(f.Type.BlockType()),
 		Mode:    mode,
 		Index:   idx,
 		Id:      f.Id,
@@ -69,12 +68,12 @@ func (f *Filter) Validate() error {
 }
 
 func (f *Filter) String() string {
-	return fmt.Sprintf("%s[id=%d,n=%d] %s %s",
+	return fmt.Sprintf("%s[id=%d,n=%d] %s %v",
 		f.Name,
 		f.Id,
 		f.Index,
 		f.Mode.Symbol(),
-		util.ToString(f.Value),
+		f.Value,
 	)
 }
 
@@ -103,7 +102,7 @@ func (f *Filter) AsTrue() *Filter {
 }
 
 func (f *Filter) As(mode FilterMode, val any) *Filter {
-	m := newFactory(f.Type).New(mode)
+	m := newFactory(BlockType(f.Type)).New(mode)
 	m.WithValue(val)
 	return &Filter{
 		Name:    f.Name,
@@ -117,7 +116,7 @@ func (f *Filter) As(mode FilterMode, val any) *Filter {
 }
 
 func (f *Filter) AsSet(set *xroar.Bitmap) *Filter {
-	m := newFactory(f.Type).New(FilterModeIn)
+	m := newFactory(BlockType(f.Type)).New(FilterModeIn)
 	m.WithSet(set)
 	return &Filter{
 		Name:    f.Name,

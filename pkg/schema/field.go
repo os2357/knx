@@ -14,15 +14,17 @@ import (
 	"strings"
 	"time"
 
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
 type (
-	FieldType  = types.FieldType
-	FieldFlags = types.FieldFlags
-	IndexType  = types.IndexType
-	FilterType = types.FilterType
+	FieldType        = types.FieldType
+	FieldFlags       = types.FieldFlags
+	IndexType        = types.IndexType
+	FilterType       = types.FilterType
+	BlockCompression = types.BlockCompression
 )
 
 const (
@@ -51,11 +53,13 @@ const (
 	FT_DATE      = types.FieldTypeDate
 
 	F_PRIMARY  = types.FieldFlagPrimary
-	F_TIMEBASE = types.FieldFlagTimebase
+	F_FIXED    = types.FieldFlagFixed
 	F_ENUM     = types.FieldFlagEnum
 	F_DELETED  = types.FieldFlagDeleted
 	F_METADATA = types.FieldFlagMetadata
 	F_NULLABLE = types.FieldFlagNullable
+	F_TIMEBASE = types.FieldFlagTimebase
+	F_ACTION   = types.FieldFlagAction
 
 	I_HASH      = types.IndexTypeHash
 	I_INT       = types.IndexTypeInt
@@ -73,20 +77,20 @@ const (
 
 type Field struct {
 	// schema values for CREATE TABLE
-	Name     string                 // field name from struct tag or variable name
-	Id       uint16                 // unique lifetime id of the field
-	Type     FieldType              // schema field type from struct tag or Go type
-	Flags    FieldFlags             // schema flags from struct tag
-	Compress types.BlockCompression // data compression from struct tag
-	Filter   FilterType             // metadata filter type
-	Fixed    uint16                 // 0..65535 fixed size array/bytes/string length
-	Scale    uint8                  // 0..255 fixed point scale, time scale
+	Name     string           // field name from struct tag or variable name
+	Id       uint16           // unique lifetime id of the field
+	Type     FieldType        // schema field type from struct tag or Go type
+	Flags    FieldFlags       // schema flags from struct tag
+	Compress BlockCompression // data compression from struct tag
+	Filter   FilterType       // metadata filter type
+	Fixed    uint16           // 0..65535 fixed size array/bytes/string length
+	Scale    uint8            // 0..255 fixed point scale, time scale
 
 	// encoder values for INSERT, UPDATE, QUERY
-	Path   []int           // reflect struct nested positions
-	Offset uintptr         // struct field offset from reflect
-	Size   uint16          // wire encoding field size in bytes, min size for []byte & string
-	Enum   *EnumDictionary // ptr to enum dictionary when field is an enum
+	Path   []int                // reflect struct nested positions
+	Offset uintptr              // struct field offset from reflect
+	Size   uint16               // wire encoding field size in bytes, min size for []byte & string
+	Enum   *enum.EnumDictionary // ptr to enum dictionary when field is an enum
 }
 
 func NewField(typ FieldType) *Field {
@@ -163,9 +167,9 @@ func (f *Field) IsCompressed() bool {
 func (f *Field) TimeFormat() string {
 	switch f.Type {
 	case FT_TIMESTAMP, FT_DATE:
-		return timeScaleFormats[f.Scale]
+		return types.TimeScale(f.Scale).DateTimeFormat()
 	case FT_TIME:
-		return timeOnlyFormats[f.Scale]
+		return types.TimeScale(f.Scale).TimeOnlyFormat()
 	default:
 		return ""
 	}
@@ -175,7 +179,7 @@ func (f *Field) TypeName() (typ string) {
 	typ = f.Type.String()
 	switch f.Type {
 	case FT_TIME, FT_TIMESTAMP:
-		typ += "(" + TimeScale(f.Scale).ShortName() + ")"
+		typ += "(" + types.TimeScale(f.Scale).ShortName() + ")"
 	case FT_D32, FT_D64, FT_D128, FT_D256:
 		typ += "(" + strconv.Itoa(int(f.Scale)) + ")"
 	case FT_STRING, FT_BYTES:
@@ -217,7 +221,7 @@ func ParseFieldFromTypename(typ string) (*Field, error) {
 			if err == nil {
 				scale = uint8(n)
 			} else {
-				tscale, ok := ParseTimeScale(scalestr)
+				tscale, ok := types.ParseTimeScale(scalestr)
 				if !ok {
 					return nil, fmt.Errorf("invalid scale factor: %s", typ)
 				}
@@ -228,7 +232,7 @@ func ParseFieldFromTypename(typ string) (*Field, error) {
 	}
 	ty := types.ParseFieldType(typ)
 	if !ty.IsValid() {
-		return nil, fmt.Errorf("invalid array type: %s", typ)
+		return nil, fmt.Errorf("invalid field type: %s", typ)
 	}
 	f = &Field{
 		Type:  ty,
@@ -236,6 +240,18 @@ func ParseFieldFromTypename(typ string) (*Field, error) {
 		Scale: scale,
 	}
 	return f, f.Validate()
+}
+
+func ParseFieldFlags(s string) (FieldFlags, error) {
+	var flags FieldFlags
+	for f := range strings.SplitSeq(s, ",") {
+		ff := types.ParseFieldFlag(f)
+		if ff == 0 {
+			return 0, fmt.Errorf("invalid field flag: %s", f)
+		}
+		flags |= ff
+	}
+	return flags, nil
 }
 
 func (f *Field) GoType() reflect.Type {
@@ -253,12 +269,12 @@ func (f *Field) WithName(n string) *Field {
 	return f
 }
 
-func (f *Field) WithFlags(v types.FieldFlags) *Field {
+func (f *Field) WithFlags(v FieldFlags) *Field {
 	f.Flags = v
 	return f
 }
 
-func (f *Field) WithCompression(c types.BlockCompression) *Field {
+func (f *Field) WithCompression(c BlockCompression) *Field {
 	f.Compress = c
 	return f
 }
@@ -292,12 +308,12 @@ func (f *Field) Validate() error {
 		case FT_D256:
 			maxScale = num.MaxDecimal256Precision
 		case FT_TIMESTAMP:
-			maxScale = uint8(TIME_SCALE_SECOND)
+			maxScale = uint8(types.TIME_SCALE_SECOND)
 		case FT_TIME:
-			maxScale = uint8(TIME_SCALE_SECOND)
+			maxScale = uint8(types.TIME_SCALE_SECOND)
 		case FT_DATE:
-			minScale = uint8(TIME_SCALE_DAY)
-			maxScale = uint8(TIME_SCALE_DAY)
+			minScale = uint8(types.TIME_SCALE_DAY)
+			maxScale = uint8(types.TIME_SCALE_DAY)
 		default:
 			return fmt.Errorf("field[%s]: scale unsupported on type %s", f.Name, f.Type)
 		}
@@ -455,17 +471,13 @@ func (f *Field) Encode(w io.Writer, val any, layout binary.ByteOrder) (err error
 	case OpCodeBool:
 		b, ok := val.(bool)
 		if ok {
-			if b {
-				_, err = w.Write([]byte{1})
-			} else {
-				_, err = w.Write([]byte{0})
-			}
+			err = EncodeBool(w, b)
 		}
 
 	case OpCodeTimestamp, OpCodeDate, OpCodeTime:
 		tv, ok := val.(time.Time)
 		if ok {
-			err = EncodeInt(w, OpCodeUint64, TimeScale(f.Scale).ToUnix(tv), layout)
+			err = EncodeInt(w, OpCodeUint64, types.TimeScale(f.Scale).ToUnix(tv), layout)
 		}
 
 	case OpCodeFloat32:
@@ -546,7 +558,7 @@ func (f *Field) Decode(r io.Reader, layout binary.ByteOrder) (val any, err error
 
 	case FT_DATE:
 		_, err = r.Read(buf[:8])
-		val = FromUnixDays(int64(layout.Uint64(buf[:8])))
+		val = types.FromUnixDays(int64(layout.Uint64(buf[:8])))
 
 	case FT_I64:
 		_, err = r.Read(buf[:8])
@@ -741,10 +753,10 @@ func (f *Field) ReadFrom(buf *bytes.Buffer) (err error) {
 	if buf.Len() < 7 {
 		return io.ErrShortBuffer
 	}
-	f.Type = types.FieldType(buf.Next(1)[0])
-	f.Flags = types.FieldFlags(buf.Next(1)[0])
-	f.Compress = types.BlockCompression(buf.Next(1)[0])
-	f.Filter = types.FilterType(buf.Next(1)[0])
+	f.Type = FieldType(buf.Next(1)[0])
+	f.Flags = FieldFlags(buf.Next(1)[0])
+	f.Compress = BlockCompression(buf.Next(1)[0])
+	f.Filter = FilterType(buf.Next(1)[0])
 
 	// fixed: u16
 	binary.Read(buf, LE, &f.Fixed)

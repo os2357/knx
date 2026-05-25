@@ -11,7 +11,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/require"
@@ -45,7 +45,7 @@ func NewTestEngine(t testing.TB, opts Options) *Engine {
 		},
 		tables:  util.NewLockFreeMap[uint64, TableEngine](),
 		indexes: util.NewLockFreeMap[uint64, IndexEngine](),
-		enums:   schema.NewEnumRegistry(),
+		enums:   enum.NewEnumRegistry(),
 		txs:     make(TxList, 0),
 		txchan:  make(chan struct{}, 1),
 		xmin:    1,
@@ -58,13 +58,13 @@ func NewTestEngine(t testing.TB, opts Options) *Engine {
 		lm:      NewLockManager(),
 	}
 	var err error
-	e.wal, err = wal.Create(wal.WalOptions{
-		Seed:           0,
-		Path:           path,
-		MaxSegmentSize: 1024,
-		RecoveryMode:   wal.RecoveryModeTruncate,
-		Logger:         opts.Log,
-	})
+	e.wal, err = wal.Create(
+		wal.WithSeed(0),
+		wal.WithPath(path),
+		wal.WithMaxSegmentSize(1024),
+		wal.WithRecoveryMode(wal.RecoveryModeTruncate),
+		wal.WithLogger(opts.Log),
+	)
 	require.NoError(t, err)
 	e.cat.WithWal(e.wal)
 	e.txchan <- struct{}{}
@@ -81,7 +81,7 @@ func OpenTestEngine(t testing.TB, opts Options) *Engine {
 		},
 		tables:  util.NewLockFreeMap[uint64, TableEngine](),
 		indexes: util.NewLockFreeMap[uint64, IndexEngine](),
-		enums:   schema.NewEnumRegistry(),
+		enums:   enum.NewEnumRegistry(),
 		txs:     make(TxList, 0),
 		txchan:  make(chan struct{}, 1),
 		xmin:    1,
@@ -95,13 +95,13 @@ func OpenTestEngine(t testing.TB, opts Options) *Engine {
 	}
 
 	var err error
-	e.wal, err = wal.Open(0, wal.WalOptions{
-		Seed:           0,
-		Path:           path,
-		MaxSegmentSize: 1024,
-		RecoveryMode:   wal.RecoveryModeTruncate,
-		Logger:         opts.Log,
-	})
+	e.wal, err = wal.Open(0,
+		wal.WithSeed(0),
+		wal.WithPath(path),
+		wal.WithMaxSegmentSize(1024),
+		wal.WithRecoveryMode(wal.RecoveryModeTruncate),
+		wal.WithLogger(opts.Log),
+	)
 	require.NoError(t, err)
 	e.txchan <- struct{}{}
 	return e

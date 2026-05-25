@@ -11,8 +11,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/hash"
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/store"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 var BE = binary.BigEndian
@@ -79,7 +79,7 @@ func (idx *Index) storeTomb(ctx context.Context, epoch uint32) error {
 	// co-sort tomb columns in-place
 	t0 := idx.tomb.Block(0).Uint64().Slice() // keys
 	t1 := idx.tomb.Block(1).Uint64().Slice() // rowids
-	util.Sort2(t0, t1)
+	slicex.Sort2(t0, t1)
 
 	// write in storage tx
 	err := idx.db.Update(func(tx store.Tx) error {

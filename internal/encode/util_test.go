@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"blockwatch.cc/knoxdb/internal/tests"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUniqueArray(t *testing.T) {
 	for _, c := range tests.BenchmarkSizes {
-		data := util.RandInts[int16](c.N)
+		data := testutil.RandInts[int16](c.N)
 		minx := slices.Min(data)
 		maxx := slices.Max(data)
 

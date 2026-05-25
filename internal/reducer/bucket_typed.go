@@ -12,7 +12,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 type TypedBucket struct {
@@ -23,8 +22,8 @@ type TypedBucket struct {
 	reducers []TypedReducer // combine source stream values into one result per window
 	last     time.Time      // last window start time
 	next     time.Time      // next window start time
-	window   util.TimeUnit  // aggregation window
-	trange   util.TimeRange // series time range
+	window   TimeUnit       // aggregation window
+	trange   TimeRange      // series time range
 	limit    int            // value limit
 	fill     FillMode       // fill missing data
 	read     func(engine.QueryRow) (Aggregatable, error)
@@ -38,7 +37,7 @@ func NewTypedBucket() *TypedBucket {
 	return t
 }
 
-func (b *TypedBucket) WithDimensions(r util.TimeRange, w util.TimeUnit) Bucket {
+func (b *TypedBucket) WithDimensions(r TimeRange, w TimeUnit) Bucket {
 	b.trange = r
 	b.window = w
 	steps := r.NumSteps(w)

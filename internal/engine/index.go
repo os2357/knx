@@ -160,7 +160,7 @@ func (e *Engine) RebuildIndex(ctx context.Context, name string) error {
 	defer abort()
 
 	// get read lock on table (prevent drop or change)
-	tableTag := idx.Table().Schema().TaggedHash(types.ObjectTagTable)
+	tableTag := types.TaggedHash(types.ObjectTagTable, idx.Table().Schema().Name)
 	err = tx.RLock(ctx, tableTag)
 	if err != nil {
 		return err
@@ -216,7 +216,7 @@ func (e *Engine) DropIndex(ctx context.Context, name string) error {
 	defer abort()
 
 	// lock table access
-	tableTag := index.Table().Schema().TaggedHash(types.ObjectTagTable)
+	tableTag := types.TaggedHash(types.ObjectTagTable, index.Table().Schema().Name)
 	err = tx.Lock(ctx, tableTag)
 	if err != nil {
 		return err

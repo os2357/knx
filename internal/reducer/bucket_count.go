@@ -10,33 +10,32 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/internal/engine"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 type CountBucket struct {
-	name     string               // name of result column
-	index    int                  // block index in result
-	reducers []*CountReducer[int] // combine source stream values into one result per window
-	last     time.Time            // last window start time
-	next     time.Time            // next window start time
-	window   util.TimeUnit        // aggregation window
-	trange   util.TimeRange       // series time range
-	limit    int                  // value limit
-	fill     FillMode             // fill missing data
+	name     string                 // name of result column
+	index    int                    // block index in result
+	reducers []*CountReducer[int64] // combine source stream values into one result per window
+	last     time.Time              // last window start time
+	next     time.Time              // next window start time
+	window   TimeUnit               // aggregation window
+	trange   TimeRange              // series time range
+	limit    int                    // value limit
+	fill     FillMode               // fill missing data
 }
 
 func NewCountBucket() *CountBucket {
 	return &CountBucket{
-		reducers: make([]*CountReducer[int], 0),
+		reducers: make([]*CountReducer[int64], 0),
 	}
 }
 
-func (b *CountBucket) WithDimensions(r util.TimeRange, w util.TimeUnit) Bucket {
+func (b *CountBucket) WithDimensions(r TimeRange, w TimeUnit) Bucket {
 	b.trange = r
 	b.window = w
 	steps := r.NumSteps(w)
 	if cap(b.reducers) < steps {
-		b.reducers = make([]*CountReducer[int], 0, steps)
+		b.reducers = make([]*CountReducer[int64], 0, steps)
 	}
 	b.last = b.trange.From
 	b.next = b.window.Next(b.last, 1)
@@ -83,8 +82,8 @@ func (b *CountBucket) Len() int {
 	return len(b.reducers)
 }
 
-func (b *CountBucket) grow() *CountReducer[int] {
-	r := &CountReducer[int]{}
+func (b *CountBucket) grow() *CountReducer[int64] {
+	r := &CountReducer[int64]{}
 	b.reducers = append(b.reducers, r)
 	return r
 }
@@ -156,7 +155,7 @@ func (b *CountBucket) Emit(buf *bytes.Buffer) error {
 	start, end := b.trange.From, b.trange.To
 
 	for step := start; !step.After(end) && count < b.limit; step = b.window.Next(step, 1) {
-		var next *CountReducer[int]
+		var next *CountReducer[int64]
 		if idx < len(b.reducers) {
 			next = b.reducers[idx]
 		} else {

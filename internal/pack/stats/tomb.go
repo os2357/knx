@@ -6,6 +6,7 @@ package stats
 import (
 	"fmt"
 
+	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
@@ -52,7 +53,7 @@ func (t *Tomb) WithSchema(tableSchema, metaSchema *schema.Schema, use Features) 
 				t.filteredFields = append(t.filteredFields, f.Id)
 			}
 		}
-		if use.Is(FeatRangeFilter) && f.Type.BlockType().IsInt() {
+		if use.Is(FeatRangeFilter) && filter.ValueType(f.Type.BlockType()).IsInt() {
 			t.rangeFields = append(t.rangeFields, f.Id)
 		}
 	}

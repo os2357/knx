@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	stests "blockwatch.cc/knoxdb/internal/encode/s8b/tests"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,7 +103,7 @@ func TestIterator(t *testing.T) {
 			//
 			it.Reset()
 			for range len(src) {
-				i := util.RandIntn(len(src))
+				i := testutil.RandIntn(len(src))
 				ok := it.Seek(i)
 				require.True(t, ok, "seek to existing pos %d/%d failed", i, len(src))
 				val, ok := it.Next()

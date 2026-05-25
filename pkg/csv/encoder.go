@@ -14,9 +14,9 @@ import (
 	"time"
 	"unsafe"
 
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -196,7 +196,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 		ptr := unsafe.Add(base, e.ofs[i])
 		switch f.Type {
 		case types.FieldTypeTimestamp:
-			s := schema.TimeScale(f.Scale)
+			s := types.TimeScale(f.Scale)
 			tm := s.FromUnix(*(*int64)(ptr))
 			if e.timeAs == "" {
 				e.buf = tm.AppendFormat(e.buf, s.DateTimeFormat())
@@ -205,7 +205,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 			}
 
 		case types.FieldTypeDate:
-			s := schema.TimeScale(f.Scale)
+			s := types.TimeScale(f.Scale)
 			tm := s.FromUnix(*(*int64)(ptr))
 			if e.dateAs == "" {
 				e.buf = tm.AppendFormat(e.buf, s.DateTimeFormat())
@@ -214,7 +214,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 			}
 
 		case types.FieldTypeTime:
-			s := schema.TimeScale(f.Scale)
+			s := types.TimeScale(f.Scale)
 			tm := s.FromUnix(*(*int64)(ptr))
 			if e.timeAs == "" {
 				e.buf = tm.AppendFormat(e.buf, s.TimeOnlyFormat())

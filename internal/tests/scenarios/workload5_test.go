@@ -19,9 +19,9 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/engine"
 	tests "blockwatch.cc/knoxdb/internal/tests/engine"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/knox"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,7 +98,7 @@ func init() {
 }
 
 func genCommand() command {
-	f := util.RandFloat64()
+	f := testutil.RandFloat64()
 	// Normalize f so it falls within a range.
 	f *= cumProbs[len(cumProbs)-1]
 	for i, p := range cumProbs {
@@ -239,10 +239,10 @@ func TestWorkload5(t *testing.T) {
 	}
 
 	randId := func() uint64 {
-		// return util.RandUint64n(uint64(nTuples.Load())+1) + 1
+		// return testutil.RandUint64n(uint64(nTuples.Load())+1) + 1
 
 		// pick close-by values to trigger a lot of traffic on the same keys
-		return util.RandUint64n(uint64(nInserts.Load())+1) + 1
+		return testutil.RandUint64n(uint64(nInserts.Load())+1) + 1
 	}
 
 	t.Run("run", func(t *testing.T) {
@@ -469,10 +469,10 @@ func TestWorkload5(t *testing.T) {
 					t.Logf("%04d [%s]", round, cmd)
 
 					// pick an action randomly
-					action := util.RandIntn(3)
+					action := testutil.RandIntn(3)
 
 					// pick an order randomly
-					order := knox.OrderType(util.RandIntn(2))
+					order := knox.OrderType(testutil.RandIntn(2))
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()

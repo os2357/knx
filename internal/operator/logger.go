@@ -12,7 +12,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
@@ -50,25 +49,23 @@ func (op *Logger) Process(_ context.Context, src *pack.Package) (*pack.Package, 
 				},
 			})
 		case types.FieldTypeUint16:
-			if field.Flags.Is(types.FieldFlagEnum) && s.HasEnums() {
-				if lut, ok := s.Enums.Load().Lookup(field.Name); ok {
-					cfgs = append(cfgs, table.ColumnConfig{
-						Name: field.Name,
-						Transformer: func(val any) string {
-							enum, ok := lut.Value(val.(uint16))
-							if ok {
-								return enum
-							}
-							return strconv.Itoa(int(val.(uint16)))
-						},
-					})
-				}
+			if field.IsEnum() && field.Enum != nil {
+				cfgs = append(cfgs, table.ColumnConfig{
+					Name: field.Name,
+					Transformer: func(val any) string {
+						enum, ok := field.Enum.Value(val.(uint16))
+						if ok {
+							return enum
+						}
+						return strconv.Itoa(int(val.(uint16)))
+					},
+				})
 			}
 		case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
 			cfgs = append(cfgs, table.ColumnConfig{
 				Name: field.Name,
 				Transformer: func(val any) string {
-					return schema.TimeScale(field.Scale).Format(val.(time.Time))
+					return types.TimeScale(field.Scale).Format(val.(time.Time))
 				},
 			})
 		}

@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/echa/log"
 
@@ -111,7 +113,9 @@ func run() (err error) {
 
 	var n int
 	if flags.NArg() > 1 {
-		cmd = util.NonZero(flags.Arg(n), cmd)
+		if cmd == "" {
+			cmd = flags.Arg(n)
+		}
 		n++
 	}
 	desc := separateTarget(flags.Arg(n))
@@ -384,21 +388,19 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 func printValue(s *schema.Schema, f *schema.Field, val any) any {
 	switch f.Type {
 	case types.FieldTypeBytes:
-		return util.LimitStringEllipsis(util.ToString(val), 33)
+		return LimitStringEllipsis(fmt.Sprintf("%v", val), 33)
 	case types.FieldTypeUint16:
-		if f.Flags.Is(types.FieldFlagEnum) && s.HasEnums() {
-			if lut, ok := s.Enums.Load().Lookup(f.Name); ok {
-				enum, ok := lut.Value(val.(uint16))
-				if ok {
-					return enum
-				}
+		if f.IsEnum() && f.Enum != nil {
+			enum, ok := f.Enum.Value(val.(uint16))
+			if ok {
+				return enum
 			}
 		}
 		return val
 	case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
-		return schema.TimeScale(f.Scale).Format(val.(time.Time))
+		return types.TimeScale(f.Scale).Format(val.(time.Time))
 	case types.FieldTypeInt128, types.FieldTypeInt256, types.FieldTypeDecimal128, types.FieldTypeDecimal256:
-		return util.LimitStringEllipsis(val.(fmt.Stringer).String(), 33)
+		return LimitStringEllipsis(val.(fmt.Stringer).String(), 33)
 	default:
 		return val
 	}
@@ -422,25 +424,23 @@ func PrintContent(ctx context.Context, view ContentViewer, desc TableDescriptor,
 				},
 			})
 		case types.FieldTypeUint16:
-			if field.Flags.Is(types.FieldFlagEnum) && s.HasEnums() {
-				if lut, ok := s.Enums.Load().Lookup(field.Name); ok {
-					cfgs = append(cfgs, table.ColumnConfig{
-						Name: field.Name,
-						Transformer: func(val any) string {
-							enum, ok := lut.Value(val.(uint16))
-							if ok {
-								return enum
-							}
-							return strconv.Itoa(int(val.(uint16)))
-						},
-					})
-				}
+			if field.IsEnum() && field.Enum != nil {
+				cfgs = append(cfgs, table.ColumnConfig{
+					Name: field.Name,
+					Transformer: func(val any) string {
+						enum, ok := field.Enum.Value(val.(uint16))
+						if ok {
+							return enum
+						}
+						return strconv.Itoa(int(val.(uint16)))
+					},
+				})
 			}
 		case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
 			cfgs = append(cfgs, table.ColumnConfig{
 				Name: field.Name,
 				Transformer: func(val any) string {
-					return schema.TimeScale(field.Scale).Format(val.(time.Time))
+					return types.TimeScale(field.Scale).Format(val.(time.Time))
 				},
 			})
 		}
@@ -455,7 +455,11 @@ func PrintContent(ctx context.Context, view ContentViewer, desc TableDescriptor,
 		pkg := view.ViewPackage(ctx, desc.PackId)
 		tomb := view.ViewTomb(desc.PackId)
 		rx := s.RowIdIndex()
-		t.AppendHeader(append(table.Row{"DEL"}, util.StringList(s.Names()).AsInterface()...))
+		head := make(table.Row, 0, s.NumFields()+1)
+		for _, v := range append([]string{"DEL"}, s.Names()...) {
+			head = append(head, any(v))
+		}
+		t.AppendHeader(head)
 		for r := 0; r < pkg.Len(); r++ {
 			res = pkg.ReadRow(r, res)
 			var live string
@@ -479,7 +483,11 @@ func PrintContent(ctx context.Context, view ContentViewer, desc TableDescriptor,
 		i = desc.PackId
 		stopAfter = true
 	}
-	t.AppendHeader(util.StringList(s.Names()).AsInterface())
+	head := make(table.Row, 0, s.NumFields()+1)
+	for _, v := range s.Names() {
+		head = append(head, any(v))
+	}
+	t.AppendHeader(head)
 	for {
 		pkg := view.ViewPackage(ctx, i)
 		if pkg == nil {
@@ -499,4 +507,23 @@ func PrintContent(ctx context.Context, view ContentViewer, desc TableDescriptor,
 			break
 		}
 	}
+}
+
+func LimitStringEllipsis(s string, l int) string {
+	c := utf8.RuneCountInString(s)
+	if c <= l {
+		return s
+	}
+
+	c = 0
+	var b bytes.Buffer
+	for _, runeVal := range s {
+		b.WriteRune(runeVal)
+		c += 1
+		if c >= l-3 {
+			break
+		}
+	}
+
+	return b.String() + "..."
 }

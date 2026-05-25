@@ -5,8 +5,6 @@ package schema
 
 import (
 	"strconv"
-
-	"blockwatch.cc/knoxdb/internal/types"
 )
 
 type (
@@ -26,13 +24,13 @@ func Scale[T int | uint8](n T) BuilderOption {
 	}
 }
 
-func Filter(f types.FilterType) BuilderOption {
+func Filter(f FilterType) BuilderOption {
 	return func(b *Builder) {
 		b.currentField().Filter = f
 	}
 }
 
-func Compression(c types.BlockCompression) BuilderOption {
+func Compression(c BlockCompression) BuilderOption {
 	return func(b *Builder) {
 		b.currentField().Compress = c
 	}
@@ -40,19 +38,19 @@ func Compression(c types.BlockCompression) BuilderOption {
 
 func Primary() BuilderOption {
 	return func(b *Builder) {
-		b.currentField().Flags |= types.FieldFlagPrimary
+		b.currentField().Flags |= F_PRIMARY
 	}
 }
 
 func Timebase() BuilderOption {
 	return func(b *Builder) {
-		b.currentField().Flags |= types.FieldFlagTimebase
+		b.currentField().Flags |= F_TIMEBASE
 	}
 }
 
 func Nullable() BuilderOption {
 	return func(b *Builder) {
-		b.currentField().Flags |= types.FieldFlagNullable
+		b.currentField().Flags |= F_NULLABLE
 	}
 }
 
@@ -135,7 +133,7 @@ func (b *Builder) currentField() *Field {
 	return b.s.Fields[len(b.s.Fields)-1]
 }
 
-func (b *Builder) addField(typ types.FieldType, name string, opts ...BuilderOption) *Builder {
+func (b *Builder) addField(typ FieldType, name string, opts ...BuilderOption) *Builder {
 	if name == "" {
 		name = "F" + strconv.Itoa(len(b.s.Fields))
 	}
@@ -155,7 +153,7 @@ func (b *Builder) Field(fields ...*Field) *Builder {
 	return b
 }
 
-func (b *Builder) Add(name string, typ types.FieldType, opts ...BuilderOption) *Builder {
+func (b *Builder) Add(name string, typ FieldType, opts ...BuilderOption) *Builder {
 	return b.addField(typ, name, opts...)
 }
 
@@ -258,7 +256,7 @@ func (b *Builder) Bigint(name string, opts ...BuilderOption) *Builder {
 	return b.addField(FT_BIGINT, name, opts...)
 }
 
-func (b *Builder) AddIndex(name string, typ types.IndexType, opts ...IndexOption) *Builder {
+func (b *Builder) AddIndex(name string, typ IndexType, opts ...IndexOption) *Builder {
 	if name == "" {
 		name = "I" + strconv.Itoa(len(b.s.Indexes))
 	}
@@ -276,19 +274,19 @@ func (b *Builder) AddIndex(name string, typ types.IndexType, opts ...IndexOption
 }
 
 func (b *Builder) PkIndex() *Builder {
-	return b.AddIndex("pk_index", types.IndexTypePk, IndexField(b.s.Pk().Name))
+	return b.AddIndex("pk_index", I_PK, IndexField(b.s.Pk().Name))
 }
 
 func (b *Builder) HashIndex(fname string, opts ...IndexOption) *Builder {
 	opts = append([]IndexOption{IndexField(fname)}, opts...)
-	return b.AddIndex(fname+"_index", types.IndexTypeHash, opts...)
+	return b.AddIndex(fname+"_index", I_HASH, opts...)
 }
 
 func (b *Builder) IntIndex(fname string, opts ...IndexOption) *Builder {
 	opts = append([]IndexOption{IndexField(fname)}, opts...)
-	return b.AddIndex(fname+"_index", types.IndexTypeInt, opts...)
+	return b.AddIndex(fname+"_index", I_INT, opts...)
 }
 
 func (b *Builder) CompositeIndex(name string, opts ...IndexOption) *Builder {
-	return b.AddIndex(name, types.IndexTypeComposite, opts...)
+	return b.AddIndex(name, I_COMPOSITE, opts...)
 }

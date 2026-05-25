@@ -14,7 +14,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/query"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 )
 
@@ -171,7 +170,7 @@ func (q Query) WithDebug(enable bool) Query {
 	if enable {
 		q.flags |= QueryFlagDebug
 		if q.tag == "" {
-			q.tag = util.RandString(8)
+			q.tag = fmt.Sprintf("%p", &q)
 		}
 	} else {
 		q.flags &^= QueryFlagDebug
@@ -183,7 +182,7 @@ func (q Query) WithStats(enable bool) Query {
 	if enable {
 		q.flags |= QueryFlagStats
 		if q.tag == "" {
-			q.tag = util.RandString(8)
+			q.tag = fmt.Sprintf("%p", &q)
 		}
 	} else {
 		q.flags &^= QueryFlagStats
@@ -479,7 +478,7 @@ type GenericQuery[T any] struct {
 }
 
 func NewGenericQuery[T any]() GenericQuery[T] {
-	schema, err := schema.GenericSchema[T]()
+	schema, err := schema.SchemaFor[T]()
 	if err != nil {
 		panic(err)
 	}

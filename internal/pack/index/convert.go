@@ -15,7 +15,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/pkg/schema/cast"
 )
 
 func convertSchema(is *schema.IndexSchema) (*schema.Schema, Converter, error) {
@@ -91,7 +91,7 @@ func (c *RelinkConverter) QueryNode(node *filter.Node) *filter.Node {
 			},
 		}
 	} else {
-		val, err := schema.NewCaster(types.FieldTypeUint64, 0, nil).CastValue(flt.Value)
+		val, err := cast.NewCaster(types.FieldTypeUint64, 0, nil).CastValue(flt.Value)
 		if err != nil {
 			panic(fmt.Errorf("cast index query value %T to u64: %v", flt.Value, err))
 		}
@@ -287,7 +287,11 @@ func (c *CompositeHashConverter) ConvertPack(pkg *pack.Package, mode pack.WriteM
 			case block.BlockInt8, block.BlockUint8:
 				hasher.Write([]byte{b.Uint8().Get(i)})
 			case block.BlockBool:
-				hasher.Write([]byte{util.Bool2byte(b.Bool().Get(i))})
+				if b.Bool().Get(i) {
+					hasher.Write([]byte{1})
+				} else {
+					hasher.Write([]byte{0})
+				}
 			case block.BlockBytes:
 				hasher.Write(b.Bytes().Get(i))
 			case block.BlockInt128:

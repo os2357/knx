@@ -10,7 +10,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 func (c Condition) String() string {
@@ -42,11 +41,11 @@ func (c Condition) dump(level int, w *strings.Builder) {
 func (c Condition) FilterString() string {
 	switch c.Mode {
 	case types.FilterModeRange:
-		return fmt.Sprintf("%s %s [%s, %s]",
+		return fmt.Sprintf("%s %s [%v, %v]",
 			c.Name,
 			c.Mode.Symbol(),
-			util.ToString(c.Value.(filter.RangeValue)[0]),
-			util.ToString(c.Value.(filter.RangeValue)[1]),
+			c.Value.(filter.RangeValue)[0],
+			c.Value.(filter.RangeValue)[1],
 		)
 	case types.FilterModeIn, types.FilterModeNotIn:
 		size := reflect.ValueOf(c.Value).Len()
@@ -56,7 +55,7 @@ func (c Condition) FilterString() string {
 			return fmt.Sprintf("%s %s [%#v]", c.Name, c.Mode.Symbol(), c.Value)
 		}
 	default:
-		return fmt.Sprintf("%s %s %s", c.Name, c.Mode.Symbol(), util.ToString(c.Value))
+		return fmt.Sprintf("%s %s %v", c.Name, c.Mode.Symbol(), c.Value)
 	}
 }
 

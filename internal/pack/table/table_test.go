@@ -15,5 +15,5 @@ func TestMain(m *testing.M) {
 }
 
 func TestTable(t *testing.T) {
-	etests.TestTableEngine[Table, *Table](t, "mem", "pack")
+	etests.TestTableEngine[Table](t, "mem", "pack")
 }

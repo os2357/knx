@@ -20,7 +20,7 @@ import (
 	"slices"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,7 +64,7 @@ func TestIteratorRandom(t *testing.T) {
 	mp := make(map[uint64]struct{})
 	var arr []uint64
 	for i := uint64(1); i <= n; i++ {
-		v := uint64(util.RandIntn(int(n) * 5))
+		v := uint64(testutil.RandIntn(int(n) * 5))
 		if v == 0 {
 			continue
 		}

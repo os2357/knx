@@ -7,7 +7,7 @@ import (
 	"math"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -135,7 +135,7 @@ func TestAppend8(t *testing.T) {
 func TestGet64(t *testing.T) {
 	block := New(BlockInt64, 1024)
 	for i := range 1024 {
-		v := util.RandInt64()
+		v := testutil.RandInt64()
 		block.Int64().Append(v)
 		w := block.Int64().Get(i)
 		require.Equal(t, v, w)
@@ -145,7 +145,7 @@ func TestGet64(t *testing.T) {
 func TestSet64(t *testing.T) {
 	block := New(BlockInt64, 1024)
 	for i := range 1024 {
-		block.Int64().Append(util.RandInt64())
+		block.Int64().Append(testutil.RandInt64())
 		block.Int64().Set(i, int64(i))
 		require.Equal(t, int64(i), block.Int64().Get(i))
 	}

@@ -3,9 +3,7 @@
 
 package types
 
-import (
-	"fmt"
-)
+import "errors"
 
 type OrderType byte
 
@@ -59,7 +57,7 @@ func ParseOrderType(s string) (OrderType, error) {
 	if ok {
 		return t, nil
 	}
-	return OrderAsc, fmt.Errorf("invalid order %q", s)
+	return OrderAsc, errors.New("invalid order " + s)
 }
 
 func (o OrderType) MarshalText() ([]byte, error) {

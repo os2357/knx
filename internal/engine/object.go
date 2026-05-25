@@ -13,6 +13,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -47,7 +48,7 @@ type TableObject struct {
 func (c *Catalog) AppendTableCmd(ctx context.Context, act ActionType, s *schema.Schema, opts Options) error {
 	obj := &TableObject{
 		cat:    c,
-		id:     s.TaggedHash(types.ObjectTagTable),
+		id:     types.TaggedHash(types.ObjectTagTable, s.Name),
 		schema: s,
 		opts:   opts,
 		action: act,
@@ -140,7 +141,7 @@ func (o *TableObject) Decode(ctx context.Context, rec *wal.Record) error {
 	if err := o.schema.UnmarshalBinary(buf.Next(n)); err != nil {
 		return err
 	}
-	o.id = o.schema.TaggedHash(types.ObjectTagTable)
+	o.id = types.TaggedHash(types.ObjectTagTable, o.schema.Name)
 
 	// read options
 	n = int(LE.Uint32(buf.Next(4)))
@@ -160,10 +161,11 @@ type EnumObject struct {
 	vals   []string
 }
 
-func (c *Catalog) AppendEnumCmd(ctx context.Context, act ActionType, e *schema.EnumDictionary) error {
+func (c *Catalog) AppendEnumCmd(ctx context.Context, act ActionType, e *enum.EnumDictionary) error {
+	tag := types.TaggedHash(types.ObjectTagEnum, e.Name())
 	obj := &EnumObject{
 		cat:    c,
-		id:     e.Tag(),
+		id:     tag,
 		name:   e.Name(),
 		vals:   e.Values(),
 		action: act,
@@ -184,9 +186,9 @@ func (o *EnumObject) Type() types.ObjectTag {
 }
 
 func (o *EnumObject) Create(ctx context.Context) error {
-	enum := schema.NewEnumDictionary(o.name)
-	_ = enum.Append(o.vals...)
-	return o.cat.AddEnum(ctx, enum)
+	e := enum.NewEnumDictionary(o.name)
+	_ = e.Append(o.vals...)
+	return o.cat.AddEnum(ctx, e)
 }
 
 func (o *EnumObject) Drop(ctx context.Context) error {
@@ -194,9 +196,9 @@ func (o *EnumObject) Drop(ctx context.Context) error {
 }
 
 func (o *EnumObject) Update(ctx context.Context) error {
-	enum := schema.NewEnumDictionary(o.name)
-	_ = enum.Append(o.vals...)
-	return o.cat.PutEnum(ctx, enum)
+	e := enum.NewEnumDictionary(o.name)
+	_ = e.Append(o.vals...)
+	return o.cat.PutEnum(ctx, e)
 }
 
 func (o *EnumObject) Encode() ([]byte, error) {
@@ -268,7 +270,7 @@ type IndexObject struct {
 func (c *Catalog) AppendIndexCmd(ctx context.Context, act ActionType, s *schema.IndexSchema, opts Options) error {
 	obj := &IndexObject{
 		cat:    c,
-		id:     s.TaggedHash(types.ObjectTagIndex),
+		id:     types.TaggedHash(types.ObjectTagIndex, s.Name),
 		schema: s,
 		opts:   opts,
 		table:  s.Base.Name,
@@ -371,7 +373,7 @@ func (o *IndexObject) Decode(ctx context.Context, rec *wal.Record) error {
 	if err := o.schema.UnmarshalBinary(buf.Next(n)); err != nil {
 		return err
 	}
-	o.id = o.schema.TaggedHash(types.ObjectTagIndex)
+	o.id = types.TaggedHash(types.ObjectTagIndex, o.schema.Name)
 
 	// read options
 	n = int(LE.Uint32(buf.Next(4)))

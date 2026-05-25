@@ -229,7 +229,7 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 		// insert zero value when block is not available (e.g. after schema change)
 		b := p.blocks[srcId]
 		if b == nil {
-			if !field.Flags.Is(types.FieldFlagEnum) {
+			if !field.IsEnum() {
 				sz := field.WireSize()
 				buf := unsafe.Slice((*byte)(fptr), sz)
 
@@ -284,7 +284,7 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 			*(*uint8)(fptr) = b.Uint8().Get(row)
 
 		case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
-			(*(*time.Time)(fptr)) = schema.TimeScale(field.Scale).FromUnix(b.Int64().Get(row))
+			(*(*time.Time)(fptr)) = types.TimeScale(field.Scale).FromUnix(b.Int64().Get(row))
 
 		case types.FieldTypeBoolean:
 			*(*bool)(fptr) = b.Bool().Get(row)
@@ -434,7 +434,7 @@ func (p *Package) Bool(col, row int) bool {
 
 func (p *Package) Time(col, row int) time.Time {
 	if ts := p.blocks[col].Int64().Get(row); ts > 0 {
-		return schema.TimeScale(p.schema.Fields[col].Scale).FromUnix(ts)
+		return types.TimeScale(p.schema.Fields[col].Scale).FromUnix(ts)
 	} else {
 		return zeroTime
 	}

@@ -14,10 +14,10 @@ import (
 
 	"github.com/echa/log"
 
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/knox"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 type MyEnum string
@@ -351,8 +351,8 @@ func NewRandomTypes(i int) *Types {
 		Id:        0, // empty, will be set by insert
 		Timestamp: time.Now().UTC(),
 		Date:      time.Now().UTC(),
-		Hash:      [32]byte(util.RandBytes(32)),
-		String:    hex.EncodeToString(util.RandBytes(4)),
+		Hash:      [32]byte(testutil.RandBytes(32)),
+		String:    hex.EncodeToString(testutil.RandBytes(4)),
 		Bool:      true,
 		MyEnum:    MyEnum(myEnums[i%4]),
 		// typed ints

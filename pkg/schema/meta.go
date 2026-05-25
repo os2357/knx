@@ -7,11 +7,12 @@ import "blockwatch.cc/knoxdb/internal/types"
 
 const (
 	// reserved metadata field ids
-	MetaRid  uint16 = 0xFFFF
-	MetaRef  uint16 = 0xFFFE
-	MetaXmin uint16 = 0xFFFD
-	MetaXmax uint16 = 0xFFFC
-	MetaDel  uint16 = 0xFFFB
+	MetaRid    uint16 = 0xFFFF
+	MetaRef    uint16 = 0xFFFE
+	MetaXmin   uint16 = 0xFFFD
+	MetaXmax   uint16 = 0xFFFC
+	MetaDel    uint16 = 0xFFFB
+	MetaAction uint16 = 0xFFFA
 )
 
 // Internal schema for record metadata
@@ -23,9 +24,22 @@ type Meta struct {
 	IsDel bool      `knox:"$del,metadata,id=0xfffb"`  // record was deleted (true) or updated (false)
 }
 
+// type ChangeCaptureMeta struct {
+// 	Action types.ChangeAction `knox:$action,metadata,id=0xfffa`
+// }
+
 var (
-	MetaSchema   = MustSchemaOf(Meta{})
 	MetaFieldIds = []uint16{MetaRid, MetaRef, MetaXmin, MetaXmax, MetaDel}
+	MetaSchema   = &Schema{
+		Name: "meta",
+		Fields: []*Field{
+			{Name: "$rid", Id: MetaRid, Type: FT_U64, Flags: F_METADATA},
+			{Name: "$ref", Id: MetaRef, Type: FT_U64, Flags: F_METADATA},
+			{Name: "$xmin", Id: MetaXmin, Type: FT_U64, Flags: F_METADATA},
+			{Name: "$xmax", Id: MetaXmax, Type: FT_U64, Flags: F_METADATA},
+			{Name: "$del", Id: MetaDel, Type: FT_BOOL, Flags: F_METADATA},
+		},
+	}
 )
 
 // WithMeta extends a schema with metadata fields. The extended schema
@@ -57,4 +71,52 @@ func (s *Schema) WithMeta() *Schema {
 
 func (s *Schema) HasMeta() bool {
 	return s.RowIdIndex() >= 0
+}
+
+func (s *Schema) NumMeta() int {
+	var n int
+	for _, f := range s.Fields {
+		if f.IsMeta() && f.IsActive() {
+			n++
+		}
+	}
+	return n
+}
+
+func (s *Schema) MetaNames() []string {
+	list := make([]string, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		if f.IsMeta() && f.IsActive() {
+			list = append(list, f.Name)
+		}
+	}
+	return list
+}
+
+func (s *Schema) MetaIds() []uint16 {
+	list := make([]uint16, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		if f.IsMeta() && f.IsActive() {
+			list = append(list, f.Id)
+		}
+	}
+	return list
+}
+
+func (s *Schema) RowId() *Field {
+	for _, f := range s.Fields {
+		if f.Id == MetaRid && f.IsMeta() && f.IsActive() {
+			return f
+		}
+	}
+	return &Field{}
+}
+
+func (s *Schema) RowIdIndex() int {
+	for i, f := range s.Fields {
+		if f.Id == MetaRid && f.IsMeta() && f.IsActive() {
+			return i
+		}
+	}
+	return -1
 }

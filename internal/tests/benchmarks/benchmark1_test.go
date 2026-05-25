@@ -11,8 +11,8 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/tests"
 	etests "blockwatch.cc/knoxdb/internal/tests/engine"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/knox"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +28,7 @@ func genAccounts(n, k int) []*Account {
 	now := time.Now().UTC()
 	for i := range n {
 		accounts = append(accounts, &Account{
-			Balance:   int64(util.RandIntn(1000 + k + i)),
+			Balance:   int64(testutil.RandIntn(1000 + k + i)),
 			FirstSeen: now.Add(time.Second * time.Duration(k+i)),
 		})
 	}

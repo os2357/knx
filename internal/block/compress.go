@@ -7,31 +7,29 @@ import (
 	"io"
 	"runtime"
 
-	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/klauspost/compress/s2"
 	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4"
 )
 
 var (
-	snappyWriterPool = util.NewGenericPool(
+	snappyWriterPool = NewGenericPool(
 		runtime.NumCPU(),
 		func() any { return s2.NewWriter(nil, s2.WriterConcurrency(1)) },
 	)
-	snappyReaderPool = util.NewGenericPool(
+	snappyReaderPool = NewGenericPool(
 		runtime.NumCPU(),
 		func() any { return s2.NewReader(nil) },
 	)
-	lz4WriterPool = util.NewGenericPool(
+	lz4WriterPool = NewGenericPool(
 		runtime.NumCPU(),
 		func() any { return lz4.NewWriter(nil) },
 	)
-	lz4ReaderPool = util.NewGenericPool(
+	lz4ReaderPool = NewGenericPool(
 		runtime.NumCPU(),
 		func() any { return lz4.NewReader(nil) },
 	)
-	zstdWriterPool = util.NewGenericPool(
+	zstdWriterPool = NewGenericPool(
 		runtime.NumCPU(),
 		func() any {
 			w, _ := zstd.NewWriter(nil,
@@ -42,7 +40,7 @@ var (
 			return w
 		},
 	)
-	zstdReaderPool = util.NewGenericPool(
+	zstdReaderPool = NewGenericPool(
 		runtime.NumCPU(),
 		func() any {
 			r, _ := zstd.NewReader(nil)
@@ -51,17 +49,17 @@ var (
 	)
 )
 
-func NewCompressor(w io.Writer, c types.BlockCompression) io.WriteCloser {
+func NewCompressor(w io.Writer, c BlockCompression) io.WriteCloser {
 	switch c {
-	case types.BlockCompressSnappy:
+	case BlockCompressSnappy:
 		enc := snappyWriterPool.Get().(*s2.Writer)
 		enc.Reset(w)
 		return &pooledWriteCloser{pool: snappyWriterPool, w: enc}
-	case types.BlockCompressLZ4:
+	case BlockCompressLZ4:
 		enc := lz4WriterPool.Get().(*lz4.Writer)
 		enc.Reset(w)
 		return &pooledWriteCloser{pool: lz4WriterPool, w: enc}
-	case types.BlockCompressZstd:
+	case BlockCompressZstd:
 		enc := zstdWriterPool.Get().(*zstd.Encoder)
 		enc.Reset(w)
 		return &pooledWriteCloser{pool: zstdWriterPool, w: enc}
@@ -70,17 +68,17 @@ func NewCompressor(w io.Writer, c types.BlockCompression) io.WriteCloser {
 	}
 }
 
-func NewDecompressor(r io.Reader, c types.BlockCompression) io.ReadCloser {
+func NewDecompressor(r io.Reader, c BlockCompression) io.ReadCloser {
 	switch c {
-	case types.BlockCompressSnappy:
+	case BlockCompressSnappy:
 		dec := snappyReaderPool.Get().(*s2.Reader)
 		dec.Reset(r)
 		return &pooledReadCloser{pool: snappyReaderPool, r: dec}
-	case types.BlockCompressLZ4:
+	case BlockCompressLZ4:
 		dec := lz4ReaderPool.Get().(*lz4.Reader)
 		dec.Reset(r)
 		return &pooledReadCloser{pool: lz4WriterPool, r: dec}
-	case types.BlockCompressZstd:
+	case BlockCompressZstd:
 		dec := zstdReaderPool.Get().(*zstd.Decoder)
 		dec.Reset(r)
 		return &pooledReadCloser{pool: zstdWriterPool, r: dec}
@@ -90,7 +88,7 @@ func NewDecompressor(r io.Reader, c types.BlockCompression) io.ReadCloser {
 }
 
 type pooledWriteCloser struct {
-	pool *util.GenericPool
+	pool *GenericPool
 	w    io.WriteCloser
 }
 
@@ -107,7 +105,7 @@ func (c pooledWriteCloser) Write(p []byte) (n int, err error) {
 }
 
 type pooledReadCloser struct {
-	pool *util.GenericPool
+	pool *GenericPool
 	r    io.Reader
 }
 

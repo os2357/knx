@@ -681,7 +681,7 @@ func simplifySets(nodes []*Node, isOrNode bool) []*Node {
 	return res
 }
 
-func sortRanges(typ BlockType, vals []RangeValue) {
+func sortRanges(typ ValueType, vals []RangeValue) {
 	// sort by lower and upper range bound, replacing nil with math min/max
 	sort.Slice(vals, func(i, j int) bool {
 		// sort by lows
@@ -695,7 +695,7 @@ func sortRanges(typ BlockType, vals []RangeValue) {
 }
 
 // intersect multiple ranges (len must be >= 1), result can at most be a single range or none
-func mergeRangesAnd(typ BlockType, vals []RangeValue) []RangeValue {
+func mergeRangesAnd(typ ValueType, vals []RangeValue) []RangeValue {
 	// pre-sort ranges
 	sortRanges(typ, vals)
 
@@ -721,7 +721,7 @@ func mergeRangesAnd(typ BlockType, vals []RangeValue) []RangeValue {
 }
 
 // merge overlapping ranges, vals must have length > 1
-func mergeRangesOr(typ BlockType, vals []RangeValue) []RangeValue {
+func mergeRangesOr(typ ValueType, vals []RangeValue) []RangeValue {
 	// pre-sort ranges
 	sortRanges(typ, vals)
 
@@ -749,7 +749,7 @@ func makeRangeFilterFrom(f *Filter, rg RangeValue, eqMode byte) *Filter {
 	switch {
 	case f.Type.Cmp(rg[0], rg[1]) == 0:
 		// equal min == max => EQ(min)
-		m := newFactory(f.Type).New(FilterModeEqual)
+		m := newFactory(BlockType(f.Type)).New(FilterModeEqual)
 		m.WithValue(rg[0])
 		return &Filter{
 			Name:    f.Name,
@@ -764,7 +764,7 @@ func makeRangeFilterFrom(f *Filter, rg RangeValue, eqMode byte) *Filter {
 	case f.Type.Cmp(rg[0], f.Type.MinNumericVal()) == 0:
 		// range start is min val => LE(max) or LT(max+1)
 		if eqMode&1 > 0 {
-			m := newFactory(f.Type).New(FilterModeLe)
+			m := newFactory(BlockType(f.Type)).New(FilterModeLe)
 			m.WithValue(rg[1])
 			return &Filter{
 				Name:    f.Name,
@@ -776,7 +776,7 @@ func makeRangeFilterFrom(f *Filter, rg RangeValue, eqMode byte) *Filter {
 				Value:   rg[1],
 			}
 		} else {
-			m := newFactory(f.Type).New(FilterModeLt)
+			m := newFactory(BlockType(f.Type)).New(FilterModeLt)
 			val := f.Type.Inc(rg[1])
 			m.WithValue(val)
 			return &Filter{
@@ -793,7 +793,7 @@ func makeRangeFilterFrom(f *Filter, rg RangeValue, eqMode byte) *Filter {
 	case f.Type.Cmp(rg[1], f.Type.MaxNumericVal()) == 0:
 		// range end is max val => GE(min) or GT(min-1)
 		if eqMode&1 > 0 {
-			m := newFactory(f.Type).New(FilterModeGe)
+			m := newFactory(BlockType(f.Type)).New(FilterModeGe)
 			m.WithValue(rg[0])
 			return &Filter{
 				Name:    f.Name,
@@ -805,7 +805,7 @@ func makeRangeFilterFrom(f *Filter, rg RangeValue, eqMode byte) *Filter {
 				Value:   rg[0],
 			}
 		} else {
-			m := newFactory(f.Type).New(FilterModeGt)
+			m := newFactory(BlockType(f.Type)).New(FilterModeGt)
 			val := f.Type.Dec(rg[0])
 			m.WithValue(val)
 			return &Filter{
@@ -820,7 +820,7 @@ func makeRangeFilterFrom(f *Filter, rg RangeValue, eqMode byte) *Filter {
 		}
 	default:
 		// some other range => RG(min, max)
-		m := newFactory(f.Type).New(FilterModeRange)
+		m := newFactory(BlockType(f.Type)).New(FilterModeRange)
 		m.WithValue(rg)
 		return &Filter{
 			Name:    f.Name,
@@ -926,8 +926,8 @@ func makeSetFilterFrom(f *Filter, ins, nis any, isOrNode bool) *Filter {
 	}
 }
 
-func isFullDomain(typ BlockType, rg RangeValue) bool {
-	if typ == BlockBytes || rg[0] == nil {
+func isFullDomain(typ ValueType, rg RangeValue) bool {
+	if BlockType(typ) == BlockBytes || rg[0] == nil {
 		return false
 	}
 	isMin := typ.Cmp(rg[0], typ.MinNumericVal()) == 0

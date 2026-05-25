@@ -8,14 +8,14 @@ import (
 	"sync"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
 
 func TestSlabPoolAppend(t *testing.T) {
 	pool := NewSlabPool(64)
-	data := util.RandByteSlices(64, 8) // 64x length 8
+	data := testutil.RandByteSlices(64, 8) // 64x length 8
 	for i, v := range data {
 		n := pool.Append(v)
 		require.Equal(t, i, n, "append index")
@@ -25,7 +25,7 @@ func TestSlabPoolAppend(t *testing.T) {
 	}
 	// test random ranges
 	for range 16 {
-		a, b := util.RandIntRange(0, len(data))
+		a, b := testutil.RandIntRange(0, len(data))
 		rg := pool.Range(a, b)
 		require.Equal(t, b-a, rg.Len(), "subrange length")
 		for i := range b - a {
@@ -41,7 +41,7 @@ func TestSlabPoolAllocAppend(t *testing.T) {
 	// expected allocs: 8
 	// expected grow page slice: 1 (from cap 8 to 16)
 	pool := NewSlabPool(4096)
-	data := util.RandByteSlices(4096, 2048)
+	data := testutil.RandByteSlices(4096, 2048)
 	for i, v := range data {
 		n := pool.Append(v)
 		require.Equal(t, i, n, "append index")
@@ -51,7 +51,7 @@ func TestSlabPoolAllocAppend(t *testing.T) {
 	}
 	// test random ranges
 	for range 16 {
-		a, b := util.RandIntRange(0, len(data))
+		a, b := testutil.RandIntRange(0, len(data))
 		rg := pool.Range(a, b)
 		require.Equal(t, b-a, rg.Len(), "subrange length")
 		for i := range b - a {
@@ -65,8 +65,8 @@ func TestSlabPoolSet(t *testing.T) {
 	truth := make(map[int][]byte)
 	// fill with random length strings
 	for i := range 64 {
-		l := util.RandIntn(64)
-		v := util.RandBytes(l)
+		l := testutil.RandIntn(64)
+		v := testutil.RandBytes(l)
 		truth[i] = v
 		n := pool.Append(v)
 		require.Equal(t, i, n, "append index")
@@ -75,9 +75,9 @@ func TestSlabPoolSet(t *testing.T) {
 		require.Equal(t, string(v), pool.GetString(n), "get content as string")
 	}
 	// set some random values
-	for i := range util.RandIntsn(16, 64) {
-		l := util.RandIntn(64)
-		v := util.RandBytes(l)
+	for i := range testutil.RandIntsn(16, 64) {
+		l := testutil.RandIntn(64)
+		v := testutil.RandBytes(l)
 		pool.Set(i, v)
 		require.Equal(t, len(truth), pool.Len(), "len")
 		require.Equal(t, v, pool.Get(i), "get content")
@@ -87,9 +87,9 @@ func TestSlabPoolSet(t *testing.T) {
 func TestSlabPoolDelete(t *testing.T) {
 	for range 16 {
 		pool := NewSlabPool(64)
-		pool.AppendMany(util.RandByteSlices(64, 8)...) // 64x length 8
+		pool.AppendMany(testutil.RandByteSlices(64, 8)...) // 64x length 8
 		require.Equal(t, 64, pool.Len(), "len")
-		a, b := util.RandIntRange(0, 64)
+		a, b := testutil.RandIntRange(0, 64)
 		pool.Delete(a, b)
 		require.Equal(t, 64-(b-a), pool.Len(), "len")
 	}
@@ -98,8 +98,8 @@ func TestSlabPoolDelete(t *testing.T) {
 func TestSlabPoolCmp(t *testing.T) {
 	for range 16 {
 		pool := NewSlabPool(64)
-		pool.AppendMany(util.RandByteSlices(64, 8)...) // 64x length 8
-		a, b := util.RandIntn(64), util.RandIntn(64)
+		pool.AppendMany(testutil.RandByteSlices(64, 8)...) // 64x length 8
+		a, b := testutil.RandIntn(64), testutil.RandIntn(64)
 		require.Equal(t, bytes.Compare(pool.Get(a), pool.Get(b)), pool.Cmp(a, b), "cmp")
 	}
 }
@@ -130,7 +130,7 @@ func TestSlabPoolExtremes(t *testing.T) {
 
 func TestSlabPoolIterators(t *testing.T) {
 	pool := NewSlabPool(64)
-	data := util.RandByteSlices(64, 8) // 64x length 8
+	data := testutil.RandByteSlices(64, 8) // 64x length 8
 	pool.AppendMany(data...)
 
 	// values
@@ -155,7 +155,7 @@ func TestSlabPoolIterators(t *testing.T) {
 
 func TestSlabPoolParallel(t *testing.T) {
 	pool := NewSlabPool(1 << 16)
-	data := util.RandByteSlices(64, 8) // 64x length 8
+	data := testutil.RandByteSlices(64, 8) // 64x length 8
 	pool.AppendMany(data...)
 
 	var (
@@ -179,7 +179,7 @@ func TestSlabPoolParallel(t *testing.T) {
 		// readers (concurrent)
 		errg.Go(func() error {
 			for range 1024 {
-				n := util.RandIntn(pool.Len())
+				n := testutil.RandIntn(pool.Len())
 				buf := pool.Get(n)
 				if len(buf) > 0 {
 					require.Equal(t, buf, data[n%64], "string mismatch")
@@ -194,7 +194,7 @@ func TestSlabPoolParallel(t *testing.T) {
 
 func BenchmarkSlabPoolAppend(b *testing.B) {
 	for _, sz := range BenchmarkSizes {
-		src := util.RandByteSlices(sz.N, 32)
+		src := testutil.RandByteSlices(sz.N, 32)
 		b.Run(sz.Name, func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(sz.N * 32))
@@ -212,7 +212,7 @@ func BenchmarkSlabPoolAppend(b *testing.B) {
 
 func BenchmarkSlabPoolGet(b *testing.B) {
 	for _, sz := range BenchmarkSizes {
-		src := util.RandByteSlices(sz.N, 32)
+		src := testutil.RandByteSlices(sz.N, 32)
 		b.Run(sz.Name, func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(sz.N * 32))
@@ -231,7 +231,7 @@ func BenchmarkSlabPoolGet(b *testing.B) {
 
 func BenchmarkSlabPoolCmp(b *testing.B) {
 	for _, sz := range BenchmarkSizes {
-		src := util.RandByteSlices(sz.N, 32)
+		src := testutil.RandByteSlices(sz.N, 32)
 		b.Run(sz.Name, func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(sz.N * 32))
@@ -252,7 +252,7 @@ func BenchmarkSlabPoolIterator(b *testing.B) {
 	for _, sz := range BenchmarkSizes {
 		pool := NewSlabPoolSize(sz.N, 32)
 		for range sz.N {
-			pool.Append(util.RandBytes(32))
+			pool.Append(testutil.RandBytes(32))
 		}
 		var x int
 		b.Run(sz.Name, func(b *testing.B) {
@@ -274,7 +274,7 @@ func BenchmarkSlabPoolChunk(b *testing.B) {
 	for _, sz := range BenchmarkSizes {
 		pool := NewSlabPoolSize(sz.N, 32)
 		for range sz.N {
-			pool.Append(util.RandBytes(32))
+			pool.Append(testutil.RandBytes(32))
 		}
 		b.Run(sz.Name, func(b *testing.B) {
 			b.ReportAllocs()
@@ -299,7 +299,7 @@ func BenchmarkSlabPoolMinMax(b *testing.B) {
 	for _, sz := range BenchmarkSizes {
 		pool := NewSlabPoolSize(sz.N, 32)
 		for range sz.N {
-			pool.Append(util.RandBytes(32))
+			pool.Append(testutil.RandBytes(32))
 		}
 		var minv, maxv []byte
 		b.Run(sz.Name, func(b *testing.B) {
@@ -320,7 +320,7 @@ func BenchmarkSlabPoolAppendTo(b *testing.B) {
 	for _, sz := range BenchmarkSizes {
 		pool := NewSlabPoolSize(sz.N, 32)
 		for range sz.N {
-			pool.Append(util.RandBytes(32))
+			pool.Append(testutil.RandBytes(32))
 		}
 		var x int
 		b.Run(sz.Name, func(b *testing.B) {

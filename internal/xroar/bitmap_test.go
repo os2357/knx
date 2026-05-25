@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -132,7 +132,7 @@ func TestBulkAdd(t *testing.T) {
 	max := int64(1 << 20)
 
 	for range max {
-		x := uint64(util.RandInt64n(max))
+		x := uint64(testutil.RandInt64n(max))
 
 		if _, has := m[x]; has {
 			if !ra.Contains(x) {
@@ -218,7 +218,7 @@ func TestBitmapOps(t *testing.T) {
 		bigMap := make(map[uint64]struct{})
 
 		for range N {
-			smallx := uint64(util.RandInt64n(M))
+			smallx := uint64(testutil.RandInt64n(M))
 
 			_, has := smallMap[smallx]
 			added := small.Set(smallx)
@@ -227,7 +227,7 @@ func TestBitmapOps(t *testing.T) {
 			}
 			smallMap[smallx] = struct{}{}
 
-			bigx := uint64(util.RandInt64n(M * f))
+			bigx := uint64(testutil.RandInt64n(M * f))
 			_, has = bigMap[bigx]
 			added = big.Set(bigx)
 			if has {
@@ -596,7 +596,7 @@ func TestClone(t *testing.T) {
 	N := int(1e5)
 
 	for range N {
-		a.Set(uint64(util.RandInt64n(math.MaxInt64)))
+		a.Set(uint64(testutil.RandInt64n(math.MaxInt64)))
 	}
 	b := a.Clone()
 	require.Equal(t, a.Count(), b.Count())
@@ -860,12 +860,12 @@ func TestContainsRange(t *testing.T) {
 func BenchmarkContainsRange(b *testing.B) {
 	for _, n := range []int{10, 1000, 1000000} {
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
-			nums := util.RandUints[uint64](n)
+			nums := testutil.RandUints[uint64](n)
 			slices.Sort(nums)
 			a := NewFromSorted(nums)
 			b.ResetTimer()
 			for b.Loop() {
-				min, max := util.RandUint64(), util.RandUint64()
+				min, max := testutil.RandUint64(), testutil.RandUint64()
 				if min > max {
 					min, max = max, min
 				}

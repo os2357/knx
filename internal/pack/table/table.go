@@ -116,9 +116,9 @@ func (t *Table) ConnectIndex(idx engine.QueryableIndex) {
 func (t *Table) DisconnectIndex(idx engine.QueryableIndex) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	idxId := idx.Schema().TaggedHash(types.ObjectTagIndex)
+	idxId := types.TaggedHash(types.ObjectTagIndex, idx.Schema().Name)
 	t.indexes = slices.DeleteFunc(t.indexes, func(v engine.QueryableIndex) bool {
-		return v.Schema().TaggedHash(types.ObjectTagIndex) == idxId
+		return types.TaggedHash(types.ObjectTagIndex, v.Schema().Name) == idxId
 	})
 }
 
@@ -135,7 +135,7 @@ func (t *Table) Create(ctx context.Context, s *schema.Schema, options ...engine.
 	// setup table
 	t.engine = engine.GetEngine(ctx)
 	t.schema = s
-	t.id = s.TaggedHash(types.ObjectTagTable)
+	t.id = types.TaggedHash(types.ObjectTagTable, s.Name)
 	t.px = s.PkIndex()
 	t.opts = mergeDefaultOptions(options...)
 	t.state = engine.NewObjectState(s.Name)
@@ -238,7 +238,7 @@ func (t *Table) Open(ctx context.Context, s *schema.Schema, options ...engine.Op
 	// setup table
 	t.engine = engine.GetEngine(ctx)
 	t.schema = s
-	t.id = s.TaggedHash(types.ObjectTagTable)
+	t.id = types.TaggedHash(types.ObjectTagTable, s.Name)
 	t.px = s.PkIndex()
 	t.opts = mergeDefaultOptions(options...)
 	t.state = engine.NewObjectState(s.Name)

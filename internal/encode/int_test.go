@@ -10,6 +10,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	etests "blockwatch.cc/knoxdb/internal/encode/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/util"
@@ -260,7 +261,7 @@ func testIntContainerEncode[T types.Integer](t *testing.T, scheme ContainerType)
 			require.Equal(t, c.Data, dst)
 
 			// validate append selector
-			sel := util.RandUintsn[uint32](max(1, len(c.Data)/2), uint32(len(c.Data)))
+			sel := testutil.RandUintsn[uint32](max(1, len(c.Data)/2), uint32(len(c.Data)))
 			clear(dst)
 			dst = dst[:0]
 			dst = enc2.AppendTo(dst, sel)
@@ -440,7 +441,7 @@ func testCompareFunc3[T types.Number](t *testing.T, cmp CompareFunc3[T], src []T
 	// construct set
 	set := xroar.New()
 	for range 10 {
-		set.Set(uint64(src[util.RandIntn(len(src))]))
+		set.Set(uint64(src[testutil.RandIntn(len(src))]))
 	}
 
 	// run cmp
@@ -524,7 +525,7 @@ func testIntContainerIterator[T types.Integer](t *testing.T, scheme ContainerTyp
 			//
 			it = enc.Chunks()
 			for range len(src) {
-				i := util.RandIntn(len(src))
+				i := testutil.RandIntn(len(src))
 				ok := it.Seek(i)
 				require.True(t, ok, "seek to existing pos %d/%d failed", i, len(src))
 				vals, n := it.NextChunk()

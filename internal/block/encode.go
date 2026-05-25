@@ -11,10 +11,9 @@ import (
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/encode"
-	"blockwatch.cc/knoxdb/internal/types"
 )
 
-func (b *Block) Encode(c types.BlockCompression) ([]byte, encode.ContextExporter, error) {
+func (b *Block) Encode(c BlockCompression) ([]byte, encode.ContextExporter, error) {
 	if !b.IsMaterialized() {
 		return nil, nil, ErrBlockNotMaterialized
 	}
@@ -39,7 +38,7 @@ func (b *Block) Encode(c types.BlockCompression) ([]byte, encode.ContextExporter
 		arena.Free(buf)
 		buf = cbuf.Bytes()
 	} else {
-		buf[0] = byte(types.BlockCompressNone)
+		buf[0] = byte(BlockCompressNone)
 	}
 	return buf, ctx, nil
 }
@@ -197,7 +196,7 @@ func Decode(typ BlockType, buf []byte) (*Block, error) {
 	}
 
 	// read optional block compression
-	comp := types.BlockCompression(buf[0])
+	comp := BlockCompression(buf[0])
 
 	if comp > 0 {
 		// decode block data with optional decompressor

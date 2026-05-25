@@ -9,12 +9,11 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
 	"blockwatch.cc/knoxdb/internal/hash"
-	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/slicex"
 )
 
 // Knox index spec parsing
@@ -64,11 +63,6 @@ func (s *IndexSchema) IsValid() bool {
 	return s.Type.IsValid() && len(s.Fields) > 0
 }
 
-// TaggedHash returns a unique index name hash.
-func (s *IndexSchema) TaggedHash(tag types.ObjectTag) uint64 {
-	return types.TaggedHash(tag, s.Name)
-}
-
 // Hash returns a unique index schema hash.
 func (s *IndexSchema) Hash() uint64 {
 	h := hash.New()
@@ -116,7 +110,8 @@ func (s *IndexSchema) Ids() []uint16 {
 	for _, f := range s.Extra {
 		ids = append(ids, f.Id)
 	}
-	return slicex.Unique(ids)
+	slices.Sort(ids)
+	return slices.Compact(ids)
 }
 
 func (s *IndexSchema) ExtraIds() []uint16 {

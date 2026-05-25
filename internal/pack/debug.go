@@ -7,7 +7,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -94,7 +93,7 @@ func (p *Package) ReadValue(col, row int, typ types.FieldType, scale uint8) any 
 		return b.Float32().Get(row)
 	case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
 		if ts := b.Int64().Get(row); ts > 0 {
-			return schema.TimeScale(scale).FromUnix(ts)
+			return types.TimeScale(scale).FromUnix(ts)
 		} else {
 			return zeroTime
 		}

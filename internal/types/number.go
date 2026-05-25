@@ -12,16 +12,16 @@ import (
 )
 
 // we use only types with strict cross-platform width
-type Integer interface {
-	int64 | int32 | int16 | int8 | uint64 | uint32 | uint16 | uint8
-}
-
 type Signed interface {
 	int64 | int32 | int16 | int8
 }
 
 type Unsigned interface {
 	uint64 | uint32 | uint16 | uint8
+}
+
+type Integer interface {
+	Signed | Unsigned
 }
 
 type Float interface {

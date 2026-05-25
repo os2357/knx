@@ -334,16 +334,16 @@ func (m *i128InSetMatcher) WithValue(val any) {
 }
 
 func (m *i128InSetMatcher) WithSlice(slice any) {
-	m.slice = num.Int128Sort(slice.([]num.Int128))
+	m.slice = num.SortInt128(slice.([]num.Int128))
 	m.hashes = hash.Vec(m.slice, m.hashes)
 }
 
 func (m i128InSetMatcher) MatchValue(v any) bool {
-	return num.Int128Contains(m.slice, v.(num.Int128))
+	return num.ContainsInt128(m.slice, v.(num.Int128))
 }
 
 func (m i128InSetMatcher) MatchRange(from, to any) bool {
-	return num.Int128ContainsRange(m.slice, from.(num.Int128), to.(num.Int128))
+	return num.ContainsRangeInt128(m.slice, from.(num.Int128), to.(num.Int128))
 }
 
 func (m i128InSetMatcher) MatchFilter(flt filter.Filter) bool {
@@ -355,13 +355,13 @@ func (m i128InSetMatcher) MatchVector(b *block.Block, bits, mask *bitset.Bitset)
 	if mask != nil {
 		// skip masked values
 		for i := range mask.Iterator() {
-			if num.Int128Contains(m.slice, stride.Get(i)) {
+			if num.ContainsInt128(m.slice, stride.Get(i)) {
 				bits.Set(i)
 			}
 		}
 	} else {
 		for i, v := range stride.Iterator() {
-			if num.Int128Contains(m.slice, v) {
+			if num.ContainsInt128(m.slice, v) {
 				bits.Set(i)
 			}
 		}
@@ -395,15 +395,15 @@ func (m *i128NotInSetMatcher) WithValue(val any) {
 }
 
 func (m *i128NotInSetMatcher) WithSlice(slice any) {
-	m.slice = num.Int128Sort(slice.([]num.Int128))
+	m.slice = num.SortInt128(slice.([]num.Int128))
 }
 
 func (m i128NotInSetMatcher) MatchValue(v any) bool {
-	return !num.Int128Contains(m.slice, v.(num.Int128))
+	return !num.ContainsInt128(m.slice, v.(num.Int128))
 }
 
 func (m i128NotInSetMatcher) MatchRange(from, to any) bool {
-	return !num.Int128ContainsRange(m.slice, from.(num.Int128), to.(num.Int128))
+	return !num.ContainsRangeInt128(m.slice, from.(num.Int128), to.(num.Int128))
 }
 
 func (m i128NotInSetMatcher) MatchFilter(_ filter.Filter) bool {
@@ -416,13 +416,13 @@ func (m i128NotInSetMatcher) MatchVector(b *block.Block, bits, mask *bitset.Bits
 	if mask != nil {
 		// skip masked values
 		for i := range mask.Iterator() {
-			if !num.Int128Contains(m.slice, stride.Get(i)) {
+			if !num.ContainsInt128(m.slice, stride.Get(i)) {
 				bits.Set(i)
 			}
 		}
 	} else {
 		for i, v := range stride.Iterator() {
-			if !num.Int128Contains(m.slice, v) {
+			if !num.ContainsInt128(m.slice, v) {
 				bits.Set(i)
 			}
 		}

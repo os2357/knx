@@ -5,10 +5,16 @@ package slicex
 
 import (
 	"cmp"
+	"slices"
 	"sort"
-
-	"golang.org/x/exp/slices"
 )
+
+type Integer interface {
+	~int | ~uint | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+type Float interface{ ~float32 | ~float64 }
 
 type Number interface {
 	Integer | Float
@@ -44,24 +50,8 @@ func remove[T cmp.Ordered](src, rem []T) []T {
 	return src[:k]
 }
 
-func removeZeros[T cmp.Ordered](s []T) ([]T, int) {
-	var (
-		n    int
-		zero T
-	)
-	for i, v := range s {
-		if v == zero {
-			continue
-		}
-		s[n] = s[i]
-		n++
-	}
-	s = s[:n]
-	return s, n
-}
-
 // assumes s is already sorted
-func removeDuplicates[T cmp.Ordered](s []T) []T {
+func unique[T cmp.Ordered](s []T) []T {
 	if len(s) == 0 {
 		return s
 	}
@@ -71,9 +61,6 @@ func removeDuplicates[T cmp.Ordered](s []T) []T {
 			continue
 		}
 		j++
-		// preserve the original data
-		// in[i], in[j] = in[j], in[i]
-		// only set what is required
 		s[j] = s[i]
 	}
 	return s[:j+1]
@@ -103,36 +90,6 @@ func contains[T Number](s []T, val T, canOptimize bool) bool {
 	// use binary search to find value in sorted s
 	_, ok := slices.BinarySearch(s, val)
 	return ok
-}
-
-// returns where val was found or would appear
-func index[T Number](s []T, val T, last int, canOptimize bool) (int, bool) {
-	if len(s) <= last {
-		return len(s), false
-	}
-
-	// search for value in slice starting at last index
-	slice := s[last:]
-	l := len(slice)
-	minv, maxv := slice[0], slice[l-1]
-	if val < minv {
-		return 0, false
-	}
-	if val > maxv {
-		return l, false
-	}
-
-	// for dense slices (values are continuous) we can compute offset directly
-	// when both unique+nonzero flags are true
-	if canOptimize {
-		if l == int(maxv-minv)+1 {
-			return int(val-minv) + last, true
-		}
-	}
-
-	// for sparse slices, use binary search (slice is sorted)
-	idx, ok := slices.BinarySearch(s, val)
-	return idx + last, ok
 }
 
 // containsRange returns true when slice s contains any values between
@@ -185,10 +142,13 @@ func containsRange[T cmp.Ordered](s []T, from, to T) bool {
 	return minv < maxv
 }
 
-// intersect adds all values to out that are memers in both input slices x and y
-func intersect[T cmp.Ordered](x, y, out []T) []T {
-	if out == nil {
-		out = make([]T, 0, min(len(x), len(y)))
+// intersect adds all values to out that are members in both input slices x and y
+func intersect[T cmp.Ordered](dst, x, y []T) []T {
+	if len(x) == 0 && len(y) == 0 {
+		return dst
+	}
+	if dst == nil {
+		dst = make([]T, 0, min(len(x), len(y)))
 	}
 	count := 0
 	for i, j, il, jl := 0, 0, len(x), len(y); i < il && j < jl; {
@@ -202,7 +162,7 @@ func intersect[T cmp.Ordered](x, y, out []T) []T {
 		}
 		if count > 0 {
 			// skip duplicates
-			last := out[count-1]
+			last := dst[count-1]
 			if last == x[i] {
 				i++
 				continue
@@ -216,16 +176,16 @@ func intersect[T cmp.Ordered](x, y, out []T) []T {
 			break
 		}
 		if x[i] == y[j] {
-			out = append(out, x[i])
+			dst = append(dst, x[i])
 			count++
 			i++
 			j++
 		}
 	}
-	return out
+	return dst
 }
 
-func merge[T cmp.Ordered](s []T, unique bool, v ...T) []T {
+func mergeUnique[T cmp.Ordered](s []T, v ...T) []T {
 	ls, lv := len(s), len(v)
 	// extend cap(s) if necessary
 	if cap(s) < ls+lv {
@@ -242,99 +202,54 @@ func merge[T cmp.Ordered](s []T, unique bool, v ...T) []T {
 	}
 
 	// merge backward
-	if unique {
-		// skip duplicate values (note: v does not contain duplicates at this point!)
-		in1, in2, out := ls-1, lv-1, ls+lv-1
-		for in2 >= 0 {
-			// insert new vals as long as they are larger or all old vals have been
-			// copied (i.e. every new val is smaller than the first old val)
-			for in2 >= 0 && (in1 < 0 || s[in1] < v[in2]) {
-				s[out] = v[in2]
-				in2--
-				out--
-			}
-
-			// insert old vals as long as they are strictly larger
-			for in1 >= 0 && (in2 < 0 || s[in1] > v[in2]) {
-				s[out] = s[in1]
-				in1--
-				out--
-			}
-
-			// skip duplicates in v
-			for in1 >= 0 && in2 >= 0 && s[in1] == v[in2] {
-				in2--
-			}
+	// skip duplicate values (note: v does not contain duplicates at this point!)
+	in1, in2, out := ls-1, lv-1, ls+lv-1
+	for in2 >= 0 {
+		// insert new vals as long as they are larger or all old vals have been
+		// copied (i.e. every new val is smaller than the first old val)
+		for in2 >= 0 && (in1 < 0 || s[in1] < v[in2]) {
+			s[out] = v[in2]
+			in2--
+			out--
 		}
 
-		// when duplicates were dropped, close the gap at slice front
-		for in1 >= 0 {
+		// insert old vals as long as they are strictly larger
+		for in1 >= 0 && (in2 < 0 || s[in1] > v[in2]) {
 			s[out] = s[in1]
 			in1--
 			out--
 		}
-		s = s[out+1:]
 
-	} else {
-		// copy all values in order
-		for in1, in2, out := ls-1, lv-1, ls+lv-1; in2 >= 0; {
-			// insert new vals as long as they are larger or all old vals have been
-			// copied (i.e. every new val is smaller than the first old val)
-			for in2 >= 0 && (in1 < 0 || s[in1] < v[in2]) {
-				s[out] = v[in2]
-				in2--
-				out--
-			}
-
-			// insert old vals as long as they are larger (using >= instead of >
-			// to copy duplicate vals as well)
-			for in1 >= 0 && (in2 < 0 || s[in1] >= v[in2]) {
-				s[out] = s[in1]
-				in1--
-				out--
-			}
+		// skip duplicates in v
+		for in1 >= 0 && in2 >= 0 && s[in1] == v[in2] {
+			in2--
 		}
 	}
+
+	// when duplicates were dropped, close the gap at slice front
+	for in1 >= 0 {
+		s[out] = s[in1]
+		in1--
+		out--
+	}
+	s = s[out+1:]
 
 	return s
 }
 
-func removeRange[T cmp.Ordered](s []T, from, to T, out []T) []T {
+func intersectRange[T cmp.Ordered](dst, s []T, from, to T) []T {
 	start, _ := slices.BinarySearch(s, from)
 	if start == len(s) {
-		if cap(out) < len(s) {
-			out = make([]T, len(s))
-		}
-		out = out[:len(s)]
-		copy(out, s)
-		return out
+		return dst
 	}
 	end, ok := slices.BinarySearch(s[start:], to)
 	if ok {
 		end++
 	}
-	if out == nil || cap(out) < len(s)-end {
-		out = make([]T, len(s)-end)
+	if dst == nil || cap(dst) < end {
+		dst = make([]T, end)
 	}
-	out = out[:len(s)-end]
-	copy(out, s[:start])
-	copy(out[start:], s[start+end:])
-	return out
-}
-
-func intersectRange[T cmp.Ordered](s []T, from, to T, out []T) []T {
-	start, _ := slices.BinarySearch(s, from)
-	if start == len(s) {
-		return out
-	}
-	end, ok := slices.BinarySearch(s[start:], to)
-	if ok {
-		end++
-	}
-	if out == nil || cap(out) < end {
-		out = make([]T, end)
-	}
-	out = out[:end]
-	copy(out, s[start:start+end])
-	return out
+	dst = dst[:end]
+	copy(dst, s[start:start+end])
+	return dst
 }

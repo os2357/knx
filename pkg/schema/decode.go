@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
 type GenericDecoder[T any] struct {
@@ -19,7 +20,7 @@ type GenericDecoder[T any] struct {
 }
 
 func NewGenericDecoder[T any]() *GenericDecoder[T] {
-	s, err := GenericSchema[T]()
+	s, err := SchemaFor[T]()
 	if err != nil {
 		panic(err)
 	}
@@ -30,11 +31,6 @@ func NewGenericDecoder[T any]() *GenericDecoder[T] {
 
 func (d *GenericDecoder[T]) Schema() *Schema {
 	return d.dec.schema
-}
-
-func (d *GenericDecoder[T]) WithEnums(reg *EnumRegistry) *GenericDecoder[T] {
-	d.dec.WithEnums(reg)
-	return d
 }
 
 func (d *GenericDecoder[T]) Read(r io.Reader) (val *T, err error) {
@@ -71,29 +67,18 @@ func (d *GenericDecoder[T]) DecodeSlice(buf []byte, res []T) ([]T, error) {
 
 type Decoder struct {
 	schema *Schema
-	enums  *EnumRegistry
 	buf    *bytes.Buffer
 }
 
 func NewDecoder(s *Schema) *Decoder {
-	enums := s.Enums.Load()
-	if enums == nil {
-		enums = GlobalRegistry
-	}
 	return &Decoder{
 		schema: s,
-		enums:  enums,
 		buf:    bytes.NewBuffer(make([]byte, 0, s.MaxWireSize)),
 	}
 }
 
 func (d *Decoder) Schema() *Schema {
 	return d.schema
-}
-
-func (d *Decoder) WithEnums(reg *EnumRegistry) *Decoder {
-	d.enums = reg
-	return d
 }
 
 // Read reads wire encoded data from r and decodes into a
@@ -183,7 +168,7 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 
 		case OpCodeTimestamp, OpCodeTime, OpCodeDate:
 			ts := int64(LE.Uint64(d.buf.Next(8)))
-			*(*time.Time)(ptr) = TimeScale(field.Scale).FromUnix(ts)
+			*(*time.Time)(ptr) = types.TimeScale(field.Scale).FromUnix(ts)
 
 		case OpCodeInt128:
 			*(*num.Int128)(ptr) = num.Int128FromBytes(d.buf.Next(16))
@@ -209,7 +194,7 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 
 		case OpCodeEnum:
 			u16 := LE.Uint16(d.buf.Next(2))
-			if enum, ok := d.enums.Lookup(field.Name); ok {
+			if enum := field.Enum; enum != nil {
 				val, ok := enum.Value(u16)
 				if !ok {
 					err = fmt.Errorf("%s: invalid enum value %d", field.Name, u16)
@@ -255,7 +240,7 @@ func (d *Decoder) DecodePtr(buf []byte, base unsafe.Pointer) []byte {
 		}
 		field := d.schema.Fields[op]
 		ptr := unsafe.Add(base, field.Offset)
-		buf = readField(code, field, ptr, buf, d.enums)
+		buf = readField(code, field, ptr, buf)
 	}
 	return buf
 }
@@ -277,14 +262,14 @@ func (d *Decoder) DecodeSlice(buf []byte, slice any) (int, error) {
 			}
 			field := d.schema.Fields[op]
 			ptr := unsafe.Add(base, field.Offset)
-			buf = readField(code, field, ptr, buf, d.enums)
+			buf = readField(code, field, ptr, buf)
 		}
 		base = unsafe.Add(base, sz)
 	}
 	return i, nil
 }
 
-func readField(code OpCode, field *Field, ptr unsafe.Pointer, buf []byte, enums *EnumRegistry) []byte {
+func readField(code OpCode, field *Field, ptr unsafe.Pointer, buf []byte) []byte {
 	switch code {
 
 	case OpCodeInt64, OpCodeUint64, OpCodeFloat64:
@@ -337,7 +322,7 @@ func readField(code OpCode, field *Field, ptr unsafe.Pointer, buf []byte, enums 
 
 	case OpCodeTimestamp, OpCodeTime, OpCodeDate:
 		ts := int64(LE.Uint64(buf))
-		*(*time.Time)(ptr) = TimeScale(field.Scale).FromUnix(ts)
+		*(*time.Time)(ptr) = types.TimeScale(field.Scale).FromUnix(ts)
 		buf = buf[8:]
 
 	case OpCodeInt128:
@@ -373,18 +358,14 @@ func readField(code OpCode, field *Field, ptr unsafe.Pointer, buf []byte, enums 
 		buf = buf[32:]
 
 	case OpCodeEnum:
-		if enums == nil {
+		if field.Enum == nil {
 			panic(fmt.Errorf("nil enum registry when decoding enum %q", field.Name))
 		}
 		u16 := LE.Uint16(buf)
 		buf = buf[2:]
-		enum, ok := enums.Lookup(field.Name)
+		val, ok := field.Enum.Value(u16)
 		if !ok {
-			panic(fmt.Errorf("translation for enum %q not registered", field.Name))
-		}
-		val, ok := enum.Value(u16)
-		if !ok {
-			panic(fmt.Errorf("%s: invalid enum value %d, have %#v", field.Name, u16, enum))
+			panic(fmt.Errorf("%s: invalid enum value %d, have %#v", field.Name, u16, field.Enum))
 		}
 		*(*string)(ptr) = val // FIXME: may break when enum dict grows
 

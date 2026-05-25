@@ -18,7 +18,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
-	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
@@ -70,7 +70,7 @@ type Engine struct {
 	cache    CacheManager                           // block and buffer caches
 	tables   *util.LockFreeMap[uint64, TableEngine] // table objects
 	indexes  *util.LockFreeMap[uint64, IndexEngine] // index objects
-	enums    *schema.EnumRegistry                   // enum objects
+	enums    *enum.EnumRegistry                     // enum objects
 	opts     Options                                // engine-wide configuration
 	txchan   chan struct{}                          // single writer enforcement
 	txs      TxList                                 // active read transactions
@@ -241,7 +241,7 @@ func Create(ctx context.Context, name string, options ...Option) (*Engine, error
 		},
 		tables:  util.NewLockFreeMap[uint64, TableEngine](),
 		indexes: util.NewLockFreeMap[uint64, IndexEngine](),
-		enums:   schema.NewEnumRegistry(),
+		enums:   enum.NewEnumRegistry(),
 		txs:     make(TxList, 0),
 		txchan:  make(chan struct{}, 1),
 		xmin:    1,
@@ -289,14 +289,13 @@ func Create(ctx context.Context, name string, options ...Option) (*Engine, error
 	}()
 
 	// init wal
-	wopts := wal.WalOptions{
-		Seed:           e.dbId,
-		Path:           filepath.Join(e.path, "wal"),
-		MaxSegmentSize: e.opts.WalSegmentSize,
-		RecoveryMode:   e.opts.WalRecoveryMode,
-		Logger:         e.log,
-	}
-	e.wal, err = wal.Create(wopts)
+	e.wal, err = wal.Create(
+		wal.WithSeed(e.dbId),
+		wal.WithPath(filepath.Join(e.path, "wal")),
+		wal.WithMaxSegmentSize(e.opts.WalSegmentSize),
+		wal.WithRecoveryMode(e.opts.WalRecoveryMode),
+		wal.WithLogger(e.log),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +338,7 @@ func Open(ctx context.Context, name string, options ...Option) (*Engine, error) 
 		},
 		tables:  util.NewLockFreeMap[uint64, TableEngine](),
 		indexes: util.NewLockFreeMap[uint64, IndexEngine](),
-		enums:   schema.NewEnumRegistry(),
+		enums:   enum.NewEnumRegistry(),
 		txs:     make(TxList, 0),
 		txchan:  make(chan struct{}, 1),
 		xmin:    1,
@@ -414,17 +413,16 @@ func Open(ctx context.Context, name string, options ...Option) (*Engine, error) 
 	e.lm.WithTimeout(e.opts.LockTimeout)
 
 	// open and validate wal (recovery happens individually at catalog and table level)
-	wopts := wal.WalOptions{
-		Seed:           e.dbId,
-		Path:           filepath.Join(e.path, "wal"),
-		MaxSegmentSize: e.opts.WalSegmentSize,
-		ReadOnly:       e.opts.ReadOnly,
-		RecoveryMode:   e.opts.WalRecoveryMode,
-		Logger:         e.log,
-	}
-
-	e.log.Debugf("open wal at %q lsn 0x%x", wopts.Path, e.cat.Checkpoint())
-	e.wal, err = wal.Open(e.cat.Checkpoint(), wopts)
+	walPath := filepath.Join(e.path, "wal")
+	e.log.Debugf("open wal at %q lsn 0x%x", walPath, e.cat.Checkpoint())
+	e.wal, err = wal.Open(e.cat.Checkpoint(),
+		wal.WithSeed(e.dbId),
+		wal.WithPath(walPath),
+		wal.WithMaxSegmentSize(e.opts.WalSegmentSize),
+		wal.WithReadOnly(e.opts.ReadOnly),
+		wal.WithRecoveryMode(e.opts.WalRecoveryMode),
+		wal.WithLogger(e.log),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -548,9 +546,6 @@ func (e *Engine) Close(ctx context.Context) error {
 
 	// close enums
 	e.log.Trace("close enums")
-	for _, enum := range e.enums.Map() {
-		schema.UnregisterEnum(e.dbId, enum)
-	}
 	e.enums.Clear()
 
 	// close catalog (set checkpoint)
@@ -645,9 +640,6 @@ func (e *Engine) ForceShutdown() error {
 
 	// close enums
 	e.log.Trace("close enums")
-	for _, enum := range e.enums.Map() {
-		schema.UnregisterEnum(e.dbId, enum)
-	}
 	e.enums.Clear()
 
 	ctx := context.Background()

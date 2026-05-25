@@ -11,7 +11,6 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"blockwatch.cc/knoxdb/pkg/store"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // db wraps a boltdb database instance and implements the store.DB interface.
@@ -188,13 +187,15 @@ func (db *db) Sync() error {
 func (db *db) Snapshot(w io.Writer) error {
 	// backup may run in parallel to any tx and will be using a snapshot copy
 	err := db.store.View(func(tx *bolt.Tx) error {
-		db.opts.Log.Debugf("Exporting database of size %s (this may take a while)...",
-			util.ByteSize(tx.Size()))
+		db.opts.Log.Debugf(
+			"Exporting database of size %d (this may take a while)...",
+			tx.Size(),
+		)
 		n, err := tx.WriteTo(w)
 		if err != nil {
 			return err
 		}
-		db.opts.Log.Debugf("Successfully wrote %s of data.", util.ByteSize(n))
+		db.opts.Log.Debugf("Successfully wrote %d bytes of data.", n)
 		return nil
 	})
 	return wrap(err)

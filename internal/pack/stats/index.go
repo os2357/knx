@@ -1128,7 +1128,7 @@ func (idx *Index) makeRidFilter(mode types.FilterMode, rid uint64) *filter.Node 
 	return &filter.Node{
 		Filter: &filter.Filter{
 			Name:    strings.TrimPrefix(field.Name, "min_"),
-			Type:    types.BlockUint64,
+			Type:    filter.ValueType(types.BlockUint64),
 			Mode:    mode,
 			Index:   idx.rx,
 			Id:      id,

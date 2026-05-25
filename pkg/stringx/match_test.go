@@ -13,8 +13,8 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/bitset/generic"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -136,7 +136,7 @@ const BYTE_LEN = 32
 var poison = []byte{0xfa}
 
 func RandBytes(n int) [][]byte {
-	return util.RandByteSlices(n, BYTE_LEN)
+	return testutil.RandByteSlices(n, BYTE_LEN)
 }
 
 func Uint64Bytes(v uint64) []byte {

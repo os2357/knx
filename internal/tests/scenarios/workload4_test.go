@@ -18,8 +18,8 @@ import (
 	"time"
 
 	tests "blockwatch.cc/knoxdb/internal/tests/engine"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/knox"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/require"
 )
@@ -92,8 +92,8 @@ func TestWorkload4(t *testing.T) {
 			for i := 1; i <= txnSize; i++ {
 				func(txId int) {
 					// Determine two work-row keys
-					workRowID1 := util.RandUint64n(numWorkRows) + 1
-					workRowID2 := util.RandUint64n(numWorkRows) + 1
+					workRowID1 := testutil.RandUint64n(numWorkRows) + 1
+					workRowID2 := testutil.RandUint64n(numWorkRows) + 1
 
 					ctx, commit, abort, err := db.Begin(ctx)
 					require.NoError(t, err, "Begin tx failed")

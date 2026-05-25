@@ -11,6 +11,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/tests"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/cast"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -148,7 +149,7 @@ func TestOptimize(t *testing.T) {
 			{
 				name:      "GT(0) AND LT(100)",
 				input:     makeAndTree(makeGtNode(f1, v(0)), makeLtNode(f1, v(100))),
-				expected:  makeAndTree(makeRangeNode(f1, typ.Inc(v(0)), typ.Dec(v(100)))),
+				expected:  makeAndTree(makeRangeNode(f1, ValueType(typ).Inc(v(0)), ValueType(typ).Dec(v(100)))),
 				comment:   "> AND < should get merged into range",
 				skipTypes: []BlockType{BlockBool}, // contradiction due to limited domain range
 			},
@@ -364,12 +365,12 @@ func makeNode(field *schema.Field, mode FilterMode, value any) *Node {
 		Mode:    mode,
 		Index:   int(field.Id - 1), // index = id - 1 (for regular fields)
 		Id:      field.Id,
-		Type:    blockType,
+		Type:    ValueType(blockType),
 		Value:   value,
 		Matcher: newFactory(blockType).New(mode),
 	}
 
-	caster := schema.NewCaster(field.Type, field.Scale, nil)
+	caster := cast.NewCaster(field.Type, field.Scale, nil)
 
 	// Handle different modes appropriately
 	switch mode {
@@ -385,7 +386,7 @@ func makeNode(field *schema.Field, mode FilterMode, value any) *Node {
 			panic(err)
 		}
 		// fmt.Printf("casted %#v\n", v)
-		f.Value = blockType.Unique(v)
+		f.Value = ValueType(blockType).Unique(v)
 		// fmt.Printf("unique %#v\n", f.Value)
 		f.Matcher.WithSlice(f.Value)
 	case FilterModeRange:

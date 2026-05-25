@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/store"
 	_ "blockwatch.cc/knoxdb/pkg/store/memdb"
 	"github.com/stretchr/testify/require"
@@ -233,7 +235,7 @@ func TestCatalogAddEnum(t *testing.T) {
 	tctx, _, commit, abort, err := eng.WithTransaction(ctx)
 	require.NoError(t, err)
 	defer abort()
-	enum := schema.NewEnumDictionary("enum")
+	enum := enum.NewEnumDictionary("enum")
 	enum.Append("a", "b", "c")
 	require.NoError(t, cat.AddEnum(tctx, enum))
 	require.NoError(t, commit())
@@ -245,14 +247,16 @@ func TestCatalogAddEnum(t *testing.T) {
 	keys, err := cat.ListEnums(tctx)
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
-	require.Equal(t, keys[0], enum.Tag())
+	tag1 := types.TaggedHash(types.ObjectTagEnum, enum.Name())
+	require.Equal(t, keys[0], tag1)
 
 	// get enum
-	enum2, err := cat.GetEnum(tctx, enum.Tag())
+	enum2, err := cat.GetEnum(tctx, tag1)
+	tag2 := types.TaggedHash(types.ObjectTagEnum, enum2.Name())
 	require.NoError(t, err)
 	require.NotNil(t, enum2)
 	require.Equal(t, enum2.Name(), enum.Name())
-	require.Equal(t, enum2.Tag(), enum.Tag())
+	require.Equal(t, tag1, tag2)
 	require.Equal(t, enum2.Len(), enum.Len())
 	require.NoError(t, abort())
 
@@ -260,7 +264,7 @@ func TestCatalogAddEnum(t *testing.T) {
 	tctx, _, commit, abort, err = eng.WithTransaction(ctx)
 	require.NoError(t, err)
 	defer abort()
-	require.NoError(t, cat.DropEnum(tctx, enum.Tag()))
+	require.NoError(t, cat.DropEnum(tctx, tag1))
 	require.NoError(t, commit())
 
 	tctx, _, _, abort, err = eng.WithTransaction(ctx)

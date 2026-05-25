@@ -8,7 +8,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 func cmp_i256_eq(src *num.Int256Stride, val num.Int256, res, mask []byte) int64 {
@@ -27,12 +26,12 @@ func cmp_i256_eq(src *num.Int256Stride, val num.Int256, res, mask []byte) int64 
 			a3 := src.X0[idx+2] == int64(val[0]) && src.X1[idx+2] == val[1] && src.X2[idx+2] == val[2] && src.X3[idx+2] == val[3]
 			a4 := src.X0[idx+3] == int64(val[0]) && src.X1[idx+3] == val[1] && src.X2[idx+3] == val[2] && src.X3[idx+3] == val[3]
 			// note: bitset bytes store bits inverted for efficient index algo
-			b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+			b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 			a1 = src.X0[idx+4] == int64(val[0]) && src.X1[idx+4] == val[1] && src.X2[idx+4] == val[2] && src.X3[idx+4] == val[3]
 			a2 = src.X0[idx+5] == int64(val[0]) && src.X1[idx+5] == val[1] && src.X2[idx+5] == val[2] && src.X3[idx+5] == val[3]
 			a3 = src.X0[idx+6] == int64(val[0]) && src.X1[idx+6] == val[1] && src.X2[idx+6] == val[2] && src.X3[idx+6] == val[3]
 			a4 = src.X0[idx+7] == int64(val[0]) && src.X1[idx+7] == val[1] && src.X2[idx+7] == val[2] && src.X3[idx+7] == val[3]
-			b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+			b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 			res[i] = b & m
 			cnt += int64(bits.OnesCount8(b))
 			idx += 8
@@ -60,12 +59,12 @@ func cmp_i256_eq(src *num.Int256Stride, val num.Int256, res, mask []byte) int64 
 			a3 := src.X0[idx+2] == int64(val[0]) && src.X1[idx+2] == val[1] && src.X2[idx+2] == val[2] && src.X3[idx+2] == val[3]
 			a4 := src.X0[idx+3] == int64(val[0]) && src.X1[idx+3] == val[1] && src.X2[idx+3] == val[2] && src.X3[idx+3] == val[3]
 			// note: bitset bytes store bits inverted for efficient index algo
-			b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+			b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 			a1 = src.X0[idx+4] == int64(val[0]) && src.X1[idx+4] == val[1] && src.X2[idx+4] == val[2] && src.X3[idx+4] == val[3]
 			a2 = src.X0[idx+5] == int64(val[0]) && src.X1[idx+5] == val[1] && src.X2[idx+5] == val[2] && src.X3[idx+5] == val[3]
 			a3 = src.X0[idx+6] == int64(val[0]) && src.X1[idx+6] == val[1] && src.X2[idx+6] == val[2] && src.X3[idx+6] == val[3]
 			a4 = src.X0[idx+7] == int64(val[0]) && src.X1[idx+7] == val[1] && src.X2[idx+7] == val[2] && src.X3[idx+7] == val[3]
-			b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+			b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 			res[i] = b
 			cnt += int64(bits.OnesCount8(b))
 			idx += 8
@@ -100,12 +99,12 @@ func cmp_i256_ne(src *num.Int256Stride, val num.Int256, res, mask []byte) int64 
 			a3 := src.X0[idx+2] != int64(val[0]) || src.X1[idx+2] != val[1] || src.X2[idx+2] != val[2] || src.X3[idx+2] != val[3]
 			a4 := src.X0[idx+3] != int64(val[0]) || src.X1[idx+3] != val[1] || src.X2[idx+3] != val[2] || src.X3[idx+3] != val[3]
 			// note: bitset bytes store bits inverted for efficient index algo
-			b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+			b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 			a1 = src.X0[idx+4] != int64(val[0]) || src.X1[idx+4] != val[1] || src.X2[idx+4] != val[2] || src.X3[idx+4] != val[3]
 			a2 = src.X0[idx+5] != int64(val[0]) || src.X1[idx+5] != val[1] || src.X2[idx+5] != val[2] || src.X3[idx+5] != val[3]
 			a3 = src.X0[idx+6] != int64(val[0]) || src.X1[idx+6] != val[1] || src.X2[idx+6] != val[2] || src.X3[idx+6] != val[3]
 			a4 = src.X0[idx+7] != int64(val[0]) || src.X1[idx+7] != val[1] || src.X2[idx+7] != val[2] || src.X3[idx+7] != val[3]
-			b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+			b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 			res[i] = b & m
 			cnt += int64(bits.OnesCount8(b))
 			idx += 8
@@ -133,12 +132,12 @@ func cmp_i256_ne(src *num.Int256Stride, val num.Int256, res, mask []byte) int64 
 			a3 := src.X0[idx+2] != int64(val[0]) || src.X1[idx+2] != val[1] || src.X2[idx+2] != val[2] || src.X3[idx+2] != val[3]
 			a4 := src.X0[idx+3] != int64(val[0]) || src.X1[idx+3] != val[1] || src.X2[idx+3] != val[2] || src.X3[idx+3] != val[3]
 			// note: bitset bytes store bits inverted for efficient index algo
-			b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+			b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 			a1 = src.X0[idx+4] != int64(val[0]) || src.X1[idx+4] != val[1] || src.X2[idx+4] != val[2] || src.X3[idx+4] != val[3]
 			a2 = src.X0[idx+5] != int64(val[0]) || src.X1[idx+5] != val[1] || src.X2[idx+5] != val[2] || src.X3[idx+5] != val[3]
 			a3 = src.X0[idx+6] != int64(val[0]) || src.X1[idx+6] != val[1] || src.X2[idx+6] != val[2] || src.X3[idx+6] != val[3]
 			a4 = src.X0[idx+7] != int64(val[0]) || src.X1[idx+7] != val[1] || src.X2[idx+7] != val[2] || src.X3[idx+7] != val[3]
-			b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+			b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 			res[i] = b
 			cnt += int64(bits.OnesCount8(b))
 			idx += 8

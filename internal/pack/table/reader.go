@@ -21,7 +21,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/store"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 )
 
@@ -452,7 +451,7 @@ func (r *Reader) nextQueryMatch(ctx context.Context) (*pack.Package, error) {
 func makeRxFilter(rx int) *filter.Node {
 	return filter.NewNode().AddLeaf(&filter.Filter{
 		Name:    "$rid",
-		Type:    types.BlockUint64,
+		Type:    filter.ValueType(types.BlockUint64),
 		Mode:    types.FilterModeTrue,
 		Index:   rx,
 		Id:      schema.MetaRid,
@@ -483,6 +482,9 @@ func (r *Reader) Read(ctx context.Context, key uint32) (*pack.Package, error) {
 
 func (r *Reader) loadPack(ctx context.Context, key, ver uint32, nval int, fids []uint16) error {
 	// r.log.Debugf("loading pack=%08x[v%d] len=%d fields=%v", key, ver, nval, fids)
+	if nval == 0 {
+		nval = r.table.opts.PackSize
+	}
 
 	// prepare an empty pack without block storage
 	if r.pack == nil {
@@ -490,7 +492,7 @@ func (r *Reader) loadPack(ctx context.Context, key, ver uint32, nval int, fids [
 			WithKey(key).
 			WithVersion(ver).
 			WithSchema(r.table.schema).
-			WithMaxRows(util.NonZero(nval, r.table.opts.PackSize))
+			WithMaxRows(nval)
 	}
 
 	// try load from cache using tableid as cache tag

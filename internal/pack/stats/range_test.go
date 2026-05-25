@@ -8,8 +8,8 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/operator/filter"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/constraints"
 )
@@ -54,7 +54,7 @@ func newFilter(b *block.Block, m string, val ...any) *filter.Filter {
 		v = val[0]
 	}
 	return &filter.Filter{
-		Type:  b.Type(),
+		Type:  filter.ValueType(b.Type()),
 		Value: v,
 		Mode:  types.ParseFilterMode(m),
 	}
@@ -191,7 +191,7 @@ func TestRangeIndexQuery(t *testing.T) {
 }
 
 func TestRangeIndexBuildI32(t *testing.T) {
-	block := newBlock[int64](util.RandUintsn(65536, uint(1<<32-1))...)
+	block := newBlock[int64](testutil.RandUintsn(65536, uint(1<<32-1))...)
 	minVal, maxVal := block.MinMax()
 	idx, err := BuildRangeIndex(block, minVal, maxVal)
 	require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestRangeIndexBuildI32(t *testing.T) {
 }
 
 func TestRangeIndexBuildU64(t *testing.T) {
-	block := newBlock[uint64](util.RandUintsn(65536, uint(1<<64-1))...)
+	block := newBlock[uint64](testutil.RandUintsn(65536, uint(1<<64-1))...)
 	minVal, maxVal := block.MinMax()
 	idx, err := BuildRangeIndex(block, minVal, maxVal)
 	require.NoError(t, err)
@@ -211,7 +211,7 @@ func TestRangeIndexBuildU64(t *testing.T) {
 }
 
 func BenchmarkRangeIndexBuild(b *testing.B) {
-	block := newBlock[int64](util.RandUintsn(65536, uint(1<<32-1))...)
+	block := newBlock[int64](testutil.RandUintsn(65536, uint(1<<32-1))...)
 	minVal, maxVal := block.MinMax()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -220,13 +220,13 @@ func BenchmarkRangeIndexBuild(b *testing.B) {
 }
 
 func BenchmarkRangeIndexLookup(b *testing.B) {
-	block := newBlock[int64](util.RandUintsn(65536, uint(1<<32-1))...)
+	block := newBlock[int64](testutil.RandUintsn(65536, uint(1<<32-1))...)
 	minVal, maxVal := block.MinMax()
 	idx, err := BuildRangeIndex(block, minVal, maxVal)
 	require.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx.Range(util.RandIntn(65536), int(minVal.(int64)))
+		idx.Range(testutil.RandIntn(65536), int(minVal.(int64)))
 	}
 }
 
@@ -237,13 +237,13 @@ func BenchmarkRangeIndexQuery(b *testing.B) {
 		types.FilterModeLt,
 		types.FilterModeLe,
 	} {
-		block := newBlock[int64](util.RandUintsn(65536, uint(1<<32-1))...)
+		block := newBlock[int64](testutil.RandUintsn(65536, uint(1<<32-1))...)
 		minVal, maxVal := block.MinMax()
 		idx, err := BuildRangeIndex(block, minVal, maxVal)
 		b.Run(m.String(), func(b *testing.B) {
 			flt := &filter.Filter{
-				Type:  block.Type(),
-				Value: util.RandInt64n(1<<32 - 1),
+				Type:  filter.ValueType(block.Type()),
+				Value: testutil.RandInt64n(1<<32 - 1),
 				Mode:  m,
 			}
 			require.NoError(b, err)

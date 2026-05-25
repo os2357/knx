@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/echa/log"
 )
 
@@ -24,17 +24,17 @@ func TestMain(m *testing.M) {
 
 func SetupDeterministicRand(t *testing.T) {
 	// manage random seeds to drive the determinism for this test
-	seed := util.RandSeed()
+	seed := testutil.RandSeed()
 
 	// create a new random seed for multiple runs unless a user-defined seed is used
 	testRun++
-	if testRun > 1 && os.Getenv(util.GORANDSEED) == "" {
-		seed = util.RandUint64()
+	if testRun > 1 && os.Getenv(testutil.GORANDSEED) == "" {
+		seed = testutil.RandUint64()
 	}
 
 	// re-init random number generator (resets pseudo-randomness so that
 	// rand usage in other testcases does not impact the random selection here)
-	t.Logf("%s=0x%016x", util.GORANDSEED, seed)
-	util.RandInit(seed)
+	t.Logf("%s=0x%016x", testutil.GORANDSEED, seed)
+	testutil.RandInit(seed)
 
 }

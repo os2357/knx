@@ -5,18 +5,46 @@ package schema
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"math/bits"
 	"strings"
 	"testing"
 	"time"
 
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Register a global enum and dictionary for all schema tests
+type MyEnum string
+
+var (
+	enums  *enum.EnumRegistry
+	myEnum *enum.EnumDictionary
+)
+
+func TestMain(m *testing.M) {
+	// prepare enum
+	myEnum = enum.NewEnumDictionary("my_enum")
+	myEnum.Append("a", "b", "c", "d", "e")
+
+	// create test registry and add enum to registry
+	enums = enum.NewEnumRegistry()
+	enums.Register(0, myEnum)
+
+	// init schema and link enums (will lookup myEnum and link to field)
+	s := MustSchemaFor[encodeTestStruct]()
+	s.WithEnums(enums)
+	s = MustSchemaFor[AllTypes]()
+	s.WithEnums(enums)
+
+	m.Run()
+}
 
 type schemaTest struct {
 	name      string
@@ -175,9 +203,9 @@ func NewAllTypes(i int64) AllTypes {
 		I256:    num.Int256FromInt64(i),
 		Bool:    i%2 == 1,
 		Time:    time.Unix(0, i).UTC(),
-		Hash:    util.U64Bytes(uint64(i)),
+		Hash:    binary.BigEndian.AppendUint64(nil, uint64(i)),
 		Array:   [2]byte{byte(i >> 8 & 0xf), byte(i & 0xf)},
-		String:  util.U64Hex(uint64(i)),
+		String:  fmt.Sprintf("%016x", i),
 		MyEnum:  MyEnum("a"),
 		Big:     num.NewBig(i),
 	}
@@ -190,7 +218,8 @@ type FixedTypes struct {
 }
 
 func NewFixedTypes(i int64) FixedTypes {
-	buf := bytes.Repeat(util.U64Bytes(uint64(i)), 3)[:20]
+	b := binary.LittleEndian.AppendUint64(nil, uint64(i))
+	buf := bytes.Repeat(b, 3)[:20]
 	return FixedTypes{
 		BaseModel: BaseModel{
 			Id: uint64(i),
@@ -442,7 +471,7 @@ var schemaTestCases = []schemaTest{
 	// schema name from Go type
 	{
 		name:    "no_model_tag",
-		build:   GenericSchema[NoModelTag],
+		build:   SchemaFor[NoModelTag],
 		fields:  "id",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
@@ -456,7 +485,7 @@ var schemaTestCases = []schemaTest{
 	// schema name from Model type
 	{
 		name:    "model_name",
-		build:   GenericSchema[ModelName],
+		build:   SchemaFor[ModelName],
 		fields:  "id",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
@@ -470,7 +499,7 @@ var schemaTestCases = []schemaTest{
 	// error: invalid generic type
 	{
 		name:  "invalid_T",
-		build: GenericSchema[Model],
+		build: SchemaFor[Model],
 		iserr: true,
 	},
 
@@ -481,7 +510,7 @@ var schemaTestCases = []schemaTest{
 	// struct names only, private and anon fields
 	{
 		name:    "no_model_private",
-		build:   GenericSchema[NoModelPrivate],
+		build:   SchemaFor[NoModelPrivate],
 		fields:  "tagid",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
@@ -495,7 +524,7 @@ var schemaTestCases = []schemaTest{
 	// struct tag names replace struct names
 	{
 		name:    "no_model_tag_name",
-		build:   GenericSchema[NoModelTagName],
+		build:   SchemaFor[NoModelTagName],
 		fields:  "tagid",
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
@@ -509,7 +538,7 @@ var schemaTestCases = []schemaTest{
 	// multiple anon (embedded) structs
 	{
 		name:    "multiple_anon_structs",
-		build:   GenericSchema[MultipleAnonStructs],
+		build:   SchemaFor[MultipleAnonStructs],
 		fields:  "tagid,other",
 		typs:    []FieldType{FT_U64, FT_U64},
 		flags:   []FieldFlags{F_PRIMARY, 0},
@@ -523,14 +552,14 @@ var schemaTestCases = []schemaTest{
 	// error: non-struct type
 	{
 		name:  "no struct type",
-		build: GenericSchema[[]string],
+		build: SchemaFor[[]string],
 		iserr: true,
 	},
 
 	// error: canceled field names (empty list)
 	{
 		name:  "all names canceled",
-		build: GenericSchema[MultipleAnonStructsWithCanceledNames],
+		build: SchemaFor[MultipleAnonStructsWithCanceledNames],
 		iserr: true,
 	},
 
@@ -541,7 +570,7 @@ var schemaTestCases = []schemaTest{
 	// all supported types
 	{
 		name:    "all_types",
-		build:   GenericSchema[AllTypes],
+		build:   SchemaFor[AllTypes],
 		fields:  "id,i64,i32,i16,i8,u64,u32,u16,u8,f64,f32,d32,d64,d128,d256,i128,i256,bool,time,bytes,array[2],string,my_enum,big",
 		typs:    []FieldType{FT_U64, FT_I64, FT_I32, FT_I16, FT_I8, FT_U64, FT_U32, FT_U16, FT_U8, FT_F64, FT_F32, FT_D32, FT_D64, FT_D128, FT_D256, FT_I128, FT_I256, FT_BOOL, FT_TIMESTAMP, FT_BYTES, FT_BYTES, FT_STRING, FT_U16, FT_BIGINT},
 		flags:   []FieldFlags{F_PRIMARY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, types.FieldFlagEnum, 0},
@@ -555,7 +584,7 @@ var schemaTestCases = []schemaTest{
 	// fixed bytes and string
 	{
 		name:    "fixed_types",
-		build:   GenericSchema[FixedTypes],
+		build:   SchemaFor[FixedTypes],
 		fields:  "id,fixed_bytes,fixed_string",
 		typs:    []FieldType{FT_U64, FT_BYTES, FT_STRING},
 		flags:   []FieldFlags{F_PRIMARY, 0, 0},
@@ -569,7 +598,7 @@ var schemaTestCases = []schemaTest{
 	// // struct with binary & text (un)marshaler
 	// {
 	// 	name:    "marshaler_struct_types",
-	// 	build:   GenericSchema[MarshalerStructTypes],
+	// 	build:   SchemaFor[MarshalerStructTypes],
 	// 	fields:  "id,stringer,byter",
 	// 	typs:    []FieldType{FT_U64, FT_STRING, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY, 0, 0},
@@ -583,7 +612,7 @@ var schemaTestCases = []schemaTest{
 	// // map with binary & text (un)marshaler
 	// {
 	// 	name:    "marshaler_map_types",
-	// 	build:   GenericSchema[MarshalerMapTypes],
+	// 	build:   SchemaFor[MarshalerMapTypes],
 	// 	fields:  "id,map",
 	// 	typs:    []FieldType{FT_U64, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY, 0},
@@ -597,7 +626,7 @@ var schemaTestCases = []schemaTest{
 	// // slice with binary & text (un)marshaler
 	// {
 	// 	name:    "marshaler_types",
-	// 	build:   GenericSchema[MarshalerTypes],
+	// 	build:   SchemaFor[MarshalerTypes],
 	// 	fields:  "id,stringer,byter",
 	// 	typs:    []FieldType{FT_U64, FT_STRING, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY | F_INDEXED, 0, 0},
@@ -611,7 +640,7 @@ var schemaTestCases = []schemaTest{
 	// native int/uint
 	{
 		name:    "native_types",
-		build:   GenericSchema[NativeTypes],
+		build:   SchemaFor[NativeTypes],
 		fields:  "id,int,uint",
 		typs:    []FieldType{FT_U64, FT_INT, FT_UINT},
 		flags:   []FieldFlags{F_PRIMARY, 0, 0},
@@ -625,7 +654,7 @@ var schemaTestCases = []schemaTest{
 	// date/time/timestamp
 	{
 		name:    "time_types",
-		build:   GenericSchema[TimeTypes],
+		build:   SchemaFor[TimeTypes],
 		fields:  "tsn,tsu,tsm,tss,tmn,tmu,tmm,tms,dt",
 		typs:    []FieldType{FT_TIMESTAMP, FT_TIMESTAMP, FT_TIMESTAMP, FT_TIMESTAMP, FT_TIME, FT_TIME, FT_TIME, FT_TIME, FT_DATE},
 		flags:   []FieldFlags{0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -639,126 +668,126 @@ var schemaTestCases = []schemaTest{
 	// error: unsupported struct binary & text (un)marshaler
 	{
 		name:  "struct (un)marshaler",
-		build: GenericSchema[MarshalerStructTypes],
+		build: SchemaFor[MarshalerStructTypes],
 		iserr: true,
 	},
 
 	// error: unsupported map binary & text (un)marshaler
 	{
 		name:  "struct (un)marshaler",
-		build: GenericSchema[MarshalerMapTypes],
+		build: SchemaFor[MarshalerMapTypes],
 		iserr: true,
 	},
 
 	// error: unsupported slice binary & text (un)marshaler
 	{
 		name:  "slice (un)marshaler",
-		build: GenericSchema[MarshalerTypes],
+		build: SchemaFor[MarshalerTypes],
 		iserr: true,
 	},
 
 	// error: unsupported struct type without marshaler
 	{
 		name:  "no struct marshaler",
-		build: GenericSchema[NoMarshalerTypes],
+		build: SchemaFor[NoMarshalerTypes],
 		iserr: true,
 	},
 
 	// error: unsupported slice type without marshaler
 	{
 		name:  "no slice marshaler",
-		build: GenericSchema[NoMarshalerSliceTypes],
+		build: SchemaFor[NoMarshalerSliceTypes],
 		iserr: true,
 	},
 
 	// error: unsupported slice type without marshaler
 	{
 		name:  "no map marshaler",
-		build: GenericSchema[NoMarshalerMapTypes],
+		build: SchemaFor[NoMarshalerMapTypes],
 		iserr: true,
 	},
 
 	// error: unsupported ptr type
 	{
 		name:  "invalid pointer",
-		build: GenericSchema[PointerTypes],
+		build: SchemaFor[PointerTypes],
 		iserr: true,
 	},
 
 	// error: using fixed on illegal type
 	{
 		name:  "invalid fixed type",
-		build: GenericSchema[InvalidFixedType],
+		build: SchemaFor[InvalidFixedType],
 		iserr: true,
 	},
 
 	// error: fixed value missing
 	{
 		name:  "invalid fixed missing",
-		build: GenericSchema[InvalidFixedMissing],
+		build: SchemaFor[InvalidFixedMissing],
 		iserr: true,
 	},
 
 	// error: fixed NaN
 	{
 		name:  "invalid fixed NaN",
-		build: GenericSchema[InvalidFixedNaN],
+		build: SchemaFor[InvalidFixedNaN],
 		iserr: true,
 	},
 
 	// error: fixed = 0
 	{
 		name:  "invalid fixed=0",
-		build: GenericSchema[InvalidFixedZero],
+		build: SchemaFor[InvalidFixedZero],
 		iserr: true,
 	},
 
 	// error: fixed < 0
 	{
 		name:  "invalid fixed<0",
-		build: GenericSchema[InvalidFixedNeg],
+		build: SchemaFor[InvalidFixedNeg],
 		iserr: true,
 	},
 
 	// error: fixed > array bounds
 	{
 		name:  "invalid fixed too large",
-		build: GenericSchema[InvalidFixedTooLarge],
+		build: SchemaFor[InvalidFixedTooLarge],
 		iserr: true,
 	},
 
 	// error: using scale on illegal type
 	{
 		name:  "invalid scale type",
-		build: GenericSchema[InvalidScaleType],
+		build: SchemaFor[InvalidScaleType],
 		iserr: true,
 	},
 
 	// error: scale value missing
 	{
 		name:  "invalid scale missing",
-		build: GenericSchema[InvalidScaleMissing],
+		build: SchemaFor[InvalidScaleMissing],
 		iserr: true,
 	},
 
 	// error: scale NaN
 	{
 		name:  "invalid scale NaN",
-		build: GenericSchema[InvalidScaleNaN],
+		build: SchemaFor[InvalidScaleNaN],
 		iserr: true,
 	},
 
 	// error: scale < 0
 	{
 		name:  "invalid scale<0",
-		build: GenericSchema[InvalidScaleNeg],
+		build: SchemaFor[InvalidScaleNeg],
 		iserr: true,
 	},
 
 	// error: decimal out of range
 	{
 		name:  "invalid scale too large",
-		build: GenericSchema[InvalidScaleTooLarge],
+		build: SchemaFor[InvalidScaleTooLarge],
 		iserr: true,
 	},
 
@@ -769,35 +798,35 @@ var schemaTestCases = []schemaTest{
 	// error: missing pk field
 	// {
 	// 	name:  "no_model_no_tag",
-	// 	build: GenericSchema[NoModelNoTag],
+	// 	build: SchemaFor[NoModelNoTag],
 	// 	iserr: true,
 	// },
 
 	// error: pk type != uint64
 	{
 		name:  "no_uint64_pk",
-		build: GenericSchema[InvalidPkType],
+		build: SchemaFor[InvalidPkType],
 		iserr: true,
 	},
 
 	// error: duplicate pk field
 	// {
 	// 	name:  "duplicate_pk",
-	// 	build: GenericSchema[DuplicatePkType],
+	// 	build: SchemaFor[DuplicatePkType],
 	// 	iserr: true,
 	// },
 
 	// error: duplicate pk field in anon struct
 	{
 		name:  "duplicate_anon_pk",
-		build: GenericSchema[DuplicateAnonPkType],
+		build: SchemaFor[DuplicateAnonPkType],
 		iserr: true,
 	},
 
 	// error: duplicate field name
 	{
 		name:  "duplicate_field",
-		build: GenericSchema[DuplicateField],
+		build: SchemaFor[DuplicateField],
 		iserr: true,
 	},
 
@@ -808,7 +837,7 @@ var schemaTestCases = []schemaTest{
 	// hash index
 	{
 		name:      "hash_index",
-		build:     GenericSchema[HashIndex],
+		build:     SchemaFor[HashIndex],
 		fields:    "id,hash",
 		typs:      []FieldType{FT_U64, FT_BYTES},
 		flags:     []FieldFlags{F_PRIMARY, 0},
@@ -824,7 +853,7 @@ var schemaTestCases = []schemaTest{
 	// integer index
 	{
 		name:      "integer_index",
-		build:     GenericSchema[IntegerIndex],
+		build:     SchemaFor[IntegerIndex],
 		fields:    "id,i64",
 		typs:      []FieldType{FT_U64, FT_I64},
 		flags:     []FieldFlags{F_PRIMARY, 0},
@@ -840,7 +869,7 @@ var schemaTestCases = []schemaTest{
 	// bloom filter
 	{
 		name:      "bloom_filter",
-		build:     GenericSchema[BloomFilter],
+		build:     SchemaFor[BloomFilter],
 		fields:    "id,i64",
 		typs:      []FieldType{FT_U64, FT_I64},
 		flags:     []FieldFlags{F_PRIMARY, 0},
@@ -857,21 +886,21 @@ var schemaTestCases = []schemaTest{
 	// error: invalid index type
 	{
 		name:  "invalid index type",
-		build: GenericSchema[InvalidIndexType],
+		build: SchemaFor[InvalidIndexType],
 		iserr: true,
 	},
 
 	// error: invalid field type for index (int: only (u)int fields)
 	{
 		name:  "invalid index field type",
-		build: GenericSchema[InvalidIndexFieldType],
+		build: SchemaFor[InvalidIndexFieldType],
 		iserr: true,
 	},
 
 	// error: invalid bloom filter
 	{
 		name:  "invalid bloom filter name",
-		build: GenericSchema[InvalidBloomFilter],
+		build: SchemaFor[InvalidBloomFilter],
 		iserr: true,
 	},
 
@@ -880,7 +909,7 @@ var schemaTestCases = []schemaTest{
 	// -----------------
 	{
 		name:    "meta_fields",
-		build:   GenericSchema[MetaFields],
+		build:   SchemaFor[MetaFields],
 		fields:  "id,i64,u64",
 		typs:    []FieldType{FT_U64, FT_I64, FT_U64},
 		flags:   []FieldFlags{F_PRIMARY, F_METADATA, 0},
@@ -896,7 +925,7 @@ func TestSchemaDetect(t *testing.T) {
 	for _, c := range schemaTestCases {
 		t.Run(c.name, func(t *testing.T) {
 			// check test data consistency
-			require.NotNil(t, c.build, "must define GenericSchema[T] function in testcase")
+			require.NotNil(t, c.build, "must define SchemaFor[T] function in testcase")
 			numFields := len(strings.Split(c.fields, ","))
 			if len(c.fields) == 0 {
 				numFields = 0
@@ -976,7 +1005,7 @@ func TestSchemaDetect(t *testing.T) {
 }
 
 func TestSchemaMarshal(t *testing.T) {
-	s, err := GenericSchema[AllTypes]()
+	s, err := SchemaFor[AllTypes]()
 	require.NoError(t, err)
 	buf, err := s.MarshalBinary()
 	require.NoError(t, err)
@@ -1274,7 +1303,7 @@ func TestSchemaMapSchema(t *testing.T) {
 }
 
 func TestSchemaDeleteField(t *testing.T) {
-	s, err := GenericSchema[AllTypes]()
+	s, err := SchemaFor[AllTypes]()
 	require.NoError(t, err)
 	beforeSz := s.WireSize()
 	beforeLen := s.NumFields()

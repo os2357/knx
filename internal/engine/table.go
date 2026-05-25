@@ -9,6 +9,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -50,22 +51,23 @@ func (e *Engine) GetTable(tag uint64) (TableEngine, bool) {
 
 func (e *Engine) CreateTable(ctx context.Context, s *schema.Schema, options ...Option) (TableEngine, error) {
 	// check name is unique
-	tag := s.TaggedHash(types.ObjectTagTable)
+	tag := types.TaggedHash(types.ObjectTagTable, s.Name)
 	_, ok := e.tables.Get(tag)
 	if ok {
 		return nil, fmt.Errorf("%s: %v", s.Name, ErrTableExists)
 	}
 
 	// check enums exist and collect
-	enums := schema.NewEnumRegistry()
+	enums := enum.NewEnumRegistry()
 	var err error
 	for _, n := range s.EnumNames() {
-		enum, ok := e.enums.Lookup(n)
+		tag := types.TaggedHash(types.ObjectTagEnum, n)
+		enum, ok := e.enums.Lookup(tag)
 		if !ok {
 			err = fmt.Errorf("missing enum %q", n)
 			break
 		}
-		enums.Register(enum)
+		enums.Register(tag, enum)
 	}
 	if err != nil {
 		return nil, err

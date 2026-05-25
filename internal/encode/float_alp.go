@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"math"
@@ -14,7 +15,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/encode/alp"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 type AlpFlags byte
@@ -232,7 +232,7 @@ func (c *FloatAlpContainer[T, E]) initDecoder() {
 }
 
 func (c *FloatAlpContainer[T, E]) Cmp(i, j int) int {
-	return util.Cmp(c.Get(i), c.Get(j))
+	return cmp.Compare(c.Get(i), c.Get(j))
 }
 
 func (c *FloatAlpContainer[T, E]) MatchEqual(val T, bits, mask *Bitset) {

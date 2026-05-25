@@ -5,6 +5,7 @@ package stats
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/cast"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +54,7 @@ func makeTestData(sz int, pk uint64) (res []TestStruct) {
 			I32: int32(id),
 			I16: int16(id),
 			I8:  int8(id),
-			Buf: util.U64Bytes(id),
+			Buf: binary.BigEndian.AppendUint64(nil, id),
 		})
 	}
 	return
@@ -88,7 +90,7 @@ func makeFilter(name string, mode types.FilterMode, val, val2 any) *filter.Node 
 		panic(fmt.Errorf("missing field %s in schema %s", name, TestSchema))
 	}
 	m := filter.NewFactory(field.Type).New(mode)
-	c := schema.NewCaster(field.Type, field.Scale, nil)
+	c := cast.NewCaster(field.Type, field.Scale, nil)
 	var err error
 	switch mode {
 	case types.FilterModeRange:
@@ -111,7 +113,7 @@ func makeFilter(name string, mode types.FilterMode, val, val2 any) *filter.Node 
 	return &filter.Node{
 		Filter: &filter.Filter{
 			Name:    field.Name,
-			Type:    field.Type.BlockType(),
+			Type:    filter.ValueType(field.Type.BlockType()),
 			Mode:    mode,
 			Index:   int(field.Id - 1), // valid for test schema without metadata
 			Id:      field.Id,

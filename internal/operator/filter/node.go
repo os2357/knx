@@ -10,7 +10,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/slicex"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // type FilterFlags byte
@@ -192,7 +191,7 @@ func (n *Node) depth(level int) int {
 	}
 	d := level
 	for _, v := range n.Children {
-		d = util.Max(d, v.depth(level+1))
+		d = max(d, v.depth(level+1))
 	}
 	return d
 }

@@ -9,6 +9,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 )
 
 // EXTERNAL user interface implemented by local and remote clients
@@ -130,8 +131,8 @@ type Database interface {
 
 	// enums
 	ListEnums() []string
-	FindEnum(name string) (*schema.EnumDictionary, error)
-	CreateEnum(ctx context.Context, name string) (*schema.EnumDictionary, error)
+	FindEnum(name string) (*enum.EnumDictionary, error)
+	CreateEnum(ctx context.Context, name string) (*enum.EnumDictionary, error)
 	ExtendEnum(ctx context.Context, name string, vals ...string) error
 	DropEnum(ctx context.Context, name string) error
 }

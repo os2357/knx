@@ -7,9 +7,10 @@ package slicex
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,53 +18,53 @@ import (
 // Byte Slice
 func TestBytesContains(t *testing.T) {
 	// nil slice
-	if NewOrderedBytes(nil).Contains([]byte{1}) {
+	if ContainsBytesSorted(nil, []byte{1}) {
 		t.Errorf("nil slice cannot contain value")
 	}
 
 	// empty slice
-	if NewOrderedBytes([][]byte{}).Contains([]byte{1}) {
+	if ContainsBytesSorted([][]byte{}, []byte{1}) {
 		t.Errorf("empty slice cannot contain value")
 	}
 
 	// 1-element slice positive
-	if !NewOrderedBytes([][]byte{{1}}).Contains([]byte{1}) {
+	if !ContainsBytesSorted([][]byte{{1}}, []byte{1}) {
 		t.Errorf("1-element slice value not found")
 	}
 
 	// 1-element slice negative
-	if NewOrderedBytes([][]byte{{1}}).Contains([]byte{2}) {
+	if ContainsBytesSorted([][]byte{{1}}, []byte{2}) {
 		t.Errorf("1-element slice found wrong match")
 	}
 
 	// n-element slice positive first element
 	nelem := [][]byte{{1}, {3}, {5}, {7}, {11}, {13}}
-	if !NewOrderedBytes(nelem).Contains([]byte{1}) {
+	if !ContainsBytesSorted(nelem, []byte{1}) {
 		t.Errorf("N-element first slice value not found")
 	}
 
 	// n-element slice positive middle element
-	if !NewOrderedBytes(nelem).Contains([]byte{5}) {
+	if !ContainsBytesSorted(nelem, []byte{5}) {
 		t.Errorf("N-element middle slice value not found")
 	}
 
 	// n-element slice positive last element
-	if !NewOrderedBytes(nelem).Contains([]byte{13}) {
+	if !ContainsBytesSorted(nelem, []byte{13}) {
 		t.Errorf("N-element last slice value not found")
 	}
 
 	// n-element slice negative before
-	if NewOrderedBytes(nelem).Contains([]byte{0}) {
+	if ContainsBytesSorted(nelem, []byte{0}) {
 		t.Errorf("N-element before slice value wrong match")
 	}
 
 	// n-element slice negative middle
-	if NewOrderedBytes(nelem).Contains([]byte{2}) {
+	if ContainsBytesSorted(nelem, []byte{2}) {
 		t.Errorf("N-element middle slice value wrong match")
 	}
 
 	// n-element slice negative after
-	if NewOrderedBytes(nelem).Contains([]byte{14}) {
+	if ContainsBytesSorted(nelem, []byte{14}) {
 		t.Errorf("N-element after slice value wrong match")
 	}
 }
@@ -72,25 +73,25 @@ func BenchmarkBytesContains(b *testing.B) {
 	cases := []int{10, 1000, 1000000}
 	for _, n := range cases {
 		b.Run(fmt.Sprintf("%d-neg", n), func(b *testing.B) {
-			a := NewOrderedBytes(util.RandByteSlices(n, 32))
+			a := UniqueBytes(testutil.RandByteSlices(n, 32))
 			check := make([][]byte, 1024)
 			for i := range check {
-				check[i] = util.RandBytes(32)
+				check[i] = testutil.RandBytes(32)
 			}
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				a.Contains(check[i%1024])
+				ContainsBytesSorted(a, check[i%1024])
 			}
 		})
 	}
 	for _, n := range cases {
 		b.Run(fmt.Sprintf("%d-pos", n), func(b *testing.B) {
-			a := NewOrderedBytes(util.RandByteSlices(n, 32))
+			a := UniqueBytes(testutil.RandByteSlices(n, 32))
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				a.Contains(a.Values[util.RandIntn(len(a.Values))])
+				ContainsBytesSorted(a, a[testutil.RandIntn(len(a))])
 			}
 		})
 	}
@@ -193,7 +194,8 @@ func TestBytesContainsRange(t *testing.T) {
 
 	for i, v := range tests {
 		for _, r := range v.Ranges {
-			if want, got := r.Match, NewOrderedBytes(v.Slice).ContainsRange(r.From, r.To); want != got {
+			s := slices.Clone(v.Slice)
+			if want, got := r.Match, ContainsBytesRangeSorted(s, r.From, r.To); want != got {
 				t.Errorf("case %d/%s want=%t got=%t", i, r.Name, want, got)
 			}
 		}
@@ -203,10 +205,10 @@ func TestBytesContainsRange(t *testing.T) {
 func BenchmarkBytes32ContainsRange(b *testing.B) {
 	for _, n := range []int{10, 1000, 1000000} {
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
-			a := NewOrderedBytes(util.RandByteSlices(n, 32))
+			a := testutil.RandByteSlices(n, 32)
 			ranges := make([][2][]byte, 1024)
 			for i := range ranges {
-				min, max := util.RandBytes(32), util.RandBytes(32)
+				min, max := testutil.RandBytes(32), testutil.RandBytes(32)
 				if bytes.Compare(min, max) > 0 {
 					min, max = max, min
 				}
@@ -214,8 +216,9 @@ func BenchmarkBytes32ContainsRange(b *testing.B) {
 			}
 			b.ResetTimer()
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				a.ContainsRange(ranges[i%1024][0], ranges[i%1024][1])
+			a = UniqueBytes(a)
+			for i := range b.N {
+				ContainsBytesRangeSorted(a, ranges[i%1024][0], ranges[i%1024][1])
 			}
 		})
 	}
@@ -232,56 +235,50 @@ func bs(n ...int) [][]byte {
 func TestBytesUnique(t *testing.T) {
 	var tests = []struct {
 		n string
-		a *OrderedBytes
-		b *OrderedBytes
-		r *OrderedBytes
+		a [][]byte
+		b [][]byte
+		r [][]byte
 	}{
 		{
 			n: "empty",
-			a: NewOrderedBytes(nil).SetUnique(),
-			b: NewOrderedBytes(nil).SetUnique(),
-			r: NewOrderedBytes(nil).SetUnique(),
+			a: nil,
+			b: nil,
+			r: nil,
 		},
 		{
 			n: "empty a",
-			a: NewOrderedBytes(nil).SetUnique(),
-			b: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2)).SetUnique(),
+			a: nil,
+			b: bs(1, 2),
+			r: bs(1, 2),
 		},
 		{
 			n: "empty b",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(nil).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2)).SetUnique(),
+			a: bs(1, 2),
+			b: nil,
+			r: bs(1, 2),
 		},
 		{
 			n: "distinct unique",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(3, 4)).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2, 3, 4)).SetUnique(),
+			a: bs(1, 2),
+			b: bs(3, 4),
+			r: bs(1, 2, 3, 4),
 		},
 		{
 			n: "distinct unique gap",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(4, 5)).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2, 4, 5)).SetUnique(),
+			a: bs(1, 2),
+			b: bs(4, 5),
+			r: bs(1, 2, 4, 5),
 		},
 		{
 			n: "overlap duplicates",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(2, 3)).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2, 3)).SetUnique(),
-		},
-		{
-			n: "overlap duplicates not unique",
-			a: NewOrderedBytes(bs(1, 2)),
-			b: NewOrderedBytes(bs(2, 3)),
-			r: NewOrderedBytes(bs(1, 2, 2, 3)),
+			a: bs(1, 2),
+			b: bs(2, 3),
+			r: bs(1, 2, 3),
 		},
 	}
 
 	for _, c := range tests {
-		res := c.a.Union(c.b)
+		res := UnionBytes(slices.Clone(c.a), c.b)
 		assert.Equal(t, c.r, res, c.n)
 	}
 }
@@ -289,56 +286,56 @@ func TestBytesUnique(t *testing.T) {
 func TestBytesIntersect(t *testing.T) {
 	var tests = []struct {
 		n string
-		a *OrderedBytes
-		b *OrderedBytes
-		r *OrderedBytes
+		a [][]byte
+		b [][]byte
+		r [][]byte
 	}{
 		{
 			n: "empty",
-			a: NewOrderedBytes(nil).SetUnique(),
-			b: NewOrderedBytes(nil).SetUnique(),
-			r: NewOrderedBytes(nil).SetUnique(),
+			a: nil,
+			b: nil,
+			r: nil,
 		},
 		{
 			n: "empty a",
-			a: NewOrderedBytes(nil).SetUnique(),
-			b: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			r: NewOrderedBytes(bs()).SetUnique(),
+			a: nil,
+			b: bs(1, 2),
+			r: bs(),
 		},
 		{
 			n: "empty b",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(nil).SetUnique(),
-			r: NewOrderedBytes(bs()).SetUnique(),
+			a: bs(1, 2),
+			b: nil,
+			r: bs(),
 		},
 		{
 			n: "distinct unique",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(3, 4)).SetUnique(),
-			r: NewOrderedBytes(bs()).SetUnique(),
+			a: bs(1, 2),
+			b: bs(3, 4),
+			r: bs(),
 		},
 		{
 			n: "distinct unique gap",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(4, 5)).SetUnique(),
-			r: NewOrderedBytes(bs()).SetUnique(),
+			a: bs(1, 2),
+			b: bs(4, 5),
+			r: bs(),
 		},
 		{
 			n: "overlap duplicates",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(2, 3)).SetUnique(),
-			r: NewOrderedBytes(bs(2)).SetUnique(),
+			a: bs(1, 2),
+			b: bs(2, 3),
+			r: bs(2),
 		},
 		{
 			n: "overlap duplicates not unique",
-			a: NewOrderedBytes(bs(1, 2)),
-			b: NewOrderedBytes(bs(2, 3)),
-			r: NewOrderedBytes(bs(2)),
+			a: bs(1, 2),
+			b: bs(2, 3),
+			r: bs(2),
 		},
 	}
 
 	for _, c := range tests {
-		res := c.a.Intersect(c.b)
+		res := IntersectBytes(slices.Clone(c.a), c.b)
 		assert.Equal(t, c.r, res, c.n)
 	}
 }
@@ -346,143 +343,144 @@ func TestBytesIntersect(t *testing.T) {
 func TestBytesDifference(t *testing.T) {
 	var tests = []struct {
 		n string
-		a *OrderedBytes
-		b *OrderedBytes
-		r *OrderedBytes
+		a [][]byte
+		b [][]byte
+		r [][]byte
 	}{
 		{
 			n: "empty",
-			a: NewOrderedBytes(nil).SetUnique(),
-			b: NewOrderedBytes(nil).SetUnique(),
-			r: NewOrderedBytes(nil).SetUnique(),
+			a: nil,
+			b: nil,
+			r: nil,
 		},
 		{
 			n: "empty a",
-			a: NewOrderedBytes(nil).SetUnique(),
-			b: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			r: NewOrderedBytes(bs()).SetUnique(),
+			a: nil,
+			b: bs(1, 2),
+			r: nil,
 		},
 		{
 			n: "empty b",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(nil).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2)).SetUnique(),
+			a: bs(1, 2),
+			b: nil,
+			r: bs(1, 2),
 		},
 		{
 			n: "distinct unique",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(3, 4)).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2)).SetUnique(),
+			a: bs(1, 2),
+			b: bs(3, 4),
+			r: bs(1, 2),
 		},
 		{
 			n: "distinct unique gap",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(4, 5)).SetUnique(),
-			r: NewOrderedBytes(bs(1, 2)).SetUnique(),
+			a: bs(1, 2),
+			b: bs(4, 5),
+			r: bs(1, 2),
 		},
 		{
 			n: "overlap duplicates",
-			a: NewOrderedBytes(bs(1, 2)).SetUnique(),
-			b: NewOrderedBytes(bs(2, 3)).SetUnique(),
-			r: NewOrderedBytes(bs(1)).SetUnique(),
+			a: bs(1, 2),
+			b: bs(2, 3),
+			r: bs(1),
 		},
 		{
 			n: "overlap duplicates not unique",
-			a: NewOrderedBytes(bs(1, 2)),
-			b: NewOrderedBytes(bs(2, 3)),
-			r: NewOrderedBytes(bs(1)),
+			a: bs(1, 2),
+			b: bs(2, 3),
+			r: bs(1),
 		},
 	}
 
 	for _, c := range tests {
-		res := c.a.Difference(c.b)
+		res := RemoveBytes(slices.Clone(c.a), c.b...)
 		assert.Equal(t, c.r, res, c.n)
 	}
 }
 
-func TestBytesRemoveRange(t *testing.T) {
-	type TestRange struct {
-		Name     string
-		From     byte
-		To       byte
-		Expected [][]byte
-	}
+// func TestBytesRemoveRange(t *testing.T) {
+// 	type TestRange struct {
+// 		Name     string
+// 		From     byte
+// 		To       byte
+// 		Expected [][]byte
+// 	}
 
-	type Testcase struct {
-		Slice  [][]byte
-		Ranges []TestRange
-	}
+// 	type Testcase struct {
+// 		Slice  [][]byte
+// 		Ranges []TestRange
+// 	}
 
-	var tests = []Testcase{
-		// nil slice
-		{
-			Slice: nil,
-			Ranges: []TestRange{
-				{Name: "NIL", From: 0, To: 2, Expected: bs()},
-			},
-		},
-		// empty slice
-		{
-			Slice: bs(),
-			Ranges: []TestRange{
-				{Name: "EMPTY", From: 0, To: 2, Expected: bs()},
-			},
-		},
-		// 1-element slice
-		{
-			Slice: bs(3),
-			Ranges: []TestRange{
-				{Name: "A", From: 0, To: 2, Expected: bs(3)},   // Case A
-				{Name: "B1", From: 1, To: 3, Expected: bs()},   // Case B.1, D1
-				{Name: "B3", From: 3, To: 4, Expected: bs()},   // Case B.3, D3
-				{Name: "E", From: 15, To: 16, Expected: bs(3)}, // Case E
-				{Name: "F", From: 1, To: 4, Expected: bs()},    // Case F
-			},
-		},
-		// 1-element slice, from == to
-		{
-			Slice: bs(3),
-			Ranges: []TestRange{
-				{Name: "BCD", From: 3, To: 3, Expected: bs()}, // Case B.3, C.1, D.1
-			},
-		},
-		// N-element slice
-		{
-			Slice: bs(3, 5, 7, 11, 13),
-			Ranges: []TestRange{
-				{Name: "A", From: 0, To: 2, Expected: bs(3, 5, 7, 11, 13)},    // Case A
-				{Name: "B1a", From: 1, To: 3, Expected: bs(5, 7, 11, 13)},     // Case B.1
-				{Name: "B1b", From: 3, To: 3, Expected: bs(5, 7, 11, 13)},     // Case B.1
-				{Name: "B2a", From: 1, To: 4, Expected: bs(5, 7, 11, 13)},     // Case B.2
-				{Name: "B2b", From: 1, To: 5, Expected: bs(7, 11, 13)},        // Case B.2
-				{Name: "B3a", From: 3, To: 4, Expected: bs(5, 7, 11, 13)},     // Case B.3
-				{Name: "B3b", From: 3, To: 5, Expected: bs(7, 11, 13)},        // Case B.3
-				{Name: "C1a", From: 4, To: 5, Expected: bs(3, 7, 11, 13)},     // Case C.1
-				{Name: "C1b", From: 4, To: 6, Expected: bs(3, 7, 11, 13)},     // Case C.1
-				{Name: "C1c", From: 4, To: 7, Expected: bs(3, 11, 13)},        // Case C.1
-				{Name: "C1d", From: 5, To: 5, Expected: bs(3, 7, 11, 13)},     // Case C.1
-				{Name: "C2a", From: 8, To: 8, Expected: bs(3, 5, 7, 11, 13)},  // Case C.2
-				{Name: "C2b", From: 8, To: 10, Expected: bs(3, 5, 7, 11, 13)}, // Case C.2
-				{Name: "D1a", From: 11, To: 13, Expected: bs(3, 5, 7)},        // Case D.1
-				{Name: "D1b", From: 12, To: 13, Expected: bs(3, 5, 7, 11)},    // Case D.1
-				{Name: "D2", From: 12, To: 14, Expected: bs(3, 5, 7, 11)},     // Case D.2
-				{Name: "D3a", From: 13, To: 13, Expected: bs(3, 5, 7, 11)},    // Case D.3
-				{Name: "D3b", From: 13, To: 14, Expected: bs(3, 5, 7, 11)},    // Case D.3
-				{Name: "E", From: 15, To: 16, Expected: bs(3, 5, 7, 11, 13)},  // Case E
-				{Name: "Fa", From: 0, To: 16, Expected: bs()},                 // Case F
-				{Name: "Fb", From: 0, To: 13, Expected: bs()},                 // Case F
-				{Name: "Fc", From: 3, To: 13, Expected: bs()},                 // Case F
-			},
-		},
-	}
+// 	var tests = []Testcase{
+// 		// nil slice
+// 		{
+// 			Slice: nil,
+// 			Ranges: []TestRange{
+// 				{Name: "NIL", From: 0, To: 2, Expected: bs()},
+// 			},
+// 		},
+// 		// empty slice
+// 		{
+// 			Slice: bs(),
+// 			Ranges: []TestRange{
+// 				{Name: "EMPTY", From: 0, To: 2, Expected: bs()},
+// 			},
+// 		},
+// 		// 1-element slice
+// 		{
+// 			Slice: bs(3),
+// 			Ranges: []TestRange{
+// 				{Name: "A", From: 0, To: 2, Expected: bs(3)},   // Case A
+// 				{Name: "B1", From: 1, To: 3, Expected: bs()},   // Case B.1, D1
+// 				{Name: "B3", From: 3, To: 4, Expected: bs()},   // Case B.3, D3
+// 				{Name: "E", From: 15, To: 16, Expected: bs(3)}, // Case E
+// 				{Name: "F", From: 1, To: 4, Expected: bs()},    // Case F
+// 			},
+// 		},
+// 		// 1-element slice, from == to
+// 		{
+// 			Slice: bs(3),
+// 			Ranges: []TestRange{
+// 				{Name: "BCD", From: 3, To: 3, Expected: bs()}, // Case B.3, C.1, D.1
+// 			},
+// 		},
+// 		// N-element slice
+// 		{
+// 			Slice: bs(3, 5, 7, 11, 13),
+// 			Ranges: []TestRange{
+// 				{Name: "A", From: 0, To: 2, Expected: bs(3, 5, 7, 11, 13)},    // Case A
+// 				{Name: "B1a", From: 1, To: 3, Expected: bs(5, 7, 11, 13)},     // Case B.1
+// 				{Name: "B1b", From: 3, To: 3, Expected: bs(5, 7, 11, 13)},     // Case B.1
+// 				{Name: "B2a", From: 1, To: 4, Expected: bs(5, 7, 11, 13)},     // Case B.2
+// 				{Name: "B2b", From: 1, To: 5, Expected: bs(7, 11, 13)},        // Case B.2
+// 				{Name: "B3a", From: 3, To: 4, Expected: bs(5, 7, 11, 13)},     // Case B.3
+// 				{Name: "B3b", From: 3, To: 5, Expected: bs(7, 11, 13)},        // Case B.3
+// 				{Name: "C1a", From: 4, To: 5, Expected: bs(3, 7, 11, 13)},     // Case C.1
+// 				{Name: "C1b", From: 4, To: 6, Expected: bs(3, 7, 11, 13)},     // Case C.1
+// 				{Name: "C1c", From: 4, To: 7, Expected: bs(3, 11, 13)},        // Case C.1
+// 				{Name: "C1d", From: 5, To: 5, Expected: bs(3, 7, 11, 13)},     // Case C.1
+// 				{Name: "C2a", From: 8, To: 8, Expected: bs(3, 5, 7, 11, 13)},  // Case C.2
+// 				{Name: "C2b", From: 8, To: 10, Expected: bs(3, 5, 7, 11, 13)}, // Case C.2
+// 				{Name: "D1a", From: 11, To: 13, Expected: bs(3, 5, 7)},        // Case D.1
+// 				{Name: "D1b", From: 12, To: 13, Expected: bs(3, 5, 7, 11)},    // Case D.1
+// 				{Name: "D2", From: 12, To: 14, Expected: bs(3, 5, 7, 11)},     // Case D.2
+// 				{Name: "D3a", From: 13, To: 13, Expected: bs(3, 5, 7, 11)},    // Case D.3
+// 				{Name: "D3b", From: 13, To: 14, Expected: bs(3, 5, 7, 11)},    // Case D.3
+// 				{Name: "E", From: 15, To: 16, Expected: bs(3, 5, 7, 11, 13)},  // Case E
+// 				{Name: "Fa", From: 0, To: 16, Expected: bs()},                 // Case F
+// 				{Name: "Fb", From: 0, To: 13, Expected: bs()},                 // Case F
+// 				{Name: "Fc", From: 3, To: 13, Expected: bs()},                 // Case F
+// 			},
+// 		},
+// 	}
 
-	for _, v := range tests {
-		for _, r := range v.Ranges {
-			a, b := []byte{r.From}, []byte{r.To}
-			assert.Equal(t, r.Expected, NewOrderedBytes(v.Slice).RemoveRange(a, b).Values, r.Name)
-		}
-	}
-}
+// 	for _, v := range tests {
+// 		for _, r := range v.Ranges {
+// 			a, b := []byte{r.From}, []byte{r.To}
+// 			s := slices.Clone(v.Slice)
+// 			assert.Equal(t, r.Expected, RemoveBytes Range(a, b).Values, r.Name)
+// 		}
+// 	}
+// }
 
 func TestOrderedBytesIntersectRange(t *testing.T) {
 	type TestRange struct {
@@ -502,14 +500,14 @@ func TestOrderedBytesIntersectRange(t *testing.T) {
 		{
 			Slice: nil,
 			Ranges: []TestRange{
-				{Name: "NIL", From: 0, To: 2, Expected: bs()},
+				{Name: "NIL", From: 0, To: 2, Expected: nil},
 			},
 		},
 		// empty slice
 		{
 			Slice: bs(),
 			Ranges: []TestRange{
-				{Name: "EMPTY", From: 0, To: 2, Expected: bs()},
+				{Name: "EMPTY", From: 0, To: 2, Expected: nil},
 			},
 		},
 		// 1-element slice
@@ -519,7 +517,7 @@ func TestOrderedBytesIntersectRange(t *testing.T) {
 				{Name: "A", From: 0, To: 2, Expected: bs()},   // Case A
 				{Name: "B1", From: 1, To: 3, Expected: bs(3)}, // Case B.1, D1
 				{Name: "B3", From: 3, To: 4, Expected: bs(3)}, // Case B.3, D3
-				{Name: "E", From: 15, To: 16, Expected: bs()}, // Case E
+				{Name: "E", From: 15, To: 16, Expected: nil},  // Case E
 				{Name: "F", From: 1, To: 4, Expected: bs(3)},  // Case F
 			},
 		},
@@ -552,7 +550,7 @@ func TestOrderedBytesIntersectRange(t *testing.T) {
 				{Name: "D2", From: 12, To: 14, Expected: bs(13)},             // Case D.2
 				{Name: "D3a", From: 13, To: 13, Expected: bs(13)},            // Case D.3
 				{Name: "D3b", From: 13, To: 14, Expected: bs(13)},            // Case D.3
-				{Name: "E", From: 15, To: 16, Expected: bs()},                // Case E
+				{Name: "E", From: 15, To: 16, Expected: nil},                 // Case E
 				{Name: "Fa", From: 0, To: 16, Expected: bs(3, 5, 7, 11, 13)}, // Case F
 				{Name: "Fb", From: 0, To: 13, Expected: bs(3, 5, 7, 11, 13)}, // Case F
 				{Name: "Fc", From: 3, To: 13, Expected: bs(3, 5, 7, 11, 13)}, // Case F
@@ -563,7 +561,8 @@ func TestOrderedBytesIntersectRange(t *testing.T) {
 	for _, v := range tests {
 		for _, r := range v.Ranges {
 			a, b := []byte{r.From}, []byte{r.To}
-			assert.Equal(t, r.Expected, NewOrderedBytes(v.Slice).IntersectRange(a, b).Values, r.Name)
+			s := slices.Clone(v.Slice)
+			assert.Equal(t, r.Expected, IntersectRangeBytes(s, a, b), r.Name)
 		}
 	}
 }

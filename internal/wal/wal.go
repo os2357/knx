@@ -7,7 +7,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -30,83 +29,6 @@ const (
 	WAL_BUFFER_SIZE       = 1 << 19 // 512k
 )
 
-type RecoveryMode byte
-
-const (
-	RecoveryModeFail RecoveryMode = iota
-	RecoveryModeSkip
-	RecoveryModeTruncate
-	RecoveryModeIgnore
-)
-
-var (
-	recoveryModeNames    = "fail_skip_truncate_ignore"
-	recoveryModeNamesOfs = [...]int{0, 5, 10, 19, 26}
-)
-
-func (m RecoveryMode) IsValid() bool {
-	return m <= RecoveryModeIgnore
-}
-
-func (m RecoveryMode) String() string {
-	return recoveryModeNames[recoveryModeNamesOfs[m] : recoveryModeNamesOfs[m+1]-1]
-}
-
-func ParseRecoveryMode(s string) (RecoveryMode, error) {
-	for m := RecoveryModeFail; m <= RecoveryModeIgnore; m++ {
-		if s == m.String() {
-			return m, nil
-		}
-	}
-	return 0, fmt.Errorf("invalid recovery mode %q", s)
-}
-
-func (t *RecoveryMode) Set(s string) error {
-	m, err := ParseRecoveryMode(s)
-	if err == nil {
-		*t = m
-	}
-	return err
-}
-
-type WalOptions struct {
-	Seed           uint64
-	Path           string
-	MaxSegmentSize int
-	ReadOnly       bool
-	SyncDelay      time.Duration
-	RecoveryMode   RecoveryMode
-	Logger         log.Logger
-}
-
-var DefaultOptions = WalOptions{
-	Path:           "",
-	SyncDelay:      time.Second, // sync at most each second
-	MaxSegmentSize: 1 << 20,     // 1MB
-	ReadOnly:       false,
-	RecoveryMode:   RecoveryModeFail, // default in read-only mode
-	Logger:         log.Disabled,
-}
-
-func (o WalOptions) IsValid() bool {
-	return len(o.Path) > 0 && o.MaxSegmentSize >= SEG_FILE_MINSIZE && o.MaxSegmentSize <= SEG_FILE_MAXSIZE
-}
-
-func (o WalOptions) Merge(o2 WalOptions) WalOptions {
-	o.Path = util.NonZero(o2.Path, o.Path)
-	o.SyncDelay = util.NonZero(o2.SyncDelay, o.SyncDelay)
-	o.MaxSegmentSize = util.NonZero(o2.MaxSegmentSize, o.MaxSegmentSize)
-	o.ReadOnly = o2.ReadOnly
-	if !o.ReadOnly {
-		o.RecoveryMode = util.NonZero(o2.RecoveryMode, o.RecoveryMode)
-	}
-	o.Seed = o2.Seed
-	if o2.Logger != nil {
-		o.Logger = o2.Logger
-	}
-	return o
-}
-
 type Wal struct {
 	mu      sync.RWMutex
 	wg      sync.WaitGroup
@@ -123,29 +45,32 @@ type Wal struct {
 	nBytes  atomic.Int64
 }
 
-func Create(opts WalOptions) (*Wal, error) {
-	opts = DefaultOptions.Merge(opts)
-	if !opts.IsValid() {
+func Create(opts ...Option) (*Wal, error) {
+	opt := defaultOptions
+	for _, o := range opts {
+		o(&opt)
+	}
+	if !opt.IsValid() {
 		return nil, ErrInvalidWalOption
 	}
-	opts.Logger.Debugf("wal: creating files at %s", opts.Path)
+	opt.Logger.Debugf("wal: creating files at %s", opt.Path)
 
 	// create directory
-	err := os.MkdirAll(opts.Path, WAL_DIR_MODE)
+	err := os.MkdirAll(opt.Path, WAL_DIR_MODE)
 	if err != nil {
 		return nil, err
 	}
 
 	wal := &Wal{
-		opts:    opts,
+		opts:    opt,
 		wr:      bufio.NewWriterSize(nil, WAL_BUFFER_SIZE),
 		hash:    hash.New(),
-		csum:    opts.Seed,
+		csum:    opt.Seed,
 		req:     make(chan *util.Future, WAL_MAX_SYNC_REQUESTS),
 		close:   make(chan struct{}),
 		nextLsn: 0,
 		lastLsn: 0,
-		log:     opts.Logger,
+		log:     opt.Logger,
 	}
 
 	// create active segment
@@ -161,30 +86,33 @@ func Create(opts WalOptions) (*Wal, error) {
 	return wal, nil
 }
 
-func Open(lsn LSN, opts WalOptions) (*Wal, error) {
-	opts = DefaultOptions.Merge(opts)
-	if !opts.IsValid() {
+func Open(lsn LSN, opts ...Option) (*Wal, error) {
+	opt := defaultOptions
+	for _, o := range opts {
+		o(&opt)
+	}
+	if !opt.IsValid() {
 		return nil, ErrInvalidWalOption
 	}
-	opts.Logger.Debugf("wal: open files at %s", opts.Path)
+	opt.Logger.Debugf("wal: open files at %s", opt.Path)
 
 	// guess possible min/max lsn based on segment names
 	// used for only validating checksum
 	// actual max lsn will be set after
-	minLsn, maxLsn, err := possibleMaxLsn(opts)
+	minLsn, maxLsn, err := possibleMaxLsn(opt)
 	if err != nil {
 		return nil, err
 	}
 
 	wal := &Wal{
-		opts:    opts,
+		opts:    opt,
 		wr:      bufio.NewWriterSize(nil, WAL_BUFFER_SIZE),
 		hash:    hash.New(),
 		req:     make(chan *util.Future, WAL_MAX_SYNC_REQUESTS),
 		close:   make(chan struct{}),
-		csum:    opts.Seed,
+		csum:    opt.Seed,
 		nextLsn: maxLsn,
-		log:     opts.Logger,
+		log:     opt.Logger,
 	}
 	wal.nBytes.Store(int64(maxLsn - minLsn))
 	wal.log.Debugf("wal: verifying from LSN 0x%x", lsn)
@@ -230,7 +158,7 @@ scan:
 	wal.log.Debugf("wal: last record LSN 0x%x, next LSN 0x%x", wal.lastLsn, wal.nextLsn)
 
 	// open active segment
-	wal.active, err = wal.openSegment(wal.nextLsn.Segment(opts.MaxSegmentSize), !wal.opts.ReadOnly)
+	wal.active, err = wal.openSegment(wal.nextLsn.Segment(opt.MaxSegmentSize), !wal.opts.ReadOnly)
 	if err != nil {
 		return nil, err
 	}

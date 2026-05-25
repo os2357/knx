@@ -12,7 +12,7 @@ import (
 	"testing/quick"
 
 	"blockwatch.cc/knoxdb/internal/bitset/tests"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -120,8 +120,8 @@ func TestBitsetResize(t *testing.T) {
 				lena := bitFieldLen(sz)
 				lenb := bitFieldLen(sznew)
 				diff := lena - lenb
-				buf := bytes.Repeat([]byte{0xff}, util.Min(lena, lenb))
-				buf[len(buf)-1] &= byte(0xff >> (7 - uint(util.Min(sz, sznew)-1)&0x7))
+				buf := bytes.Repeat([]byte{0xff}, min(lena, lenb))
+				buf[len(buf)-1] &= byte(0xff >> (7 - uint(min(sz, sznew)-1)&0x7))
 				if diff < 0 {
 					buf = append(buf, bytes.Repeat([]byte{0x0}, -diff)...)
 				}
@@ -294,8 +294,8 @@ func TestBitsetSlice(t *testing.T) {
 	for _, sz := range bitsetSizes {
 		t.Run(f("%d", sz), func(t *testing.T) {
 			for _, b := range randBitsets(sz) {
-				start := int(util.RandInt32n(int32(b.Len())))
-				n := int(util.RandInt32n(int32(b.Len() - start)))
+				start := int(testutil.RandInt32n(int32(b.Len())))
+				n := int(testutil.RandInt32n(int32(b.Len() - start)))
 				slice := b.Slice(start, start+n)
 				require.Len(t, slice, n, "length")
 				for k, v := range slice {
@@ -314,8 +314,8 @@ func TestBitsetAppend(t *testing.T) {
 				for _, src := range randBitsets(sz) {
 					dst := New(sz)
 					dst.Fill(pat)
-					srcPos := int(util.RandInt32n(int32(src.Len())))
-					srcLen := int(util.RandInt32n(int32(src.Len() - srcPos)))
+					srcPos := int(testutil.RandInt32n(int32(src.Len())))
+					srcLen := int(testutil.RandInt32n(int32(src.Len() - srcPos)))
 
 					if dst.size&0x7+srcPos&0x7+srcLen&0x7 == 0 {
 						fast++
@@ -364,8 +364,8 @@ func TestBitsetDelete(t *testing.T) {
 					dst := New(sz)
 					dst.Fill(pat)
 					cmp := dst.Slice(0, sz)
-					delPos := int(util.RandInt32n(int32(src.Len())))
-					delLen := int(util.RandInt32n(int32(src.Len() - delPos)))
+					delPos := int(testutil.RandInt32n(int32(src.Len())))
+					delLen := int(testutil.RandInt32n(int32(src.Len() - delPos)))
 
 					if delPos&0x7+delLen&0x7 == 0 {
 						fast++
@@ -399,7 +399,7 @@ func randBits(n int) []byte {
 	c := (n + 7) / 8
 	out := make([]byte, c+3)
 	for i := 0; i < (c+3)/4; i++ {
-		binary.BigEndian.PutUint32(out[4*i:4*i+4], util.RandUint32())
+		binary.BigEndian.PutUint32(out[4*i:4*i+4], testutil.RandUint32())
 	}
 	return out[:c]
 }

@@ -53,7 +53,7 @@ func NewJournal(s *schema.Schema, maxsz, maxseg int) *Journal {
 	return &Journal{
 		schema: s,
 		key:    []byte(s.Name + "_journal"),
-		id:     s.TaggedHash(types.ObjectTagTable),
+		id:     types.TaggedHash(types.ObjectTagTable, s.Name),
 		tip:    newSegment(s, 0, maxsz),
 		tail:   make([]*Segment, 0, maxseg),
 		maxsz:  maxsz,

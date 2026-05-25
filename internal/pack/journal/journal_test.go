@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"slices"
 	"testing"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
@@ -16,10 +17,10 @@ import (
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/query"
 	etests "blockwatch.cc/knoxdb/internal/tests/engine"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/slicex"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -342,8 +343,8 @@ func TestJournalRandom(t *testing.T) {
 	var (
 		liveSnap map[uint64]uint64         // live pk -> rid mappings
 		live     = make(map[uint64]uint64) // temp live pk -> rid mapping (merged on commit)
-		pksSnap  = slicex.NewOrderedIntegers[uint64](make([]uint64, 0)).SetUnique()
-		pks      = slicex.NewOrderedIntegers[uint64](make([]uint64, 0)).SetUnique()
+		pksSnap  []uint64
+		pks      []uint64
 		snap     = j.Tip().State()
 	)
 
@@ -374,15 +375,16 @@ func TestJournalRandom(t *testing.T) {
 		require.Equal(t, 1, n, "n")
 		require.Equal(t, uint64(i+1), pk, "pk")
 		live[pk] = pk
-		pks.Insert(pk)
+		pks = append(pks, pk)
 	}
+	slices.Sort(pks)
 	// t.Log("Insert 1..16")
 	// t.Logf("Commit %d", engine.GetTxId(ctx))
 	j.CommitTx(engine.GetTxId(ctx))
 	ctx = setupNextTx(t, ctx)
 	snap = j.Tip().State()
 	liveSnap = maps.Clone(live)
-	pksSnap = pks.Clone()
+	pksSnap = slices.Clone(pks)
 
 	// run 10k random actions
 	actions := 10000
@@ -391,7 +393,7 @@ func TestJournalRandom(t *testing.T) {
 	}
 	for range actions {
 		xid := engine.GetTxId(ctx)
-		switch util.RandIntn(5) {
+		switch testutil.RandIntn(5) {
 		case 0: // insert
 			// t.Logf("X-%d Insert %d[%d] into #%d",
 			// 	xid, j.Tip().State().NextPk, j.Tip().State().NextRid, j.Tip().Id())
@@ -400,11 +402,11 @@ func TestJournalRandom(t *testing.T) {
 			require.Equal(t, 1, n, "n = 1")
 			require.Equal(t, pk, j.Tip().State().NextPk-1, "pk reflects state")
 			live[pk] = j.Tip().State().NextRid - 1
-			pks.Insert(pk)
+			pks = slicex.Unique(append(pks, pk))
 
 		case 1: // update a random live record
 			if len(live) > 0 {
-				pk := pks.Values[util.RandIntn(len(live))]
+				pk := pks[testutil.RandIntn(len(live))]
 				// t.Logf("X-%d Update %d[%d] => [%d] into #%d",
 				// 	xid, pk, live[pk], j.Tip().State().NextRid, j.Tip().Id())
 				// note update rewrites the live map with new rid
@@ -415,7 +417,7 @@ func TestJournalRandom(t *testing.T) {
 
 		case 2: // delete a random live record
 			if len(live) > 0 {
-				pk := pks.Values[util.RandIntn(len(live))]
+				pk := pks[testutil.RandIntn(len(live))]
 				// delete is a bit more complicated because we need a
 				// data pack with selection of the record we aim to
 				// delete. we use a journal query to identify the
@@ -443,7 +445,7 @@ func TestJournalRandom(t *testing.T) {
 					delete(live, pk)
 				}
 				res.Close()
-				pks.Remove(pk)
+				pks = slicex.RemoveSorted(pks, pk)
 			}
 
 		case 3: // commit
@@ -453,7 +455,7 @@ func TestJournalRandom(t *testing.T) {
 			// make a new snapshot for comparison
 			snap = j.Tip().State()
 			liveSnap = maps.Clone(live)
-			pksSnap = pks.Clone()
+			pksSnap = slices.Clone(pks)
 
 			validate(ctx)
 
@@ -470,7 +472,7 @@ func TestJournalRandom(t *testing.T) {
 
 			// restore earlier snapshot for comparison
 			live = maps.Clone(liveSnap)
-			pks = pksSnap.Clone()
+			pks = slices.Clone(pksSnap)
 		}
 	}
 

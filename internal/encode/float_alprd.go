@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"sync"
@@ -11,7 +12,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/encode/alp"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // ensure we implement required interfaces
@@ -171,7 +171,7 @@ func (c *FloatAlpRdContainer[T, E]) Encode(ctx *Context[T], vals []T) NumberCont
 }
 
 func (c *FloatAlpRdContainer[T, E]) Cmp(i, j int) int {
-	return util.Cmp(c.Get(i), c.Get(j))
+	return cmp.Compare(c.Get(i), c.Get(j))
 }
 
 func (c *FloatAlpRdContainer[T, E]) MatchEqual(val T, bits, mask *Bitset) {

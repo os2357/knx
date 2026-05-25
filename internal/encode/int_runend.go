@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"sort"
@@ -12,7 +13,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 const RUN_END_THRESHOLD = 4
@@ -218,7 +218,7 @@ func (c *RunEndContainer[T]) Encode(ctx *Context[T], vals []T) NumberContainer[T
 }
 
 func (c *RunEndContainer[T]) Cmp(i, j int) int {
-	return util.Cmp(c.Get(i), c.Get(j))
+	return cmp.Compare(c.Get(i), c.Get(j))
 }
 
 func (c *RunEndContainer[T]) MatchEqual(val T, bits, mask *Bitset) {

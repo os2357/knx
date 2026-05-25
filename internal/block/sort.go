@@ -4,6 +4,9 @@
 package block
 
 import (
+	"unicode"
+	"unicode/utf8"
+
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -46,11 +49,40 @@ func (b *Block) Cmp(i, j int) int {
 func (b *Block) Cmpi(i, j int) int {
 	if b.typ == BlockBytes {
 		dd := b.Bytes()
-		return util.CmpCaseInsensitive(
+		return CmpCaseInsensitive(
 			util.UnsafeGetString(dd.Get(i)),
 			util.UnsafeGetString(dd.Get(j)),
 		)
 	} else {
 		return b.Cmp(i, j)
+	}
+}
+
+func CmpCaseInsensitive(s, t string) int {
+	for {
+		if len(t) == 0 {
+			if len(s) == 0 {
+				return 0 // equal
+			}
+			return -1
+		}
+		if len(s) == 0 {
+			return 1
+		}
+		c, sizec := utf8.DecodeRuneInString(s)
+		d, sized := utf8.DecodeRuneInString(t)
+
+		lowerc := unicode.ToLower(c)
+		lowerd := unicode.ToLower(d)
+
+		if lowerc < lowerd {
+			return -1
+		}
+		if lowerc > lowerd {
+			return 1
+		}
+
+		s = s[sizec:]
+		t = t[sized:]
 	}
 }

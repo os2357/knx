@@ -29,7 +29,10 @@ var (
 // TODO: replace with BufferManager page
 type page *byte
 
-type BlockType = types.BlockType
+type (
+	BlockType        = types.BlockType
+	BlockCompression = types.BlockCompression
+)
 
 const (
 	BlockInvalid = types.BlockInvalid
@@ -47,14 +50,20 @@ const (
 	BlockBytes   = types.BlockBytes
 	BlockInt128  = types.BlockInt128
 	BlockInt256  = types.BlockInt256
+
+	BlockCompressNone   = types.BlockCompressNone
+	BlockCompressSnappy = types.BlockCompressSnappy
+	BlockCompressLZ4    = types.BlockCompressLZ4
+	BlockCompressZstd   = types.BlockCompressZstd
 )
 
 // Challenge
 //
 // Define a common abstraction across vector types (int64, int32, float64,
 // string, bits) and vector representations (compressed, materialized) that
-// provides efficient typed access (as slices `[]int64`, iterator `for range .. {}`
-// and chunks `*[128]int64`) without using Go `any` at the API level.
+// provides efficient typed access (as slices `[]int64`, iterator
+// `for range .. {}` and chunks `*[128]int64`) without using Go `any`
+// at the API level.
 //
 // One can build a common vector interface with Go `any`, however in/out
 // data types must be wrapped into `any`. This is inefficient for heavy access
@@ -527,31 +536,31 @@ func (b *Block) Append(val any) {
 	switch b.typ {
 	case BlockInt64:
 		b.Int64().Append(val.(int64))
-	case types.BlockInt32:
+	case BlockInt32:
 		b.Int32().Append(val.(int32))
-	case types.BlockInt16:
+	case BlockInt16:
 		b.Int16().Append(val.(int16))
-	case types.BlockInt8:
+	case BlockInt8:
 		b.Int8().Append(val.(int8))
-	case types.BlockUint64:
+	case BlockUint64:
 		b.Uint64().Append(val.(uint64))
-	case types.BlockUint32:
+	case BlockUint32:
 		b.Uint32().Append(val.(uint32))
-	case types.BlockUint16:
+	case BlockUint16:
 		b.Uint16().Append(val.(uint16))
-	case types.BlockUint8:
+	case BlockUint8:
 		b.Uint8().Append(val.(uint8))
-	case types.BlockFloat64:
+	case BlockFloat64:
 		b.Float64().Append(val.(float64))
-	case types.BlockFloat32:
+	case BlockFloat32:
 		b.Float32().Append(val.(float32))
-	case types.BlockBool:
+	case BlockBool:
 		b.Bool().Append(val.(bool))
-	case types.BlockBytes:
+	case BlockBytes:
 		b.Bytes().Append(val.([]byte))
-	case types.BlockInt128:
+	case BlockInt128:
 		b.Int128().Append(val.(num.Int128))
-	case types.BlockInt256:
+	case BlockInt256:
 		b.Int256().Append(val.(num.Int256))
 	}
 	b.SetDirty()
@@ -561,31 +570,31 @@ func (b *Block) Get(row int) any {
 	switch b.typ {
 	case BlockInt64:
 		return b.Int64().Get(row)
-	case types.BlockInt32:
+	case BlockInt32:
 		return b.Int32().Get(row)
-	case types.BlockInt16:
+	case BlockInt16:
 		return b.Int16().Get(row)
-	case types.BlockInt8:
+	case BlockInt8:
 		return b.Int8().Get(row)
-	case types.BlockUint64:
+	case BlockUint64:
 		return b.Uint64().Get(row)
-	case types.BlockUint32:
+	case BlockUint32:
 		return b.Uint32().Get(row)
-	case types.BlockUint16:
+	case BlockUint16:
 		return b.Uint16().Get(row)
-	case types.BlockUint8:
+	case BlockUint8:
 		return b.Uint8().Get(row)
-	case types.BlockFloat64:
+	case BlockFloat64:
 		return b.Float64().Get(row)
-	case types.BlockFloat32:
+	case BlockFloat32:
 		return b.Float32().Get(row)
-	case types.BlockBool:
+	case BlockBool:
 		return b.Bool().Get(row)
-	case types.BlockBytes:
+	case BlockBytes:
 		return b.Bytes().Get(row)
-	case types.BlockInt128:
+	case BlockInt128:
 		return b.Int128().Get(row)
-	case types.BlockInt256:
+	case BlockInt256:
 		return b.Int256().Get(row)
 	default:
 		return nil
@@ -596,35 +605,35 @@ func (b *Block) Set(row int, val any) {
 	switch b.typ {
 	case BlockInt64:
 		b.Int64().Set(row, val.(int64))
-	case types.BlockInt32:
+	case BlockInt32:
 		b.Int32().Set(row, val.(int32))
-	case types.BlockInt16:
+	case BlockInt16:
 		b.Int16().Set(row, val.(int16))
-	case types.BlockInt8:
+	case BlockInt8:
 		b.Int8().Set(row, val.(int8))
-	case types.BlockUint64:
+	case BlockUint64:
 		b.Uint64().Set(row, val.(uint64))
-	case types.BlockUint32:
+	case BlockUint32:
 		b.Uint32().Set(row, val.(uint32))
-	case types.BlockUint16:
+	case BlockUint16:
 		b.Uint16().Set(row, val.(uint16))
-	case types.BlockUint8:
+	case BlockUint8:
 		b.Uint8().Set(row, val.(uint8))
-	case types.BlockFloat64:
+	case BlockFloat64:
 		b.Float64().Set(row, val.(float64))
-	case types.BlockFloat32:
+	case BlockFloat32:
 		b.Float32().Set(row, val.(float32))
-	case types.BlockBool:
+	case BlockBool:
 		if val.(bool) {
 			b.Bool().Set(row)
 		} else {
 			b.Bool().Unset(row)
 		}
-	case types.BlockBytes:
+	case BlockBytes:
 		b.Bytes().Set(row, val.([]byte))
-	case types.BlockInt128:
+	case BlockInt128:
 		b.Int128().Set(row, val.(num.Int128))
-	case types.BlockInt256:
+	case BlockInt256:
 		b.Int256().Set(row, val.(num.Int256))
 	}
 	b.SetDirty()

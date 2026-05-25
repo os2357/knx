@@ -9,7 +9,7 @@ import (
 	"hash/fnv"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 )
 
 var benchSizes = []int{4, 8, 16, 64, 128, 1024}
@@ -95,7 +95,7 @@ var BenchmarkSizes = []BenchmarkSize{
 
 func HashBenchMulti64(b *testing.B, name string, fn func([]uint64, []uint64) []uint64) {
 	for _, sz := range BenchmarkSizes {
-		data := util.RandUints[uint64](sz.N)
+		data := testutil.RandUints[uint64](sz.N)
 		res := make([]uint64, sz.N)
 		b.Run(fmt.Sprintf("%s/%s", name, sz.Name), func(b *testing.B) {
 			b.SetBytes(int64(sz.N) * 8)
@@ -108,7 +108,7 @@ func HashBenchMulti64(b *testing.B, name string, fn func([]uint64, []uint64) []u
 
 func HashBenchMulti32(b *testing.B, name string, fn func([]uint64, []uint32, uint32) []uint32) {
 	for _, sz := range BenchmarkSizes {
-		data := util.RandUints[uint64](sz.N)
+		data := testutil.RandUints[uint64](sz.N)
 		res := make([]uint32, sz.N)
 		b.Run(fmt.Sprintf("%s/%s", name, sz.Name), func(b *testing.B) {
 			b.SetBytes(int64(sz.N) * 8)

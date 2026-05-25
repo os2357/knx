@@ -21,31 +21,31 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func createWalOptions(t testing.TB) WalOptions {
+func createWalOptions(t testing.TB) []Option {
 	t.Helper()
 	if testing.Verbose() {
 		log.Log.SetLevel(log.LevelDebug)
 	}
-	return WalOptions{
-		Path:           t.TempDir(),
-		SyncDelay:      time.Second,
-		MaxSegmentSize: 100 << 20, // 100MB
-		RecoveryMode:   RecoveryModeTruncate,
-		Logger:         log.Log,
+	return []Option{
+		WithPath(t.TempDir()),
+		WithSyncDelay(time.Second),
+		WithMaxSegmentSize(100 << 20), // 100MB
+		WithRecoveryMode(RecoveryModeTruncate),
+		WithLogger(log.Log),
 	}
 }
 
-func createWal(t testing.TB, opts WalOptions) *Wal {
+func createWal(t testing.TB, opts ...Option) *Wal {
 	t.Helper()
-	w, err := Create(opts)
+	w, err := Create(opts...)
 	require.NoError(t, err)
 	require.NotNil(t, w)
 	return w
 }
 
-func openWal(t testing.TB, lsn LSN, opts WalOptions) *Wal {
+func openWal(t testing.TB, lsn LSN, opts ...Option) *Wal {
 	t.Helper()
-	w, err := Open(lsn, opts)
+	w, err := Open(lsn, opts...)
 	require.NoError(t, err)
 	require.NotNil(t, w)
 	return w
@@ -62,46 +62,45 @@ func verifySegmentExists(t *testing.T, dir string, lsn LSN, maxSegmentSize int) 
 func TestWalOptions(t *testing.T) {
 	t.Run("DefaultConfiguration", func(t *testing.T) {
 		testDir := t.TempDir()
-		w, err := Create(WalOptions{Path: testDir})
+		w, err := Create(WithPath(testDir))
 		require.NoError(t, err)
 		defer w.Close()
 
 		// Verify default values
 		assert.Zero(t, w.opts.Seed, "Seed should be a zero value")
 		assert.Equalf(t, w.opts.Path, testDir, "Wal Path should the test path provided: %s", testDir)
-		assert.Equalf(t, w.opts.RecoveryMode, RecoveryModeFail, "Default RecoveryMode should be, %s", DefaultOptions.RecoveryMode)
+		assert.Equalf(t, w.opts.RecoveryMode, RecoveryModeFail, "Default RecoveryMode should be, %s", defaultOptions.RecoveryMode)
 		assert.NotNil(t, w.opts.Logger, "Default logger is not nil")
 		assert.NotZero(t, w.opts.MaxSegmentSize, "MaxSegmentSize should have a non-zero default value")
-		assert.Equalf(t, w.opts.MaxSegmentSize, DefaultOptions.MaxSegmentSize, "Default MaxSegmentSize should be: %v", DefaultOptions.MaxSegmentSize)
+		assert.Equalf(t, w.opts.MaxSegmentSize, defaultOptions.MaxSegmentSize, "Default MaxSegmentSize should be: %v", defaultOptions.MaxSegmentSize)
 	})
 
 	t.Run("CustomConfiguration", func(t *testing.T) {
 		testDir := t.TempDir()
-		customOpts := WalOptions{
-			Path:           testDir,
-			Seed:           12345,
-			MaxSegmentSize: 1024 * 1024, // 1MB
+		customOpts := []Option{
+			WithPath(testDir),
+			WithSeed(12345),
+			WithMaxSegmentSize(1024 * 1024), // 1MB
 		}
-		w, err := Create(customOpts)
+		w, err := Create(customOpts...)
 		require.NoError(t, err)
 		defer w.Close()
 
-		assert.Equal(t, customOpts.Seed, w.opts.Seed, "Custom Seed not set correctly")
-		assert.Equal(t, customOpts.MaxSegmentSize, w.opts.MaxSegmentSize, "Custom MaxSegmentSize not set correctly")
+		assert.Equal(t, uint64(12345), w.opts.Seed, "Custom Seed not set correctly")
+		assert.Equal(t, 1024*1024, w.opts.MaxSegmentSize, "Custom MaxSegmentSize not set correctly")
 	})
 
 	t.Run("ExtremeValues", func(t *testing.T) {
 		testDir := t.TempDir()
-		extremeOpts := WalOptions{
-			Path:           testDir,
-			Seed:           0,
-			MaxSegmentSize: 1, // Extremely small segment size
+		extremeOpts := []Option{
+			WithPath(testDir),
+			WithSeed(0),
+			WithMaxSegmentSize(1), // Extremely small segment size
 		}
-		_, err := Create(extremeOpts)
+		_, err := Create(extremeOpts...)
 		assert.Error(t, err, "Should error with extremely small MaxSegmentSize")
 
-		extremeOpts.MaxSegmentSize = 1024 * 1024 * 1024 * 10 // 10GB
-		w, err := Create(extremeOpts)
+		w, err := Create(append(extremeOpts, WithMaxSegmentSize(1024*1024*1024*10))...)
 		require.NoError(t, err)
 		err = w.Close()
 		require.NoError(t, err, "")
@@ -111,16 +110,15 @@ func TestWalOptions(t *testing.T) {
 		testDir := t.TempDir()
 		invalidOpts := []struct {
 			name string
-			opts WalOptions
+			opts []Option
 		}{
-			{"EmptyPath", WalOptions{Path: "", MaxSegmentSize: 1024}},
-			{"NegativeSegmentSize", WalOptions{Path: testDir, MaxSegmentSize: -1}},
-			{"OverflowSegmentSize", WalOptions{Path: testDir, MaxSegmentSize: SEG_FILE_MAXSIZE + 1}},
+			{"EmptyPath", []Option{WithMaxSegmentSize(1024)}},
+			{"OverflowSegmentSize", []Option{WithPath(testDir), WithMaxSegmentSize(SEG_FILE_MAXSIZE + 1)}},
 		}
 
 		for _, tc := range invalidOpts {
 			t.Run(tc.name, func(t *testing.T) {
-				_, err := Create(tc.opts)
+				_, err := Create(tc.opts...)
 				assert.Error(t, err, "Should error with invalid configuration")
 			})
 		}
@@ -128,11 +126,11 @@ func TestWalOptions(t *testing.T) {
 
 	t.Run("ConfigurationImpact", func(t *testing.T) {
 		testDir := t.TempDir()
-		smallSegmentOpts := WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: SEG_FILE_MINSIZE,
+		smallSegmentOpts := []Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(SEG_FILE_MINSIZE),
 		}
-		w, err := Create(smallSegmentOpts)
+		w, err := Create(smallSegmentOpts...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -158,12 +156,12 @@ func TestWalOptions(t *testing.T) {
 // TestWalCreate tests the creation of a new WAL to ensure it initializes correctly.
 func TestWalCreate(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	assert.NotNil(t, w)
 	// Check for the existence of the first segment file
-	files, err := os.ReadDir(opts.Path)
+	files, err := os.ReadDir(w.opts.Path)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(files), "Expected one segment file")
 	assert.True(t, strings.HasSuffix(files[0].Name(), SEG_FILE_SUFFIX), "Expected segment file with .seg extension")
@@ -173,7 +171,7 @@ func TestWalCreate(t *testing.T) {
 func TestWalWrite(t *testing.T) {
 	t.Log("Starting TestWalWrite")
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	testCases := []struct {
@@ -234,17 +232,17 @@ func TestWalWriteErrors(t *testing.T) {
 		require.NoError(t, os.MkdirAll(readOnlyDir, 0500)) // r-x------
 		defer os.RemoveAll(readOnlyDir)
 
-		_, err := Create(WalOptions{
-			Path:           readOnlyDir,
-			MaxSegmentSize: 1024 * 1024,
-			Seed:           12345,
-		})
+		_, err := Create([]Option{
+			WithPath(readOnlyDir),
+			WithMaxSegmentSize(1024 * 1024),
+			WithSeed(12345),
+		}...)
 		require.Error(t, err, "Expected an error when creating WAL in a read-only directory")
 		assert.Contains(t, err.Error(), "permission denied", "Expected a permission denied error")
 	})
 
 	t.Run("WriteLargeRecord", func(t *testing.T) {
-		w, err := Create(WalOptions{Path: t.TempDir()})
+		w, err := Create(WithPath(t.TempDir()))
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -263,7 +261,7 @@ func TestWalWriteErrors(t *testing.T) {
 // TestWalInvalidRecords tests the WAL's behavior when attempting to write records with invalid types or tags.
 func TestWalInvalidRecords(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	// Try to write a record with an invalid type
@@ -291,7 +289,7 @@ func TestWalInvalidRecords(t *testing.T) {
 // TestWalEmptyRecords tests the WAL's ability to handle writing and reading empty or minimal-sized records.
 func TestWalEmptyRecords(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	// Write an empty record
@@ -363,7 +361,7 @@ func TestWalEmptyRecords(t *testing.T) {
 // TestWalRead tests reading records from the WAL to ensure data is read correctly and matches what was written.
 func TestWalRead(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	testData := []struct {
@@ -415,7 +413,7 @@ func TestWalRead(t *testing.T) {
 // the log and prevents further operations after closing.
 func TestWalClose(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 
 	// Write a test record
 	rec := &Record{Type: RecordTypeInsert, Tag: types.ObjectTagDatabase, Entity: 1, TxID: 100, Data: [][]byte{[]byte("data1")}}
@@ -445,7 +443,7 @@ func TestWalClose(t *testing.T) {
 	assert.Error(t, err, "Expected error when writing to closed WAL")
 
 	// Create a new WAL and reader to ensure the WAL is still functional
-	w = openWal(t, 0, opts)
+	w = openWal(t, 0, opts...)
 	defer w.Close()
 	newReader := w.NewReader()
 	defer newReader.Close()
@@ -458,7 +456,7 @@ func TestWalClose(t *testing.T) {
 // TestWalSyncAndClose tests the WAL's behavior when sync and close operations are performed to ensure data integrity and consistency.
 func TestWalSyncAndClose(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 
 	// Write some records
 	for i := range 10 {
@@ -487,9 +485,8 @@ func TestWalSyncAndClose(t *testing.T) {
 
 // TestWalAsyncWait tests batched fsync mode where simulated tx wait for sync completion.
 func TestWalAsyncWait(t *testing.T) {
-	opts := createWalOptions(t)
-	opts.SyncDelay = 10 * time.Millisecond
-	w := createWal(t, opts)
+	opts := append(createWalOptions(t), WithSyncDelay(10*time.Millisecond))
+	w := createWal(t, opts...)
 
 	// Write concurrent records
 	errg := &errgroup.Group{}
@@ -523,9 +520,8 @@ func TestWalAsyncWait(t *testing.T) {
 
 // TestWalAsyncNoWait tests batched fsync mode where simulated tx do not wait for sync completion.
 func TestWalAsyncNoWait(t *testing.T) {
-	opts := createWalOptions(t)
-	opts.SyncDelay = 10 * time.Millisecond
-	w := createWal(t, opts)
+	opts := append(createWalOptions(t), WithSyncDelay(10*time.Millisecond))
+	w := createWal(t, opts...)
 
 	// Write concurrent records
 	errg := &errgroup.Group{}
@@ -556,9 +552,8 @@ func TestWalAsyncNoWait(t *testing.T) {
 
 // TestWalAsyncClose tests batched fsync mode where tx waits for completion on close.
 func TestWalAsyncClose(t *testing.T) {
-	opts := createWalOptions(t)
-	opts.SyncDelay = 10 * time.Millisecond
-	w := createWal(t, opts)
+	opts := append(createWalOptions(t), WithSyncDelay(10*time.Millisecond))
+	w := createWal(t, opts...)
 
 	// Write records
 	rec := &Record{
@@ -581,11 +576,11 @@ func TestWalAsyncClose(t *testing.T) {
 // TestWalSegmentRollover tests the behavior when the WAL rolls over to a new segment due to reaching the maximum segment size.
 func TestWalSegmentRollover(t *testing.T) {
 	testDir := t.TempDir()
-	opts := WalOptions{
-		Path:           testDir,
-		MaxSegmentSize: SEG_FILE_MINSIZE,
+	opts := []Option{
+		WithPath(testDir),
+		WithMaxSegmentSize(SEG_FILE_MINSIZE),
 	}
-	w, err := Create(opts)
+	w, err := Create(opts...)
 	require.NoError(t, err)
 	defer w.Close()
 
@@ -611,7 +606,7 @@ func TestWalSegmentRollover(t *testing.T) {
 	}
 	// t.Logf("Wrote %d records, total bytes: %d", recordsWritten, bytesWritten)
 
-	expectedSegments := (bytesWritten + opts.MaxSegmentSize - 1) / opts.MaxSegmentSize
+	expectedSegments := (bytesWritten + w.opts.MaxSegmentSize - 1) / w.opts.MaxSegmentSize
 	// t.Logf("Expected segments: %d", expectedSegments)
 
 	// Check for multiple segment files
@@ -636,12 +631,12 @@ func TestWalSegmentRollover(t *testing.T) {
 func TestWalRecovery(t *testing.T) {
 	t.Run("NormalRecovery", func(t *testing.T) {
 		// Create and populate WAL
-		opts := WalOptions{
-			Path:           t.TempDir(),
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
+		opts := []Option{
+			WithPath(t.TempDir()),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
 		}
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 
 		records := []*Record{
@@ -659,7 +654,7 @@ func TestWalRecovery(t *testing.T) {
 		require.NoError(t, err)
 
 		// Recover WAL
-		recoveredWal, err := Open(0, opts)
+		recoveredWal, err := Open(0, opts...)
 		require.NoError(t, err)
 		defer recoveredWal.Close()
 
@@ -678,12 +673,12 @@ func TestWalRecovery(t *testing.T) {
 	})
 
 	t.Run("PartialWriteRecovery", func(t *testing.T) {
-		opts := WalOptions{
-			Path:           t.TempDir(),
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
+		opts := []Option{
+			WithPath(t.TempDir()),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
 		}
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 
 		// Write some records
@@ -704,7 +699,7 @@ func TestWalRecovery(t *testing.T) {
 		w.active.fd.Close()
 
 		// Attempt to recover
-		recoveredWal, err := Open(0, opts)
+		recoveredWal, err := Open(0, opts...)
 		require.NoError(t, err)
 		defer recoveredWal.Close()
 
@@ -727,13 +722,13 @@ func TestWalRecovery(t *testing.T) {
 
 	t.Run("CorruptedSegmentRecovery", func(t *testing.T) {
 		testDir := t.TempDir()
-		opts := WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
-			RecoveryMode:   RecoveryModeTruncate,
+		opts := []Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
+			WithRecoveryMode(RecoveryModeTruncate),
 		}
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 
 		// Write some records
@@ -769,7 +764,7 @@ func TestWalRecovery(t *testing.T) {
 		f.Close()
 
 		// Attempt to recover
-		recoveredWal, err := Open(0, opts)
+		recoveredWal, err := Open(0, opts...)
 		require.NoError(t, err)
 		defer recoveredWal.Close()
 
@@ -800,7 +795,7 @@ func TestWalRecovery(t *testing.T) {
 // to recover and maintain data integrity after an unexpected shutdown.
 func TestWalCrashRecovery(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 
 	// Write some records
 	records := []*Record{
@@ -819,7 +814,7 @@ func TestWalCrashRecovery(t *testing.T) {
 	w.active.fd.Close()
 
 	// Attempt to recover
-	recoveredWal, err := Open(0, w.opts)
+	recoveredWal, err := Open(0, opts...)
 	require.NoError(t, err)
 	defer recoveredWal.Close()
 
@@ -839,15 +834,15 @@ func TestWalCrashRecovery(t *testing.T) {
 }
 
 func TestWalRecoveryWithPartialRecords(t *testing.T) {
-	opts := WalOptions{
-		Path:           t.TempDir(),
-		MaxSegmentSize: SEG_FILE_MINSIZE, // Small segment size to force multiple segments
-		Seed:           12345,
-		RecoveryMode:   RecoveryModeTruncate,
+	opts := []Option{
+		WithPath(t.TempDir()),
+		WithMaxSegmentSize(SEG_FILE_MINSIZE), // Small segment size to force multiple segments
+		WithSeed(12345),
+		WithRecoveryMode(RecoveryModeTruncate),
 	}
 
 	// Create and populate the WAL
-	w, err := Create(opts)
+	w, err := Create(opts...)
 	require.NoError(t, err)
 
 	// Write some complete records
@@ -898,7 +893,7 @@ func TestWalRecoveryWithPartialRecords(t *testing.T) {
 	require.NoError(t, err)
 
 	// Attempt to recover
-	recoveredWal, err := Open(0, opts)
+	recoveredWal, err := Open(0, opts...)
 	require.NoError(t, err)
 	defer recoveredWal.Close()
 
@@ -946,13 +941,13 @@ func TestWalFaultInjection(t *testing.T) {
 			t.Skip()
 		}
 		testDir := t.TempDir()
-		opts := WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
+		opts := []Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
 		}
 
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -965,7 +960,7 @@ func TestWalFaultInjection(t *testing.T) {
 			Type: RecordTypeInsert,
 			TxID: 1,
 			Tag:  types.ObjectTagDatabase,
-			Data: [][]byte{bytes.Repeat([]byte("a"), opts.MaxSegmentSize+1)}, // Force new segment creation
+			Data: [][]byte{bytes.Repeat([]byte("a"), w.opts.MaxSegmentSize+1)}, // Force new segment creation
 		}
 		_, err = w.Write(rec)
 		assert.Error(t, err, "Expected an error when writing to a read-only directory")
@@ -973,13 +968,12 @@ func TestWalFaultInjection(t *testing.T) {
 
 	t.Run("CorruptChecksum", func(t *testing.T) {
 		testDir := t.TempDir()
-		opts := WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
+		opts := []Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
 		}
-
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -1016,11 +1010,11 @@ func TestWalFaultInjection(t *testing.T) {
 
 	t.Run("PartialWrite", func(t *testing.T) {
 		testDir := t.TempDir()
-		w, err := Create(WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
-		})
+		w, err := Create([]Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
+		}...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -1058,7 +1052,7 @@ func TestWalFaultInjection(t *testing.T) {
 
 	t.Run("RecoveryAfterCrash", func(t *testing.T) {
 		opts := createWalOptions(t)
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 
 		// Write some records
@@ -1076,13 +1070,13 @@ func TestWalFaultInjection(t *testing.T) {
 		require.NoError(t, w.Sync())
 
 		// Verify segment file exists
-		verifySegmentExists(t, opts.Path, lastLSN, opts.MaxSegmentSize)
+		verifySegmentExists(t, w.opts.Path, lastLSN, w.opts.MaxSegmentSize)
 
 		// Simulate a crash by forcefully closing without proper shutdown
 		w.active.Close()
 
 		// Reopen the WAL
-		reopenedWal, err := Open(0, opts)
+		reopenedWal, err := Open(0, opts...)
 		require.NoError(t, err)
 		defer reopenedWal.Close()
 
@@ -1105,12 +1099,12 @@ func TestWalFaultInjection(t *testing.T) {
 
 	t.Run("CorruptHeader", func(t *testing.T) {
 		testDir := t.TempDir()
-		opts := WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
+		opts := []Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
 		}
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -1148,11 +1142,11 @@ func TestWalFaultInjection(t *testing.T) {
 
 	t.Run("IncompleteRecord", func(t *testing.T) {
 		testDir := t.TempDir()
-		w, err := Create(WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
-		})
+		w, err := Create([]Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
+		}...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -1190,13 +1184,13 @@ func TestWalFaultInjection(t *testing.T) {
 
 	t.Run("CorruptedRecordType", func(t *testing.T) {
 		testDir := t.TempDir()
-		opts := WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
+		opts := []Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
 		}
 
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -1233,13 +1227,13 @@ func TestWalFaultInjection(t *testing.T) {
 
 	t.Run("CorruptedSegmentBoundary", func(t *testing.T) {
 		testDir := t.TempDir()
-		opts := WalOptions{
-			Path:           testDir,
-			MaxSegmentSize: 1024 * 1024, // 1MB segments
-			Seed:           12345,
+		opts := []Option{
+			WithPath(testDir),
+			WithMaxSegmentSize(1024 * 1024), // 1MB segments
+			WithSeed(12345),
 		}
 
-		w, err := Create(opts)
+		w, err := Create(opts...)
 		require.NoError(t, err)
 		defer w.Close()
 
@@ -1304,7 +1298,7 @@ func BenchmarkWalWrite(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("RecordSize-%d", size), func(b *testing.B) {
 			opts := createWalOptions(b)
-			w := createWal(b, opts) // 1 MB segments
+			w := createWal(b, opts...) // 1 MB segments
 			defer w.Close()
 
 			data := make([]byte, size)
@@ -1329,7 +1323,7 @@ func BenchmarkWalWrite(b *testing.B) {
 // BenchmarkWalWriteSync tests writing records with and without sync
 func BenchmarkWalWriteSync(b *testing.B) {
 	opts := createWalOptions(b)
-	w := createWal(b, opts)
+	w := createWal(b, opts...)
 	defer w.Close()
 
 	size := 256
@@ -1354,7 +1348,7 @@ func BenchmarkWalWriteSync(b *testing.B) {
 // BenchmarkWalWriteSchedule tests writing records with delayed batch sync
 func BenchmarkWalWriteSchedule(b *testing.B) {
 	opts := createWalOptions(b)
-	w := createWal(b, opts)
+	w := createWal(b, opts...)
 	defer w.Close()
 
 	size := 256
@@ -1383,9 +1377,8 @@ func BenchmarkWalSegmentSize(b *testing.B) {
 	segmentSizes := []int{1 << 16, 1 << 20, 1 << 26}
 	for _, segmentSize := range segmentSizes {
 		b.Run(fmt.Sprintf("sz-%d", segmentSize), func(b *testing.B) {
-			opts := createWalOptions(b)
-			opts.MaxSegmentSize = segmentSize
-			w := createWal(b, opts)
+			opts := append(createWalOptions(b), WithMaxSegmentSize(segmentSize))
+			w := createWal(b, opts...)
 			defer w.Close()
 
 			recordSize := 1024

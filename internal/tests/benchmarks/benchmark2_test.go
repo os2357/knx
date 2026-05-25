@@ -11,8 +11,8 @@ import (
 	"time"
 
 	tests "blockwatch.cc/knoxdb/internal/tests/engine"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/knox"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +36,7 @@ func BenchmarkInsertSequential(b *testing.B) {
 			b.Fatalf("begin: %v", err)
 		}
 		data := &Account{
-			Balance:   int64(util.RandIntn(1000 + b.N)),
+			Balance:   int64(testutil.RandIntn(1000 + b.N)),
 			FirstSeen: now.Add(time.Second * time.Duration(b.N)),
 		}
 		_, n, err := table.Insert(ctx, data)

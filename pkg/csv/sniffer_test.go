@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"blockwatch.cc/knoxdb/internal/types"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"github.com/stretchr/testify/require"
 )
 

@@ -10,7 +10,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/hash"
 	"blockwatch.cc/knoxdb/internal/tests"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -276,7 +276,7 @@ func BenchmarkContainsGo(b *testing.B) {
 			b.Run(fmt.Sprintf("%s/%s/IN", c.Name, s.Name), func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
-					_ = f.Contains(hash.Hash(data[util.RandIntn(c.N)]))
+					_ = f.Contains(hash.Hash(data[testutil.RandIntn(c.N)]))
 				}
 			})
 
@@ -284,7 +284,7 @@ func BenchmarkContainsGo(b *testing.B) {
 			b.Run(fmt.Sprintf("%s/%s/NI", c.Name, s.Name), func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
-					_ = f.Contains(hash.Hash(notData[util.RandIntn(c.N)]))
+					_ = f.Contains(hash.Hash(notData[testutil.RandIntn(c.N)]))
 				}
 			})
 		}

@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"sort"
@@ -175,7 +176,7 @@ func dictEncodeArray[T types.Integer](ctx *Context[T], vals []T) ([]T, []uint16)
 }
 
 func (c *DictionaryContainer[T]) Cmp(i, j int) int {
-	return util.Cmp(c.Get(i), c.Get(j))
+	return cmp.Compare(c.Get(i), c.Get(j))
 }
 
 func (c *DictionaryContainer[T]) MatchEqual(val T, bits, mask *Bitset) {

@@ -68,7 +68,7 @@ func TestInt128Unique(t *testing.T) {
 
 	for _, c := range tests {
 		t.Run(c.n, func(t *testing.T) {
-			res := Int128Union(c.a, c.b)
+			res := UnionInt128(c.a, c.b)
 			assert.Equal(t, c.r, res)
 		})
 	}
@@ -127,7 +127,7 @@ func TestInt128Intersect(t *testing.T) {
 
 	for _, c := range tests {
 		t.Run(c.n, func(t *testing.T) {
-			res := Int128Intersect(c.a, c.b)
+			res := IntersectInt128(c.a, c.b)
 			assert.Equal(t, c.r, res)
 		})
 	}
@@ -186,7 +186,7 @@ func TestInt128Difference(t *testing.T) {
 
 	for _, c := range tests {
 		t.Run(c.n, func(t *testing.T) {
-			res := Int128Difference(c.a, c.b)
+			res := DifferenceInt128(c.a, c.b)
 			assert.Equal(t, c.r, res)
 		})
 	}
@@ -270,7 +270,7 @@ func TestInt128RemoveRange(t *testing.T) {
 
 	for _, v := range tests {
 		for _, r := range v.Ranges {
-			assert.Equal(t, r.Expected, Int128RemoveRange(v.Slice, i128(r.From), i128(r.To)), r.Name)
+			assert.Equal(t, r.Expected, RemoveRangeInt128(v.Slice, i128(r.From), i128(r.To)), r.Name)
 		}
 	}
 }
@@ -353,7 +353,7 @@ func TestInt128IntersectRange(t *testing.T) {
 
 	for _, v := range tests {
 		for _, r := range v.Ranges {
-			assert.Equal(t, r.Expected, Int128IntersectRange(v.Slice, i128(r.From), i128(r.To)), r.Name)
+			assert.Equal(t, r.Expected, IntersectRangeInt128(v.Slice, i128(r.From), i128(r.To)), r.Name)
 		}
 	}
 }

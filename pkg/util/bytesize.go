@@ -5,10 +5,8 @@ package util
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // Note the difference between Kilobyte and Kibibyte.
@@ -47,30 +45,30 @@ const (
 
 var ErrInvalidByteSize = errors.New("invalid byte size")
 
-func (b ByteSize) BitRate(d time.Duration) BitRate {
-	return BitRate(float64(b) * 8 * float64(time.Second) / float64(d))
-}
-
 func (b ByteSize) String() string {
 	switch {
 	case b >= YB:
-		return fmt.Sprintf("%.2fYiB", b/YiB)
+		return b2s(b/YiB, "YiB")
 	case b >= ZB:
-		return fmt.Sprintf("%.2fZiB", b/ZiB)
+		return b2s(b/ZiB, "ZiB")
 	case b >= EB:
-		return fmt.Sprintf("%.2fEiB", b/EiB)
+		return b2s(b/EiB, "EiB")
 	case b >= PB:
-		return fmt.Sprintf("%.2fPiB", b/PiB)
+		return b2s(b/PiB, "PiB")
 	case b >= TB:
-		return fmt.Sprintf("%.2fTiB", b/TiB)
+		return b2s(b/TiB, "TiB")
 	case b >= GB:
-		return fmt.Sprintf("%.2fGiB", b/GiB)
+		return b2s(b/GiB, "GiB")
 	case b >= MB:
-		return fmt.Sprintf("%.2fMiB", b/MiB)
+		return b2s(b/MiB, "MiB")
 	case b >= KB:
-		return fmt.Sprintf("%.2fkiB", b/KiB)
+		return b2s(b/KiB, "kiB")
 	}
-	return fmt.Sprintf("%.2fB", b)
+	return b2s(b, "B")
+}
+
+func b2s(f ByteSize, suffix string) string {
+	return strconv.FormatFloat(float64(f), 'f', 2, 64) + suffix
 }
 
 func ParseByteSize(r string) (ByteSize, error) {
@@ -123,17 +121,4 @@ func ParseByteSize(r string) (ByteSize, error) {
 
 func (r ByteSize) Int64() int64 {
 	return int64(r)
-}
-
-func (r ByteSize) MarshalText() ([]byte, error) {
-	return []byte(r.String()), nil
-}
-
-func (r *ByteSize) UnmarshalText(data []byte) error {
-	if rr, err := ParseByteSize(string(data)); err != nil {
-		return err
-	} else {
-		*r = rr
-	}
-	return nil
 }

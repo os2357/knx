@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -127,7 +128,7 @@ func (w *Writer) Write(i int, val any) error {
 	case FT_TIMESTAMP:
 		switch tm := val.(type) {
 		case time.Time:
-			w.layout.PutUint64(w.buf[x:y], uint64(TimeScale(field.Scale).ToUnix(tm)))
+			w.layout.PutUint64(w.buf[x:y], uint64(types.TimeScale(field.Scale).ToUnix(tm)))
 		case int64:
 			w.layout.PutUint64(w.buf[x:y], uint64(tm))
 		default:

@@ -58,6 +58,8 @@ func (a anySlice) Slice() []any {
 	return dst
 }
 
+// MakeAny unboxes vals from interface to their actual type T
+// and returns a typed slice []T.
 func MakeAny(vals ...any) any {
 	if len(vals) == 0 {
 		return nil
@@ -68,11 +70,3 @@ func MakeAny(vals ...any) any {
 	}
 	return slice.Interface()
 }
-
-// func appendReflectValue(a, b any) any {
-// 	return reflect.Append(reflect.ValueOf(a), reflect.ValueOf(b)).Interface()
-// }
-
-// func appendReflectSlice(a, b any) any {
-// 	return reflect.AppendSlice(reflect.ValueOf(a), reflect.ValueOf(b)).Interface()
-// }

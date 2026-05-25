@@ -4,15 +4,18 @@
 package engine_tests
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"time"
 
 	"blockwatch.cc/knoxdb/internal/operator/filter"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/pkg/schema/cast"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 )
 
 var (
@@ -28,11 +31,27 @@ var (
 
 var myEnums = []string{"one", "two", "three", "four"}
 
+var (
+	enums *enum.EnumRegistry
+)
+
 // call this from TestMain() in any package that uses AllTypes
 func RegisterEnum() {
-	myEnum := schema.NewEnumDictionary("my_enum")
+	if enums != nil {
+		return
+	}
+
+	// create dictionary
+	myEnum := enum.NewEnumDictionary("my_enum")
 	myEnum.Append(myEnums...)
-	schema.RegisterEnum(0, myEnum)
+
+	// create test registry and add enum to registry
+	enums = enum.NewEnumRegistry()
+	enums.Register(0, myEnum)
+
+	// init schema and link enums (will lookup myEnum and link to field)
+	s := schema.MustSchemaFor[AllTypes]()
+	s.WithEnums(enums)
 }
 
 // Types defines the schema for Workload1 and Workload2.
@@ -46,7 +65,7 @@ type Types struct {
 
 // NewRandomData generates random data for UnifiedRow and Types.
 func NewRandomData() string {
-	bytes := util.RandBytes(8) // Generates 8 random bytes
+	bytes := testutil.RandBytes(8) // Generates 8 random bytes
 	return hex.EncodeToString(bytes)
 }
 
@@ -55,7 +74,7 @@ func NewRandomTypes(i int) *Types {
 	return &Types{
 		Id:        0, // Primary key will be assigned post-insertion
 		Timestamp: time.Now().UTC(),
-		String:    hex.EncodeToString(util.RandBytes(4)),
+		String:    hex.EncodeToString(testutil.RandBytes(4)),
 		Int64:     int64(i),
 		MyEnum:    myEnums[i%len(myEnums)],
 	}
@@ -113,9 +132,9 @@ func NewAllTypes(i int) *AllTypes {
 		I256:    num.Int256FromInt64(int64(i)),
 		Bool:    i%2 == 1,
 		Time:    time.Unix(0, int64(i)).UTC(),
-		Hash:    util.U64Bytes(uint64(i)),
+		Hash:    binary.BigEndian.AppendUint64(nil, uint64(i)),
 		Array:   [2]byte{byte(i >> 8 & 0xf), byte(i & 0xf)},
-		String:  util.U64Hex(uint64(i)),
+		String:  fmt.Sprintf("%016x", i),
 		MyEnum:  myEnums[i%len(myEnums)],
 	}
 }
@@ -131,7 +150,7 @@ type Security struct {
 func NewSecurity(i int) Security {
 	return Security{
 		Id:             uint64(i),
-		Ticker:         util.RandBytes(5),
+		Ticker:         testutil.RandBytes(5),
 		LastClosePrice: num.NewDecimal256(num.Int256FromInt64(int64(i)), 24),
 		CreatedAt:      time.Unix(0, int64(i)).UTC(),
 		UpdatedAt:      time.Unix(0, int64(i)).UTC(),
@@ -145,7 +164,7 @@ func makeFilter(s *schema.Schema, name string, mode types.FilterMode, val, val2 
 	}
 	idx, _ := s.IndexId(field.Id)
 	m := filter.NewFactory(field.Type).New(mode)
-	c := schema.NewCaster(field.Type, field.Scale, nil)
+	c := cast.NewCaster(field.Type, field.Scale, nil)
 	switch mode {
 	case types.FilterModeRange:
 		val, _ = c.CastValue(val)
@@ -160,7 +179,7 @@ func makeFilter(s *schema.Schema, name string, mode types.FilterMode, val, val2 
 	m.WithValue(val)
 	return filter.NewNode().SetFilter(&filter.Filter{
 		Name:    field.Name,
-		Type:    field.Type.BlockType(),
+		Type:    filter.ValueType(field.Type.BlockType()),
 		Mode:    mode,
 		Index:   idx,
 		Id:      field.Id,

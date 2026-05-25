@@ -280,7 +280,7 @@ func (p *QueryPlan) Compile(ctx context.Context) error {
 		// this will select all single-field indexes and all
 		// composite indexes where the first index field is used as
 		// query condition (they may use prefix key matches)
-		if !slicex.Contains(filterFieldIds, idx.IndexSchema().Fields[0].Id) {
+		if !slicex.ContainsSorted(filterFieldIds, idx.IndexSchema().Fields[0].Id) {
 			continue
 		}
 		p.Indexes = append(p.Indexes, idx)
@@ -326,7 +326,7 @@ func (p *QueryPlan) QueryIndexes(ctx context.Context) error {
 	ts := p.Table.Schema()
 	tmpl := &filter.Filter{
 		Name:  "$rid",
-		Type:  types.BlockUint64,
+		Type:  filter.ValueType(types.BlockUint64),
 		Index: ts.RowIdIndex(),
 		Id:    schema.MetaRid,
 	}
@@ -344,10 +344,10 @@ func (p *QueryPlan) QueryIndexes(ctx context.Context) error {
 	// but keep all meta fields), collect list of fields to drop (lists are sorted)
 	drop := slicex.RemoveSorted(
 		origFieldIds,
-		slicex.Unique(append(p.Filters.FieldIds(), schema.MetaFieldIds...)),
+		slicex.Unique(append(p.Filters.FieldIds(), schema.MetaFieldIds...))...,
 	)
 	if len(drop) > 0 {
-		keep := slicex.Remove(p.RequestSchema.Ids(), drop)
+		keep := slicex.Remove(p.RequestSchema.Ids(), drop...)
 		s, err := p.Table.Schema().SelectIds(keep...)
 		if err != nil {
 			return p.Errorf("update request schema: %v", err)

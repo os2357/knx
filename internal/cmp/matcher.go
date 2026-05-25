@@ -7,13 +7,12 @@ import (
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
-	"blockwatch.cc/knoxdb/internal/types"
 )
 
 type (
 	// func types for casting from ptr lookup table [mode][type]unsafe.Pointer
-	numMatchFunc[T types.Number]      func(slice []T, val T, bits []byte) int64
-	numRangeMatchFunc[T types.Number] func(slice []T, from, to T, bits []byte) int64
+	numMatchFunc[T Number]      func(slice []T, val T, bits []byte) int64
+	numRangeMatchFunc[T Number] func(slice []T, from, to T, bits []byte) int64
 
 	Bitset = bitset.Bitset
 )
@@ -45,12 +44,12 @@ const (
 	i256_t // unused
 )
 
-type Matcher[T types.Number] struct {
+type Matcher[T Number] struct {
 	idx  byte
 	vals []T
 }
 
-func NewMatcher[T types.Number](vals []T) Matcher[T] {
+func NewMatcher[T Number](vals []T) Matcher[T] {
 	switch any(T(0)).(type) {
 	case int64:
 		return Matcher[T]{i64_t, vals}

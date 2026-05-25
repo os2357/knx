@@ -314,18 +314,18 @@ type hashvalue struct {
 
 type bytesSetMatcher struct {
 	noopMatcher
-	slice    *slicex.OrderedBytes // original query data, sorted, unique
-	hashes   []uint64             // bloom hashes
-	hmap     map[uint64]int       // compiled hashmap for quick byte/string set query lookup
-	overflow []hashvalue          // hash collision overflow list
+	slice    [][]byte       // original query data, sorted, unique
+	hashes   []uint64       // bloom hashes
+	hmap     map[uint64]int // compiled hashmap for quick byte/string set query lookup
+	overflow []hashvalue    // hash collision overflow list
 }
 
 func (m *bytesSetMatcher) Weight() int { return 10 } // arbitrary cost for hash map access
 
-func (m *bytesSetMatcher) Len() int { return m.slice.Len() }
+func (m *bytesSetMatcher) Len() int { return len(m.slice) }
 
 func (m *bytesSetMatcher) Value() any {
-	return m.slice.Values
+	return m.slice
 }
 
 func (m *bytesSetMatcher) WithValue(val any) {
@@ -333,20 +333,20 @@ func (m *bytesSetMatcher) WithValue(val any) {
 }
 
 func (m *bytesSetMatcher) WithSlice(slice any) {
-	m.slice = slicex.NewOrderedBytes(slice.([][]byte)).SetUnique()
-	m.hashes = hash.Vec(m.slice.Values, m.hashes)
-	if len(m.slice.Values) > filterThreshold {
+	m.slice = slicex.UniqueBytes(slice.([][]byte))
+	m.hashes = hash.Vec(m.slice, m.hashes)
+	if len(m.slice) > filterThreshold {
 		// re-use bloom hash value
 		m.hmap = make(map[uint64]int)
 		for i, h := range m.hashes {
-			val := m.slice.Values[i]
+			val := m.slice[i]
 			if pos, ok := m.hmap[h]; !ok {
 				// no collision
 				m.hmap[h] = i
 			} else {
 				// handle collissions
 				if pos != 0xFFFFFFFF {
-					log.Warnf("knox: condition hash collision %0x / %0x == %0x", val, m.slice.Values[pos], h)
+					log.Warnf("knox: condition hash collision %0x / %0x == %0x", val, m.slice[pos], h)
 					m.overflow = append(m.overflow, hashvalue{
 						hash: h,
 						pos:  pos,
@@ -369,14 +369,14 @@ func (m bytesSetMatcher) matchHashMap(val []byte) bool {
 	if pos, ok := m.hmap[sum]; ok {
 		if pos != 0xFFFFFFFF {
 			// compare slice value at pos to ensure we're collision free
-			return bytes.Equal(val, m.slice.Values[pos])
+			return bytes.Equal(val, m.slice[pos])
 		} else {
 			// scan overflow list
 			for _, v := range m.overflow {
 				if v.hash != sum {
 					continue
 				}
-				if !bytes.Equal(val, m.slice.Values[v.pos]) {
+				if !bytes.Equal(val, m.slice[v.pos]) {
 					continue
 				}
 				return true
@@ -394,11 +394,11 @@ type bytesInSetMatcher struct {
 }
 
 func (m bytesInSetMatcher) MatchValue(v any) bool {
-	return m.slice.Contains(v.([]byte))
+	return slicex.ContainsBytesSorted(m.slice, v.([]byte))
 }
 
 func (m bytesInSetMatcher) MatchRange(from, to any) bool {
-	return m.slice.ContainsRange(from.([]byte), to.([]byte))
+	return slicex.ContainsBytesRangeSorted(m.slice, from.([]byte), to.([]byte))
 }
 
 func (m bytesInSetMatcher) MatchFilter(flt filter.Filter) bool {
@@ -422,7 +422,7 @@ func (m bytesInSetMatcher) MatchVector(b *block.Block, bits, mask *bitset.Bitset
 }
 
 func (m bytesInSetMatcher) MatchRangeVectors(mins, maxs *block.Block, bits, mask *bitset.Bitset) {
-	setMin, setMax := m.slice.MinMax()
+	setMin, setMax := slicex.RangeBytesSorted(m.slice)
 	rg := newFactory(mins.Type()).New(FilterModeRange)
 	rg.WithValue(RangeValue{setMin, setMax})
 	rg.MatchRangeVectors(mins, maxs, bits, mask)
@@ -447,7 +447,7 @@ func (m bytesInSetMatcher) matchBlockHashMapWithMask(b *block.Block, bits, mask 
 
 func (m bytesInSetMatcher) matchBlockSlice(b *block.Block, bits *bitset.Bitset) {
 	for i, v := range b.Bytes().Iterator() {
-		if m.slice.Contains(v) {
+		if slicex.ContainsBytesSorted(m.slice, v) {
 			bits.Set(i)
 		}
 	}
@@ -456,7 +456,7 @@ func (m bytesInSetMatcher) matchBlockSlice(b *block.Block, bits *bitset.Bitset) 
 func (m bytesInSetMatcher) matchBlockSliceWithMask(b *block.Block, bits, mask *bitset.Bitset) {
 	arr := b.Bytes()
 	for i := range mask.Iterator() {
-		if m.slice.Contains(arr.Get(i)) {
+		if slicex.ContainsBytesSorted(m.slice, arr.Get(i)) {
 			bits.Set(i)
 		}
 	}
@@ -469,11 +469,11 @@ type bytesNotInSetMatcher struct {
 }
 
 func (m bytesNotInSetMatcher) MatchValue(v any) bool {
-	return !m.slice.Contains(v.([]byte))
+	return !slicex.ContainsBytesSorted(m.slice, v.([]byte))
 }
 
 func (m bytesNotInSetMatcher) MatchRange(from, to any) bool {
-	return !m.slice.ContainsRange(from.([]byte), to.([]byte))
+	return !slicex.ContainsBytesRangeSorted(m.slice, from.([]byte), to.([]byte))
 }
 
 func (m bytesNotInSetMatcher) MatchFilter(_ filter.Filter) bool {
@@ -525,7 +525,7 @@ func (m bytesNotInSetMatcher) matchBlockHashMapWithMask(b *block.Block, bits, ma
 
 func (m bytesNotInSetMatcher) matchBlockSlice(b *block.Block, bits *bitset.Bitset) {
 	for i, v := range b.Bytes().Iterator() {
-		if !m.slice.Contains(v) {
+		if !slicex.ContainsBytesSorted(m.slice, v) {
 			bits.Set(i)
 		}
 	}
@@ -534,7 +534,7 @@ func (m bytesNotInSetMatcher) matchBlockSlice(b *block.Block, bits *bitset.Bitse
 func (m bytesNotInSetMatcher) matchBlockSliceWithMask(b *block.Block, bits, mask *bitset.Bitset) {
 	arr := b.Bytes()
 	for i := range mask.Iterator() {
-		if !m.slice.Contains(arr.Get(i)) {
+		if !slicex.ContainsBytesSorted(m.slice, arr.Get(i)) {
 			bits.Set(i)
 		}
 	}

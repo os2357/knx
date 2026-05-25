@@ -12,8 +12,8 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/tests"
 	etests "blockwatch.cc/knoxdb/internal/tests/engine"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/knox"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/require"
 )
@@ -59,7 +59,7 @@ func BenchmarkQuerySequential(b *testing.B) {
 					WithTag("bench").
 					WithLimit(1).
 					// WithDebug(true).
-					AndEqual("balance", util.RandInt64n(int64(sz.N))).
+					AndEqual("balance", testutil.RandInt64n(int64(sz.N))).
 					Run(context.Background())
 				if err != nil {
 					b.Fatalf("query: %v", err)
@@ -115,7 +115,7 @@ func BenchmarkQueryParallel(b *testing.B) {
 						WithTable(table).
 						WithTag("bench").
 						WithLimit(1).
-						AndEqual("balance", util.RandInt64n(int64(sz.N))).
+						AndEqual("balance", testutil.RandInt64n(int64(sz.N))).
 						Run(context.Background())
 					if err != nil {
 						b.Fatalf("query: %v", err)

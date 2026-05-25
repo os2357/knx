@@ -13,8 +13,8 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/hash"
 	"blockwatch.cc/knoxdb/internal/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/slicex"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 const MaxAllowedLlbError = 5.0
@@ -33,7 +33,7 @@ func TestZeros(t *testing.T) {
 	registers := [m]uint8{}
 	exp := 0.0
 	for i := range registers {
-		val := uint8(util.RandIntn(32))
+		val := uint8(testutil.RandIntn(32))
 		if val == 0 {
 			exp++
 		}
@@ -51,7 +51,7 @@ func TestCardinality(t *testing.T) {
 	unique := map[uint64]bool{}
 
 	for i := 1; len(unique) <= 100000; i++ {
-		val := util.RandUint64()
+		val := testutil.RandUint64()
 		llb.Add(hash.Uint64(val))
 		unique[val] = true
 
@@ -73,7 +73,7 @@ func TestPrecision(t *testing.T) {
 		for _, f := range []int{8, 9, 10, 11, 12, 13, 14, 15, 16} {
 			// now := time.Now()
 			flt := NewFilterWithPrecision(uint32(f))
-			flt.Add(hash.Vec(util.RandInts[int64](sz), nil)...)
+			flt.Add(hash.Vec(testutil.RandInts[int64](sz), nil)...)
 			c := flt.Cardinality()
 			_ = c
 			// t.Logf("F=%d SZ=%d C=%d ERR=%f RT=%s", f, sz, c, float64(sz-int(c))/float64(sz), time.Since(now))
@@ -88,7 +88,7 @@ func TestCardinalityUint32(t *testing.T) {
 	slice := make([]uint32, step)
 	var j int
 	for i := range 100000 {
-		val := uint32(util.RandIntn(i + step))
+		val := uint32(testutil.RandIntn(i + step))
 		unique[val] = true
 		slice[j] = val
 		j++
@@ -114,7 +114,7 @@ func TestCardinalityMultiUint64(t *testing.T) {
 	slice := make([]uint64, step)
 	var j int
 	for i := range 100000 {
-		val := uint64(util.RandIntn(i + step))
+		val := uint64(testutil.RandIntn(i + step))
 		unique[val] = true
 		slice[j] = val
 		j++
@@ -140,11 +140,11 @@ func TestMerge(t *testing.T) {
 	unique := map[uint64]bool{}
 
 	for i := 1; i <= 300000; i++ {
-		val := util.RandUint64()
+		val := testutil.RandUint64()
 		llb1.Add(hash.Uint64(val))
 		unique[val] = true
 
-		val = util.RandUint64()
+		val = testutil.RandUint64()
 		llb2.Add(hash.Uint64(val))
 		unique[val] = true
 	}
@@ -174,7 +174,7 @@ func TestMarshal(t *testing.T) {
 	unique := map[uint64]bool{}
 
 	for i := 1; len(unique) <= 100000; i++ {
-		val := util.RandUint64()
+		val := testutil.RandUint64()
 		llb.Add(hash.Uint64(val))
 		unique[val] = true
 	}

@@ -299,7 +299,8 @@ func (t *GenericTable[T]) Insert(ctx context.Context, val any) (uint64, int, err
 		err error
 	)
 	if t.enc == nil {
-		t.enc = schema.NewGenericEncoder[T]().WithEnums(t.Schema().Enums.Load())
+		t.enc = schema.NewGenericEncoder[T]()
+		t.enc.Schema().WithEnums(t.Schema().Enums.Load())
 	}
 	switch v := val.(type) {
 	case *T:
@@ -356,7 +357,8 @@ func (t *GenericTable[T]) Update(ctx context.Context, val any) (int, error) {
 		err error
 	)
 	if t.enc == nil {
-		t.enc = schema.NewGenericEncoder[T]().WithEnums(t.Schema().Enums.Load())
+		t.enc = schema.NewGenericEncoder[T]()
+		t.enc.Schema().WithEnums(t.Schema().Enums.Load())
 	}
 	switch v := val.(type) {
 	case *T:

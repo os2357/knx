@@ -5,12 +5,25 @@ package cmp
 
 import (
 	"math/bits"
-
-	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
-func cmp_eq[T types.Integer](src []T, val T, res []byte) int64 {
+type Integer interface {
+	int64 | int32 | int16 | int8 | uint64 | uint32 | uint16 | uint8
+}
+
+type Unsigned interface {
+	uint64 | uint32 | uint16 | uint8
+}
+
+type Float interface {
+	float64 | float32
+}
+
+type Number interface {
+	Integer | Float
+}
+
+func cmp_eq[T Integer](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -20,12 +33,12 @@ func cmp_eq[T types.Integer](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] == val
 		a4 := src[idx+3] == val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] == val
 		a2 = src[idx+5] == val
 		a3 = src[idx+6] == val
 		a4 = src[idx+7] == val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -43,7 +56,7 @@ func cmp_eq[T types.Integer](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_ne[T types.Integer](src []T, val T, res []byte) int64 {
+func cmp_ne[T Integer](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -53,12 +66,12 @@ func cmp_ne[T types.Integer](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] != val
 		a4 := src[idx+3] != val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] != val
 		a2 = src[idx+5] != val
 		a3 = src[idx+6] != val
 		a4 = src[idx+7] != val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -76,7 +89,7 @@ func cmp_ne[T types.Integer](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_lt[T types.Integer](src []T, val T, res []byte) int64 {
+func cmp_lt[T Integer](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -86,12 +99,12 @@ func cmp_lt[T types.Integer](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] < val
 		a4 := src[idx+3] < val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] < val
 		a2 = src[idx+5] < val
 		a3 = src[idx+6] < val
 		a4 = src[idx+7] < val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -109,7 +122,7 @@ func cmp_lt[T types.Integer](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_le[T types.Integer](src []T, val T, res []byte) int64 {
+func cmp_le[T Integer](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -119,12 +132,12 @@ func cmp_le[T types.Integer](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] <= val
 		a4 := src[idx+3] <= val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] <= val
 		a2 = src[idx+5] <= val
 		a3 = src[idx+6] <= val
 		a4 = src[idx+7] <= val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -142,7 +155,7 @@ func cmp_le[T types.Integer](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_gt[T types.Integer](src []T, val T, res []byte) int64 {
+func cmp_gt[T Integer](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -152,12 +165,12 @@ func cmp_gt[T types.Integer](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] > val
 		a4 := src[idx+3] > val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] > val
 		a2 = src[idx+5] > val
 		a3 = src[idx+6] > val
 		a4 = src[idx+7] > val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -175,7 +188,7 @@ func cmp_gt[T types.Integer](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_ge[T types.Integer](src []T, val T, res []byte) int64 {
+func cmp_ge[T Integer](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -185,12 +198,12 @@ func cmp_ge[T types.Integer](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] >= val
 		a4 := src[idx+3] >= val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] >= val
 		a2 = src[idx+5] >= val
 		a3 = src[idx+6] >= val
 		a4 = src[idx+7] >= val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -208,7 +221,7 @@ func cmp_ge[T types.Integer](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_bw[T types.Integer, U types.Unsigned](src []T, a, b T, res []byte) int64 {
+func cmp_bw[T Integer, U Unsigned](src []T, a, b T, res []byte) int64 {
 	diff := U(b - a)
 	var cnt int64
 	n := len(src) / 8
@@ -219,12 +232,12 @@ func cmp_bw[T types.Integer, U types.Unsigned](src []T, a, b T, res []byte) int6
 		a3 := U(src[idx+2]-a) <= diff
 		a4 := U(src[idx+3]-a) <= diff
 		// note: bitset bytes store bits inverted for efficient index algo
-		x := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		x := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = U(src[idx+4]-a) <= diff
 		a2 = U(src[idx+5]-a) <= diff
 		a3 = U(src[idx+6]-a) <= diff
 		a4 = U(src[idx+7]-a) <= diff
-		x += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		x += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = x
 		cnt += int64(bits.OnesCount8(x))
 		idx += 8

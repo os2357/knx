@@ -15,8 +15,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/store"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 )
 
@@ -291,7 +291,7 @@ func (c *Catalog) GetSchema(ctx context.Context, key uint64) (*schema.Schema, er
 	if err != nil {
 		return nil, err
 	}
-	buf, err := store.GetKey(tx, schemasKey, util.U64Bytes(key))
+	buf, err := store.GetKey(tx, schemasKey, encodeKey(key))
 	if err != nil {
 		return nil, ErrNoKey
 	}
@@ -315,7 +315,7 @@ func (c *Catalog) PutSchema(ctx context.Context, s *schema.Schema) error {
 	if err != nil {
 		return err
 	}
-	return bucket.Put(util.U64Bytes(s.Hash), buf)
+	return bucket.Put(encodeKey(s.Hash), buf)
 }
 
 func (c *Catalog) GetIndexSchema(ctx context.Context, key uint64) (*schema.IndexSchema, error) {
@@ -323,7 +323,7 @@ func (c *Catalog) GetIndexSchema(ctx context.Context, key uint64) (*schema.Index
 	if err != nil {
 		return nil, err
 	}
-	buf, err := store.GetKey(tx, schemasKey, util.U64Bytes(key))
+	buf, err := store.GetKey(tx, schemasKey, encodeKey(key))
 	if err != nil {
 		return nil, ErrNoKey
 	}
@@ -351,7 +351,7 @@ func (c *Catalog) PutIndexSchema(ctx context.Context, s *schema.IndexSchema) err
 	if err != nil {
 		return err
 	}
-	return bucket.Put(util.U64Bytes(s.Hash()), buf)
+	return bucket.Put(encodeKey(s.Hash()), buf)
 }
 
 func (c *Catalog) DelSchema(ctx context.Context, key uint64) error {
@@ -363,7 +363,7 @@ func (c *Catalog) DelSchema(ctx context.Context, key uint64) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	return bucket.Delete(util.U64Bytes(key))
+	return bucket.Delete(encodeKey(key))
 }
 
 func (c *Catalog) GetOptions(ctx context.Context, key uint64, opts any) error {
@@ -375,7 +375,7 @@ func (c *Catalog) GetOptions(ctx context.Context, key uint64, opts any) error {
 	if err != nil {
 		return err
 	}
-	buf, err := store.GetKey(tx, optionsKey, util.U64Bytes(key))
+	buf, err := store.GetKey(tx, optionsKey, encodeKey(key))
 	if err != nil {
 		return ErrNoKey
 	}
@@ -407,7 +407,7 @@ func (c *Catalog) PutOptions(ctx context.Context, key uint64, opts any) error {
 	if err != nil {
 		return err
 	}
-	return bucket.Put(util.U64Bytes(key), buf)
+	return bucket.Put(encodeKey(key), buf)
 }
 
 func (c *Catalog) DelOptions(ctx context.Context, key uint64) error {
@@ -419,7 +419,7 @@ func (c *Catalog) DelOptions(ctx context.Context, key uint64) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	return bucket.Delete(util.U64Bytes(key))
+	return bucket.Delete(encodeKey(key))
 }
 
 func (c *Catalog) ListTables(ctx context.Context) ([]uint64, error) {
@@ -432,7 +432,7 @@ func (c *Catalog) GetTable(ctx context.Context, key uint64) (s *schema.Schema, o
 	if err != nil {
 		return
 	}
-	skey, err := store.GetKey(tx, tablesKey, util.U64Bytes(key), schemaKey)
+	skey, err := store.GetKey(tx, tablesKey, encodeKey(key), schemaKey)
 	if err != nil {
 		err = ErrNoKey
 		return
@@ -463,11 +463,11 @@ func (c *Catalog) AddTable(ctx context.Context, key uint64, s *schema.Schema, o 
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	bucket, err = bucket.CreateBucket(util.U64Bytes(key))
+	bucket, err = bucket.CreateBucket(encodeKey(key))
 	if err != nil {
 		return err
 	}
-	if err := bucket.Put(schemaKey, util.U64Bytes(s.Hash)); err != nil {
+	if err := bucket.Put(schemaKey, encodeKey(s.Hash)); err != nil {
 		return err
 	}
 	if err := bucket.Put(nameKey, []byte(s.Name)); err != nil {
@@ -487,7 +487,7 @@ func (c *Catalog) DropTable(ctx context.Context, key uint64) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	bucket, err := tables.Bucket(util.U64Bytes(key))
+	bucket, err := tables.Bucket(encodeKey(key))
 	if err != nil {
 		return ErrNoTable
 	}
@@ -495,7 +495,7 @@ func (c *Catalog) DropTable(ctx context.Context, key uint64) error {
 	if err != nil {
 		return ErrNoKey
 	}
-	if err := tables.DeleteBucket(util.U64Bytes(key)); err != nil {
+	if err := tables.DeleteBucket(encodeKey(key)); err != nil {
 		return err
 	}
 	if err := c.DelOptions(ctx, key); err != nil {
@@ -514,7 +514,7 @@ func (c *Catalog) GetIndex(ctx context.Context, key uint64) (s *schema.IndexSche
 	if err != nil {
 		return
 	}
-	skey, err := store.GetKey(tx, indexesKey, util.U64Bytes(key), schemaKey)
+	skey, err := store.GetKey(tx, indexesKey, encodeKey(key), schemaKey)
 	if err != nil {
 		err = ErrNoKey
 		return
@@ -566,17 +566,17 @@ func (c *Catalog) AddIndex(ctx context.Context, ikey, tkey uint64, s *schema.Ind
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	bucket, err = bucket.CreateBucket(util.U64Bytes(ikey))
+	bucket, err = bucket.CreateBucket(encodeKey(ikey))
 	if err != nil {
 		return err
 	}
-	if err := bucket.Put(schemaKey, util.U64Bytes(s.Hash())); err != nil {
+	if err := bucket.Put(schemaKey, encodeKey(s.Hash())); err != nil {
 		return err
 	}
 	if err := bucket.Put(nameKey, []byte(s.Name)); err != nil {
 		return err
 	}
-	if err := bucket.Put(tableKey, util.U64Bytes(tkey)); err != nil {
+	if err := bucket.Put(tableKey, encodeKey(tkey)); err != nil {
 		return err
 	}
 
@@ -592,7 +592,7 @@ func (c *Catalog) DropIndex(ctx context.Context, key uint64) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	bucket, err := indexes.Bucket(util.U64Bytes(key))
+	bucket, err := indexes.Bucket(encodeKey(key))
 	if err != nil {
 		return ErrNoIndex
 	}
@@ -600,7 +600,7 @@ func (c *Catalog) DropIndex(ctx context.Context, key uint64) error {
 	if err != nil {
 		return ErrNoKey
 	}
-	if err := indexes.DeleteBucket(util.U64Bytes(key)); err != nil {
+	if err := indexes.DeleteBucket(encodeKey(key)); err != nil {
 		return err
 	}
 	if err := c.DelOptions(ctx, key); err != nil {
@@ -617,13 +617,13 @@ func (c *Catalog) ListEnums(ctx context.Context) ([]uint64, error) {
 	return c.listObjectKeys(ctx, enumsKey)
 }
 
-func (c *Catalog) GetEnum(ctx context.Context, key uint64) (e *schema.EnumDictionary, err error) {
+func (c *Catalog) GetEnum(ctx context.Context, key uint64) (e *enum.EnumDictionary, err error) {
 	var tx store.Tx
 	tx, err = GetTx(ctx).CatalogTx(c.db, false)
 	if err != nil {
 		return
 	}
-	bucket, err := store.GetBucket(tx, enumsKey, util.U64Bytes(key))
+	bucket, err := store.GetBucket(tx, enumsKey, encodeKey(key))
 	if err != nil {
 		err = ErrDatabaseCorrupt
 		return
@@ -638,17 +638,18 @@ func (c *Catalog) GetEnum(ctx context.Context, key uint64) (e *schema.EnumDictio
 		err = ErrNoKey
 		return
 	}
-	e = schema.NewEnumDictionary(string(name))
+	e = enum.NewEnumDictionary(string(name))
 	err = e.UnmarshalBinary(data)
 	return
 }
 
-func (c *Catalog) PutEnum(ctx context.Context, e *schema.EnumDictionary) error {
+func (c *Catalog) PutEnum(ctx context.Context, e *enum.EnumDictionary) error {
 	tx, err := GetTx(ctx).CatalogTx(c.db, true)
 	if err != nil {
 		return err
 	}
-	bucket, err := store.GetBucket(tx, enumsKey, util.U64Bytes(e.Tag()))
+	tag := types.TaggedHash(types.ObjectTagEnum, e.Name())
+	bucket, err := store.GetBucket(tx, enumsKey, encodeKey(tag))
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
@@ -659,7 +660,7 @@ func (c *Catalog) PutEnum(ctx context.Context, e *schema.EnumDictionary) error {
 	return bucket.Put(dataKey, buf)
 }
 
-func (c *Catalog) AddEnum(ctx context.Context, e *schema.EnumDictionary) error {
+func (c *Catalog) AddEnum(ctx context.Context, e *enum.EnumDictionary) error {
 	// create enum bucket, add enum name and data
 	tx, err := GetTx(ctx).CatalogTx(c.db, true)
 	if err != nil {
@@ -669,7 +670,8 @@ func (c *Catalog) AddEnum(ctx context.Context, e *schema.EnumDictionary) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	bucket, err := enums.CreateBucket(util.U64Bytes(e.Tag()))
+	tag := types.TaggedHash(types.ObjectTagEnum, e.Name())
+	bucket, err := enums.CreateBucket(encodeKey(tag))
 	if err != nil {
 		return err
 	}
@@ -695,7 +697,7 @@ func (c *Catalog) DropEnum(ctx context.Context, key uint64) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	if err := enums.DeleteBucket(util.U64Bytes(key)); err != nil {
+	if err := enums.DeleteBucket(encodeKey(key)); err != nil {
 		return err
 	}
 
@@ -998,4 +1000,8 @@ func (c *Catalog) decodeWalRecord(ctx context.Context, rec *wal.Record) (Object,
 		return nil, err
 	}
 	return obj, nil
+}
+
+func encodeKey(u64 uint64) []byte {
+	return binary.BigEndian.AppendUint64(nil, u64)
 }

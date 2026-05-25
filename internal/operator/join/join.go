@@ -164,16 +164,16 @@ func (p *JoinPlan) WithOn(f1, f2 *schema.Field, mode FilterMode) *JoinPlan {
 
 type JoinTable struct {
 	Table  engine.QueryableTable
-	Where  *FilterNode     // optional filter conditions for each table
-	Select *schema.Schema  // target output schema (fields from each table)
-	On     *schema.Field   // predicate
-	Typ    types.BlockType // predicate block type for cmp
-	As     []string        // alias names of output fields, in order
-	Limit  uint32          // individual table scan limit
-	Plan   *QueryPlan      // executable query plan, used/updated stepwise
-	Filter *Filter         // updatable query filter for each step
-	PkIdx  int             // schema/block index of primary key field (0 == not exist)
-	OnIdx  int             // schema/block index of the predicate `on` column
+	Where  *FilterNode      // optional filter conditions for each table
+	Select *schema.Schema   // target output schema (fields from each table)
+	On     *schema.Field    // predicate
+	Typ    filter.ValueType // predicate block type for cmp
+	As     []string         // alias names of output fields, in order
+	Limit  uint32           // individual table scan limit
+	Plan   *QueryPlan       // executable query plan, used/updated stepwise
+	Filter *Filter          // updatable query filter for each step
+	PkIdx  int              // schema/block index of primary key field (0 == not exist)
+	OnIdx  int              // schema/block index of the predicate `on` column
 }
 
 func (j JoinTable) Validate(kind string) error {
@@ -285,8 +285,8 @@ func (p *JoinPlan) Compile(ctx context.Context) error {
 	// set pk field (optimization) and remember block type
 	p.Left.PkIdx = ltab.PkIndex()
 	p.Right.PkIdx = rtab.PkIndex()
-	p.Left.Typ = p.Left.On.Type.BlockType()
-	p.Right.Typ = p.Right.On.Type.BlockType()
+	p.Left.Typ = filter.ValueType(p.Left.On.Type.BlockType())
+	p.Right.Typ = filter.ValueType(p.Right.On.Type.BlockType())
 	p.Left.OnIdx, _ = ltab.IndexId(p.Left.On.Id)
 	p.Right.OnIdx, _ = ltab.IndexId(p.Right.On.Id)
 
@@ -394,7 +394,7 @@ func (p *JoinPlan) Compile(ctx context.Context) error {
 	matcher := filter.NewFactory(pkField.Type).New(types.FilterModeGt)
 	x.Filter = &Filter{
 		Name:    pkField.Name,
-		Type:    pkBlockTyp,
+		Type:    filter.ValueType(pkBlockTyp),
 		Mode:    types.FilterModeGt,
 		Index:   x.PkIdx,
 		Id:      pkField.Id,
@@ -413,7 +413,7 @@ func (p *JoinPlan) Compile(ctx context.Context) error {
 		matcher = filter.NewFactory(joinField.Type).New(types.FilterModeIn)
 		y.Filter = &Filter{
 			Name:    joinField.Name,
-			Type:    joinBlockType,
+			Type:    filter.ValueType(joinBlockType),
 			Mode:    types.FilterModeIn,
 			Index:   y.OnIdx,
 			Id:      joinField.Id,

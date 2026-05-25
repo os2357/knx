@@ -491,14 +491,10 @@ func (r *Row) Big(col int) num.Big {
 }
 
 func (r *Row) Enum(col int) string {
-	enums := r.schema.Enums.Load()
+	enums := r.schema.Fields[col].Enum
 	if enums == nil {
 		return ""
 	}
-	enum, ok := enums.Lookup(r.schema.Fields[col].Name)
-	if !ok {
-		return ""
-	}
-	val, _ := enum.Value(r.res.pkg.Uint16(col, r.row))
+	val, _ := enums.Value(r.res.pkg.Uint16(col, r.row))
 	return val
 }

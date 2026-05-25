@@ -11,7 +11,6 @@ import (
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -98,7 +97,7 @@ var (
 		I128:    num.Int128FromInt64(1).Bytes16(),
 		I256:    num.Int256FromInt64(1).Bytes32(),
 		Bool:    true,
-		Time:    util.MustParseTime("2026-06-07T02:00:01Z").Unix(),
+		Time:    time.Date(2026, 6, 7, 2, 0, 1, 0, time.UTC).Unix(),
 		Hash:    []byte{0x78, 0x78, 0x78},
 		Array:   [2]byte{0x41, 0x41},
 		String:  "sss",

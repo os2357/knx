@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	etests "blockwatch.cc/knoxdb/internal/encode/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,7 +143,7 @@ func testFloatContainerEncode[T types.Float](t *testing.T, scheme ContainerType)
 			assert.Equal(t, c.Data, dst)
 
 			// validate append selector
-			sel := util.RandUintsn[uint32](len(c.Data)/2, uint32(len(c.Data)))
+			sel := testutil.RandUintsn[uint32](len(c.Data)/2, uint32(len(c.Data)))
 			clear(dst)
 			dst = dst[:0]
 			dst = enc2.AppendTo(dst, sel)
@@ -271,7 +271,7 @@ func testFloatContainerIterator[T types.Float](t *testing.T, scheme ContainerTyp
 			//
 			it = enc.Chunks()
 			for range len(src) {
-				i := util.RandIntn(len(src))
+				i := testutil.RandIntn(len(src))
 				ok := it.Seek(i)
 				require.True(t, ok, "seek to existing pos %d/%d failed", i, len(src))
 				vals, n := it.NextChunk()

@@ -9,6 +9,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	etests "blockwatch.cc/knoxdb/internal/encode/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/util"
@@ -63,7 +64,7 @@ func TestBitmapEncode(t *testing.T) {
 			require.Equal(t, c.Data.Bytes(), dst.Bytes())
 
 			// validate append selector
-			sel := util.RandUintsn[uint32](max(1, c.N/2), uint32(c.N))
+			sel := testutil.RandUintsn[uint32](max(1, c.N/2), uint32(c.N))
 			enc2.AppendTo(dst.Resize(0), sel)
 			require.Equal(t, len(sel), dst.Len())
 			for i, v := range sel {
@@ -142,7 +143,7 @@ func MakeBitmapTests(n int) []TestCaseBitmap {
 		{"one", n, bitset.New(n).One()},
 		{"dense", n, bitset.New(n).SetIndexes(seq(n/2, 2))},
 		{"sparse", n, bitset.New(n).SetIndexes(seq(n/32, 32))},
-		{"rand", n, bitset.New(n).SetIndexes(slicex.Unique(util.RandIntsn(n, n)))},
+		{"rand", n, bitset.New(n).SetIndexes(slicex.Unique(testutil.RandIntsn(n, n)))},
 	}
 }
 

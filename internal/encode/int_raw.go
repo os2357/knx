@@ -4,6 +4,7 @@
 package encode
 
 import (
+	stdcmp "cmp"
 	"fmt"
 	"iter"
 	"slices"
@@ -87,7 +88,7 @@ func (c *RawContainer[T]) Load(buf []byte) ([]byte, error) {
 	v, n := num.Uvarint(buf)
 	buf = buf[n:]
 	c.sz = util.SizeOf[T]()
-	c.typ = BlockType[T]()
+	c.typ = AsBlockType[T]()
 	n = int(v) * c.sz
 	c.Values = util.FromByteSlice[T](buf[:n])
 	return buf[n:], nil
@@ -111,12 +112,12 @@ func (c *RawContainer[T]) AppendTo(dst []T, sel []uint32) []T {
 func (c *RawContainer[T]) Encode(ctx *Context[T], vals []T) NumberContainer[T] {
 	c.Values = slices.Clone(vals)
 	c.sz = util.SizeOf[T]()
-	c.typ = BlockType[T]()
+	c.typ = AsBlockType[T]()
 	return c
 }
 
 func (c *RawContainer[T]) Cmp(i, j int) int {
-	return util.Cmp(c.Values[i], c.Values[j])
+	return stdcmp.Compare(c.Values[i], c.Values[j])
 }
 
 func (c *RawContainer[T]) MatchEqual(val T, bits, _ *Bitset) {

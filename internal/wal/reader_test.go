@@ -18,7 +18,7 @@ import (
 // ensuring that only records matching the specified criteria are returned.
 func TestReaderFilter(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	// Write test records
@@ -69,7 +69,7 @@ func TestReaderFilter(t *testing.T) {
 // verifying that it can accurately locate and read records from different LSNs
 func TestReaderSeek(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	records := []*Record{
@@ -118,13 +118,13 @@ func TestReaderSeek(t *testing.T) {
 // TestReaderSeekInvalidLSN tests the WAL's behavior when attempting to seek to or read
 // from invalid LSNs, ensuring proper error handling and system stability.
 func TestReaderSeekInvalidLSN(t *testing.T) {
-	opts := WalOptions{
-		Path:           t.TempDir(),
-		MaxSegmentSize: SEG_FILE_MINSIZE,
-		Seed:           12345,
+	opts := []Option{
+		WithPath(t.TempDir()),
+		WithMaxSegmentSize(SEG_FILE_MINSIZE),
+		WithSeed(12345),
 	}
 
-	w, err := Create(opts)
+	w, err := Create(opts...)
 	require.NoError(t, err, "Failed to create WAL")
 	defer w.Close()
 
@@ -145,8 +145,8 @@ func TestReaderSeekInvalidLSN(t *testing.T) {
 		name string
 		lsn  LSN
 	}{
-		{"OutOfBoundsSegment", LSN(100 * opts.MaxSegmentSize)},
-		{"OutOfBoundsOffset", LSN(opts.MaxSegmentSize + 100)},
+		{"OutOfBoundsSegment", LSN(100 * w.opts.MaxSegmentSize)},
+		{"OutOfBoundsOffset", LSN(w.opts.MaxSegmentSize + 100)},
 	}
 
 	for _, tc := range invalidLSNs {
@@ -184,7 +184,7 @@ func TestReaderSeekInvalidLSN(t *testing.T) {
 // iterate through records in the log and handle reaching the end of the log.
 func TestReaderNext(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	// Write some test records
@@ -219,7 +219,7 @@ func TestReaderNext(t *testing.T) {
 // simultaneously, ensuring that they can read records independently and correctly.
 func TestTwoSimultaneousReaders(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	// Write some records
@@ -277,7 +277,7 @@ func TestTwoSimultaneousReaders(t *testing.T) {
 // when multiple readers are concurrently accessing a large dataset.
 func TestConcurrentReadersLargeDataset(t *testing.T) {
 	opts := createWalOptions(t)
-	w := createWal(t, opts)
+	w := createWal(t, opts...)
 	defer w.Close()
 
 	// Write a large number of records
@@ -345,7 +345,7 @@ func TestConcurrentReadersLargeDataset(t *testing.T) {
 // BenchmarkWalRead tests reading records from the WAL.
 func BenchmarkWalRead(b *testing.B) {
 	opts := createWalOptions(b)
-	w := createWal(b, opts)
+	w := createWal(b, opts...)
 	defer w.Close()
 
 	// Write records

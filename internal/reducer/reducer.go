@@ -4,23 +4,22 @@
 package reducer
 
 import (
-	"golang.org/x/exp/constraints"
-
 	"fmt"
 	"math"
 	"strings"
 	"time"
+
+	"blockwatch.cc/knoxdb/internal/types"
 )
 
-type Number interface {
-	constraints.Integer | constraints.Float
-}
+type (
+	Number   = types.Number
+	Signed   = types.Signed
+	Unsigned = types.Unsigned
+	Float    = types.Float
 
-type Signed = constraints.Signed
-type Unsigned = constraints.Unsigned
-type Float = constraints.Float
-
-type ReducerFunc string
+	ReducerFunc string
+)
 
 const (
 	ReducerFuncInvalid ReducerFunc = ""
@@ -79,7 +78,7 @@ func (f ReducerFunc) MarshalText() ([]byte, error) {
 func (f *ReducerFunc) UnmarshalText(data []byte) error {
 	fn := ParseReducerFunc(string(data))
 	if !fn.IsValid() {
-		return fmt.Errorf("invalid reducer function '%s'", string(data))
+		return fmt.Errorf("invalid reducer function %q", string(data))
 	}
 	*f = fn
 	return nil

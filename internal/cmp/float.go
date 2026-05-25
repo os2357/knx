@@ -5,12 +5,9 @@ package cmp
 
 import (
 	"math/bits"
-
-	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
-func cmp_eq_f[T types.Float](src []T, val T, res []byte) int64 {
+func cmp_eq_f[T Float](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -20,12 +17,12 @@ func cmp_eq_f[T types.Float](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] == val
 		a4 := src[idx+3] == val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] == val
 		a2 = src[idx+5] == val
 		a3 = src[idx+6] == val
 		a4 = src[idx+7] == val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -43,7 +40,7 @@ func cmp_eq_f[T types.Float](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_ne_f[T types.Float](src []T, val T, res []byte) int64 {
+func cmp_ne_f[T Float](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -53,12 +50,12 @@ func cmp_ne_f[T types.Float](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] != val
 		a4 := src[idx+3] != val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] != val
 		a2 = src[idx+5] != val
 		a3 = src[idx+6] != val
 		a4 = src[idx+7] != val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -76,7 +73,7 @@ func cmp_ne_f[T types.Float](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_lt_f[T types.Float](src []T, val T, res []byte) int64 {
+func cmp_lt_f[T Float](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -86,12 +83,12 @@ func cmp_lt_f[T types.Float](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] < val
 		a4 := src[idx+3] < val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] < val
 		a2 = src[idx+5] < val
 		a3 = src[idx+6] < val
 		a4 = src[idx+7] < val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -109,7 +106,7 @@ func cmp_lt_f[T types.Float](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_le_f[T types.Float](src []T, val T, res []byte) int64 {
+func cmp_le_f[T Float](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -119,12 +116,12 @@ func cmp_le_f[T types.Float](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] <= val
 		a4 := src[idx+3] <= val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] <= val
 		a2 = src[idx+5] <= val
 		a3 = src[idx+6] <= val
 		a4 = src[idx+7] <= val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -142,7 +139,7 @@ func cmp_le_f[T types.Float](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_gt_f[T types.Float](src []T, val T, res []byte) int64 {
+func cmp_gt_f[T Float](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -152,12 +149,12 @@ func cmp_gt_f[T types.Float](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] > val
 		a4 := src[idx+3] > val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] > val
 		a2 = src[idx+5] > val
 		a3 = src[idx+6] > val
 		a4 = src[idx+7] > val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -175,7 +172,7 @@ func cmp_gt_f[T types.Float](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_ge_f[T types.Float](src []T, val T, res []byte) int64 {
+func cmp_ge_f[T Float](src []T, val T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -185,12 +182,12 @@ func cmp_ge_f[T types.Float](src []T, val T, res []byte) int64 {
 		a3 := src[idx+2] >= val
 		a4 := src[idx+3] >= val
 		// note: bitset bytes store bits inverted for efficient index algo
-		b := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		b := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = src[idx+4] >= val
 		a2 = src[idx+5] >= val
 		a3 = src[idx+6] >= val
 		a4 = src[idx+7] >= val
-		b += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		b += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = b
 		cnt += int64(bits.OnesCount8(b))
 		idx += 8
@@ -208,7 +205,7 @@ func cmp_ge_f[T types.Float](src []T, val T, res []byte) int64 {
 	return cnt
 }
 
-func cmp_bw_f[T types.Float](src []T, a, b T, res []byte) int64 {
+func cmp_bw_f[T Float](src []T, a, b T, res []byte) int64 {
 	var cnt int64
 	n := len(src) / 8
 	var idx int
@@ -218,12 +215,12 @@ func cmp_bw_f[T types.Float](src []T, a, b T, res []byte) int64 {
 		a3 := a <= src[idx+2] && src[idx+2] <= b
 		a4 := a <= src[idx+3] && src[idx+3] <= b
 		// note: bitset bytes store bits inverted for efficient index algo
-		x := util.Bool2byte(a1) + util.Bool2byte(a2)<<1 + util.Bool2byte(a3)<<2 + util.Bool2byte(a4)<<3
+		x := Bool2byte(a1) + Bool2byte(a2)<<1 + Bool2byte(a3)<<2 + Bool2byte(a4)<<3
 		a1 = a <= src[idx+4] && src[idx+4] <= b
 		a2 = a <= src[idx+5] && src[idx+5] <= b
 		a3 = a <= src[idx+6] && src[idx+6] <= b
 		a4 = a <= src[idx+7] && src[idx+7] <= b
-		x += util.Bool2byte(a1)<<4 + util.Bool2byte(a2)<<5 + util.Bool2byte(a3)<<6 + util.Bool2byte(a4)<<7
+		x += Bool2byte(a1)<<4 + Bool2byte(a2)<<5 + Bool2byte(a3)<<6 + Bool2byte(a4)<<7
 		res[i] = x
 		cnt += int64(bits.OnesCount8(x))
 		idx += 8

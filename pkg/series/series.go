@@ -14,8 +14,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/query"
 	"blockwatch.cc/knoxdb/internal/reducer"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 )
 
 type Result struct {
@@ -23,9 +22,9 @@ type Result struct {
 	groups   []string
 	table    string
 	groupBy  string
-	cols     util.StringList
-	interval util.TimeRange
-	window   util.TimeUnit
+	cols     StringList
+	interval reducer.TimeRange
+	window   reducer.TimeUnit
 	fill     reducer.FillMode
 }
 
@@ -63,10 +62,16 @@ func (r Result) MarshalJSON() ([]byte, error) {
 			buf.WriteRune(',')
 		}
 		// name
-		buf.WriteString(`{"name":"` + r.table + `",`)
+		buf.WriteString(`{"name":"`)
+		buf.WriteString(r.table)
+		buf.WriteString(`",`)
 		// tags
 		if group != "" {
-			buf.WriteString(`"tags":{` + strconv.Quote(r.groupBy) + `:` + strconv.Quote(group) + `},`)
+			buf.WriteString(`"tags":{`)
+			buf.WriteString(strconv.Quote(r.groupBy))
+			buf.WriteByte(':')
+			buf.WriteString(strconv.Quote(group))
+			buf.WriteString(`},`)
 		}
 		// columns
 		buf.WriteString(`"columns":[`)
@@ -166,7 +171,7 @@ func (req Request) RunQuery(ctx context.Context, plan *query.QueryPlan) (*Result
 	// identify groupBy column
 	var (
 		groupByIndex = -1
-		groupByEnum  *schema.EnumDictionary
+		groupByEnum  *enum.EnumDictionary
 	)
 	if req.GroupBy != "" {
 		groupByIndex, ok = plan.ResultSchema.Index(req.GroupBy)
@@ -177,8 +182,8 @@ func (req Request) RunQuery(ctx context.Context, plan *query.QueryPlan) (*Result
 		if !ok {
 			return nil, fmt.Errorf("unknown group_by field %q", req.GroupBy)
 		}
-		groupByEnum, ok = req.table.Schema().Enums.Load().Lookup(f.Name)
-		if !ok {
+		groupByEnum = f.Enum
+		if groupByEnum == nil {
 			return nil, fmt.Errorf("missing enum dictionary for field %q", req.GroupBy)
 		}
 	} else {
@@ -221,7 +226,7 @@ func (req Request) RunQuery(ctx context.Context, plan *query.QueryPlan) (*Result
 			}
 			// try any -> string conversion next
 			if len(groupName) == 0 {
-				groupName = util.ToString(group)
+				groupName = fmt.Sprintf("%v", group)
 			}
 
 			if groupBuckets, ok := res.buckets[groupName]; ok {

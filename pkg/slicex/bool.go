@@ -3,7 +3,7 @@
 
 package slicex
 
-func UniqueBools(s []bool) []bool {
+func UniqueBool(s []bool) []bool {
 	if len(s) == 0 {
 		return s
 	}

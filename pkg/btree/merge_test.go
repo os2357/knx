@@ -7,7 +7,7 @@ import (
 	"iter"
 	"testing"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -513,7 +513,7 @@ func TestMerge_RandomKeysWithDeletes(t *testing.T) {
 		keySet := make(map[string]struct{})
 		var allKeys []string
 		for len(allKeys) < n {
-			k := util.RandString(16)
+			k := testutil.RandString(16)
 			if _, ok := keySet[k]; !ok {
 				keySet[k] = struct{}{}
 				allKeys = append(allKeys, k)

@@ -8,8 +8,8 @@ import (
 	"math"
 	"time"
 
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -129,7 +129,7 @@ func (v View) Get(i int) (val any, ok bool) {
 	}
 	switch field.Type {
 	case FT_TIMESTAMP, FT_TIME, FT_DATE:
-		val, ok = TimeScale(field.Scale).FromUnix(int64(LE.Uint64(v.buf[x:y]))), true
+		val, ok = types.TimeScale(field.Scale).FromUnix(int64(LE.Uint64(v.buf[x:y]))), true
 	case FT_I64:
 		val, ok = int64(LE.Uint64(v.buf[x:y])), true
 	case FT_U64:
@@ -234,7 +234,7 @@ func (v View) Append(val any, i int) any {
 		if val == nil {
 			val = make([]time.Time, 0)
 		}
-		val = append(val.([]time.Time), TimeScale(field.Scale).FromUnix(int64(LE.Uint64(v.buf[x:y]))))
+		val = append(val.([]time.Time), types.TimeScale(field.Scale).FromUnix(int64(LE.Uint64(v.buf[x:y]))))
 	case FT_I64:
 		if val == nil {
 			val = make([]int64, 0)
@@ -370,7 +370,7 @@ func (v View) Set(i int, val any) {
 		// unsupported, may alter length
 	case FT_TIMESTAMP, FT_TIME, FT_DATE:
 		if tm, ok := val.(time.Time); ok {
-			LE.PutUint64(v.buf[x:y], uint64(TimeScale(field.Scale).ToUnix(tm)))
+			LE.PutUint64(v.buf[x:y], uint64(types.TimeScale(field.Scale).ToUnix(tm)))
 		}
 	case FT_I64:
 		if i64, ok := val.(int64); ok {

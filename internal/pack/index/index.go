@@ -92,7 +92,7 @@ func (idx *Index) Create(ctx context.Context, t engine.TableEngine, s *schema.In
 	idx.engine = engine.GetEngine(ctx)
 	idx.sindex = s
 	idx.sstore = sout
-	idx.id = s.TaggedHash(types.ObjectTagIndex)
+	idx.id = types.TaggedHash(types.ObjectTagIndex, s.Name)
 	idx.name = s.Name
 	idx.opts = opts
 	idx.table = t
@@ -178,7 +178,7 @@ func (idx *Index) Open(ctx context.Context, t engine.TableEngine, s *schema.Inde
 	idx.engine = engine.GetEngine(ctx)
 	idx.sindex = s
 	idx.sstore = sout
-	idx.id = s.TaggedHash(types.ObjectTagIndex)
+	idx.id = types.TaggedHash(types.ObjectTagIndex, s.Name)
 	idx.name = s.Name
 	idx.opts = defaultIndexOptions.Apply(options...)
 	idx.table = t

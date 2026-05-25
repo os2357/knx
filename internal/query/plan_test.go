@@ -6,6 +6,7 @@ package query
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -17,8 +18,9 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/bitmap"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/cast"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/slicex"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +28,7 @@ import (
 var (
 	testSchema      *schema.Schema
 	testIndexSchema *schema.IndexSchema
-	testEnums       *schema.EnumRegistry
+	testEnums       *enum.EnumRegistry
 )
 
 func init() {
@@ -38,11 +40,12 @@ func init() {
 	testSchema = testSchema.WithMeta()
 	testIndexSchema = testSchema.Indexes[1] // hash index on name
 
-	statusEnum := schema.NewEnumDictionary("status")
+	statusEnum := enum.NewEnumDictionary("status")
 	statusEnum.Append("active", "pending", "inactive")
+	statusTag := types.TaggedHash(types.ObjectTagEnum, "status")
 
-	testEnums = schema.NewEnumRegistry()
-	testEnums.Register(statusEnum)
+	testEnums = enum.NewEnumRegistry()
+	testEnums.Register(statusTag, statusEnum)
 	testSchema.WithEnums(testEnums)
 }
 
@@ -100,7 +103,7 @@ func IsFilterEqual(a, b *filter.Node) bool {
 		if a.Filter.Mode != b.Filter.Mode {
 			return false
 		}
-		if util.ToString(a.Filter.Value) != util.ToString(b.Filter.Value) {
+		if fmt.Sprintf("%v", a.Filter.Value) != fmt.Sprintf("%v", b.Filter.Value) {
 			return false
 		}
 	} else {
@@ -577,12 +580,12 @@ func makeNode(field *schema.Field, idx int, mode types.FilterMode, value any) *f
 		Mode:    mode,
 		Index:   idx,
 		Id:      field.Id,
-		Type:    blockType,
+		Type:    filter.ValueType(blockType),
 		Value:   value,
 		Matcher: filter.NewFactory(field.Type).New(mode),
 	}
 
-	caster := schema.NewCaster(field.Type, field.Scale, nil)
+	caster := cast.NewCaster(field.Type, field.Scale, nil)
 
 	// Handle different modes appropriately
 	switch mode {
@@ -596,7 +599,7 @@ func makeNode(field *schema.Field, idx int, mode types.FilterMode, value any) *f
 		if err != nil {
 			panic(err)
 		}
-		f.Value = blockType.Unique(v)
+		f.Value = filter.ValueType(blockType).Unique(v)
 		f.Matcher.WithSlice(f.Value)
 	case types.FilterModeRange:
 		rg, ok := value.(filter.RangeValue)

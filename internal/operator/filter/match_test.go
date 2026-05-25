@@ -10,10 +10,10 @@ import (
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/slicex"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,33 +48,33 @@ var (
 func makeRandomValue(typ BlockType) any {
 	switch typ {
 	case BlockInt64:
-		return util.RandInt64()
+		return testutil.RandInt64()
 	case BlockInt32:
-		return util.RandInt32()
+		return testutil.RandInt32()
 	case BlockInt16:
-		return int16(util.RandInt32())
+		return int16(testutil.RandInt32())
 	case BlockInt8:
-		return int8(util.RandInt32())
+		return int8(testutil.RandInt32())
 	case BlockUint64:
-		return util.RandUint64()
+		return testutil.RandUint64()
 	case BlockUint32:
-		return util.RandUint32()
+		return testutil.RandUint32()
 	case BlockUint16:
-		return uint16(util.RandUint32())
+		return uint16(testutil.RandUint32())
 	case BlockUint8:
-		return uint8(util.RandUint32())
+		return uint8(testutil.RandUint32())
 	case BlockFloat64:
-		return util.RandFloat64()
+		return testutil.RandFloat64()
 	case BlockFloat32:
-		return util.RandFloat32()
+		return testutil.RandFloat32()
 	case BlockBool:
-		return util.RandIntn(2) == 1
+		return testutil.RandIntn(2) == 1
 	case BlockBytes:
-		return util.RandBytes(8)
+		return testutil.RandBytes(8)
 	case BlockInt128:
-		return num.Int128From2Int64(util.RandInt64(), util.RandInt64())
+		return num.Int128From2Int64(testutil.RandInt64(), testutil.RandInt64())
 	case BlockInt256:
-		return num.Int256From4Int64(util.RandInt64(), util.RandInt64(), util.RandInt64(), util.RandInt64())
+		return num.Int256From4Int64(testutil.RandInt64(), testutil.RandInt64(), testutil.RandInt64(), testutil.RandInt64())
 	default:
 		return nil
 	}
@@ -85,33 +85,33 @@ func makeRandomBlock(typ BlockType, sz int) *block.Block {
 	for range sz {
 		switch typ {
 		case BlockInt64:
-			b.Int64().Append(util.RandInt64())
+			b.Int64().Append(testutil.RandInt64())
 		case BlockInt32:
-			b.Int32().Append(util.RandInt32())
+			b.Int32().Append(testutil.RandInt32())
 		case BlockInt16:
-			b.Int16().Append(int16(util.RandInt32()))
+			b.Int16().Append(int16(testutil.RandInt32()))
 		case BlockInt8:
-			b.Int8().Append(int8(util.RandInt32()))
+			b.Int8().Append(int8(testutil.RandInt32()))
 		case BlockUint64:
-			b.Uint64().Append(util.RandUint64())
+			b.Uint64().Append(testutil.RandUint64())
 		case BlockUint32:
-			b.Uint32().Append(util.RandUint32())
+			b.Uint32().Append(testutil.RandUint32())
 		case BlockUint16:
-			b.Uint16().Append(uint16(util.RandUint32()))
+			b.Uint16().Append(uint16(testutil.RandUint32()))
 		case BlockUint8:
-			b.Uint8().Append(uint8(util.RandUint32()))
+			b.Uint8().Append(uint8(testutil.RandUint32()))
 		case BlockFloat64:
-			b.Float64().Append(util.RandFloat64())
+			b.Float64().Append(testutil.RandFloat64())
 		case BlockFloat32:
-			b.Float32().Append(util.RandFloat32())
+			b.Float32().Append(testutil.RandFloat32())
 		case BlockBool:
-			b.Bool().Append(util.RandIntn(2) == 1)
+			b.Bool().Append(testutil.RandIntn(2) == 1)
 		case BlockBytes:
-			b.Bytes().Append(util.RandBytes(8))
+			b.Bytes().Append(testutil.RandBytes(8))
 		case BlockInt128:
-			b.Int128().Append(num.Int128From2Int64(util.RandInt64(), util.RandInt64()))
+			b.Int128().Append(num.Int128From2Int64(testutil.RandInt64(), testutil.RandInt64()))
 		case BlockInt256:
-			b.Int256().Append(num.Int256From4Int64(util.RandInt64(), util.RandInt64(), util.RandInt64(), util.RandInt64()))
+			b.Int256().Append(num.Int256From4Int64(testutil.RandInt64(), testutil.RandInt64(), testutil.RandInt64(), testutil.RandInt64()))
 		}
 	}
 	return b
@@ -128,14 +128,14 @@ func TestMatchValue(t *testing.T) {
 				require.Equal(t, v1, m.Value(), "set/get")
 				require.Equal(t, 1, m.Len(), "len")
 				require.Equal(t,
-					typ.Match(mode, v1, v1),
+					ValueType(typ).Match(mode, v1, v1),
 					m.MatchValue(v1),
-					"match %v %s %v = %t", v1, mode, v1, typ.Match(mode, v1, v1),
+					"match %v %s %v = %t", v1, mode, v1, ValueType(typ).Match(mode, v1, v1),
 				)
 				require.Equal(t,
-					typ.Match(mode, v2, v1),
+					ValueType(typ).Match(mode, v2, v1),
 					m.MatchValue(v2),
-					"match %v %s %v = %t", v2, mode, v1, typ.Match(mode, v2, v1),
+					"match %v %s %v = %t", v2, mode, v1, ValueType(typ).Match(mode, v2, v1),
 				)
 			}
 		}

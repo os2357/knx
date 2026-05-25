@@ -1,10 +1,9 @@
-// Copyright (c) 2018-2020 Blockwatch Data Inc.
+// Copyright (c) 2018-2026 Blockwatch Data Inc.
 // Author: alex@blockwatch.cc
 
 package util
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -37,8 +36,6 @@ func PrettyString(s string) string {
 		if i > -1 {
 			rem = s[i:]
 			s = s[:i]
-			// } else {
-			// 	i = 0
 		}
 		l = len(s)
 		p := s[:l%3]
@@ -53,6 +50,10 @@ func PrettyString(s string) string {
 		s = p[:len(p)-2] + rem
 	}
 	return s
+}
+
+type Stringer interface {
+	String() string
 }
 
 func Pretty(val any) string {
@@ -77,7 +78,9 @@ func Pretty(val any) string {
 		return PrettyString(v)
 	case time.Duration:
 		return PrettyInt64(int64(v))
+	case Stringer:
+		return v.String()
 	default:
-		return fmt.Sprintf("%v", val)
+		return "<?>"
 	}
 }

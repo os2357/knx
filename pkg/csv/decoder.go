@@ -15,9 +15,9 @@ import (
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/pack"
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/stringx"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
@@ -383,7 +383,7 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 		switch f.Type {
 		case types.FieldTypeTimestamp:
 			if d.timeAs == "" {
-				tm, err := schema.TimeScale(f.Scale).Parse(line[i], false)
+				tm, err := types.TimeScale(f.Scale).Parse(line[i], false)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -393,11 +393,11 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
-				*(*int64)(ptr) = schema.TimeScale(f.Scale).ToUnix(tm)
+				*(*int64)(ptr) = types.TimeScale(f.Scale).ToUnix(tm)
 			}
 		case types.FieldTypeDate:
 			if d.dateAs == "" {
-				tm, err := schema.TimeScale(f.Scale).Parse(line[i], false)
+				tm, err := types.TimeScale(f.Scale).Parse(line[i], false)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -407,11 +407,11 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
-				*(*int64)(ptr) = schema.TimeScale(f.Scale).ToUnix(tm)
+				*(*int64)(ptr) = types.TimeScale(f.Scale).ToUnix(tm)
 			}
 		case types.FieldTypeTime:
 			if d.timeAs == "" {
-				tm, err := schema.TimeScale(f.Scale).Parse(line[i], true)
+				tm, err := types.TimeScale(f.Scale).Parse(line[i], true)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -421,7 +421,7 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
-				*(*int64)(ptr) = schema.TimeScale(f.Scale).ToUnix(tm)
+				*(*int64)(ptr) = types.TimeScale(f.Scale).ToUnix(tm)
 			}
 		case types.FieldTypeInt64:
 			val, err := strconv.ParseInt(line[i], 10, 64)
@@ -596,7 +596,7 @@ func (d *Decoder) decodeLogical(base unsafe.Pointer, line []string) error {
 		switch f.Type {
 		case types.FieldTypeTimestamp:
 			if d.timeAs == "" {
-				tm, err := schema.TimeScale(f.Scale).ParseTime(line[i], false)
+				tm, err := types.TimeScale(f.Scale).ParseTime(line[i], false)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -610,7 +610,7 @@ func (d *Decoder) decodeLogical(base unsafe.Pointer, line []string) error {
 			}
 		case types.FieldTypeDate:
 			if d.dateAs == "" {
-				tm, err := schema.TimeScale(f.Scale).ParseTime(line[i], false)
+				tm, err := types.TimeScale(f.Scale).ParseTime(line[i], false)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -624,7 +624,7 @@ func (d *Decoder) decodeLogical(base unsafe.Pointer, line []string) error {
 			}
 		case types.FieldTypeTime:
 			if d.timeAs == "" {
-				tm, err := schema.TimeScale(f.Scale).ParseTime(line[i], true)
+				tm, err := types.TimeScale(f.Scale).ParseTime(line[i], true)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -854,7 +854,7 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 		switch f.Type {
 		case types.FieldTypeTimestamp:
 			if d.timeAs == "" {
-				tm, err := schema.TimeScale(f.Scale).Parse(line[i], false)
+				tm, err := types.TimeScale(f.Scale).Parse(line[i], false)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -864,12 +864,12 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
-				b.Int64().Append(schema.TimeScale(f.Scale).ToUnix(tm))
+				b.Int64().Append(types.TimeScale(f.Scale).ToUnix(tm))
 			}
 
 		case types.FieldTypeDate:
 			if d.dateAs == "" {
-				tm, err := schema.TimeScale(f.Scale).Parse(line[i], false)
+				tm, err := types.TimeScale(f.Scale).Parse(line[i], false)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -879,12 +879,12 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
-				b.Int64().Append(schema.TimeScale(f.Scale).ToUnix(tm))
+				b.Int64().Append(types.TimeScale(f.Scale).ToUnix(tm))
 			}
 
 		case types.FieldTypeTime:
 			if d.timeAs == "" {
-				tm, err := schema.TimeScale(f.Scale).Parse(line[i], true)
+				tm, err := types.TimeScale(f.Scale).Parse(line[i], true)
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -894,7 +894,7 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
-				b.Int64().Append(schema.TimeScale(f.Scale).ToUnix(tm))
+				b.Int64().Append(types.TimeScale(f.Scale).ToUnix(tm))
 			}
 
 		case types.FieldTypeInt64:

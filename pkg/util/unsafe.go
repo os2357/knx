@@ -9,18 +9,29 @@ import (
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/arena"
-	"golang.org/x/exp/constraints"
 )
 
+type Signed interface {
+	int8 | int16 | int32 | int64
+}
+
+type Unsigned interface {
+	uint8 | uint16 | uint32 | uint64
+}
+
 type Integer interface {
-	int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64
+	Signed | Unsigned
+}
+
+type Float interface {
+	float32 | float64
 }
 
 type Number interface {
-	Integer | float32 | float64
+	Integer | Float
 }
 
-func SizeOf[T constraints.Integer | constraints.Float]() int {
+func SizeOf[T Number]() int {
 	return int(unsafe.Sizeof(T(0)))
 }
 

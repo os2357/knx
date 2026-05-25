@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"blockwatch.cc/knoxdb/internal/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,10 +33,10 @@ var (
 func RandInt256Slice(n int) Int256Slice {
 	s := make([]Int256, n)
 	for i := range n {
-		s[i][0] = util.RandUint64()
-		s[i][1] = util.RandUint64()
-		s[i][2] = util.RandUint64()
-		s[i][3] = util.RandUint64()
+		s[i][0] = testutil.RandUint64()
+		s[i][1] = testutil.RandUint64()
+		s[i][2] = testutil.RandUint64()
+		s[i][3] = testutil.RandUint64()
 	}
 	return s
 }

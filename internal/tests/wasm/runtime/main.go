@@ -17,8 +17,8 @@ import (
 	"slices"
 	"strings"
 
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/tests/wasm/vfs"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/experimental/sysfs"
@@ -43,7 +43,7 @@ func run() error {
 		return err
 	}
 	if !randomize && seed == "" {
-		return fmt.Errorf("missing random seed, set %s env var", util.GORANDSEED)
+		return fmt.Errorf("missing random seed, set %s env var", testutil.GORANDSEED)
 	}
 
 	// setup logging
@@ -58,7 +58,7 @@ func run() error {
 	plog := log.NewProgressLogger(log.Log).SetEvent("test")
 
 	// init pseudo-random generator from main seed
-	seed = fmt.Sprintf("0x%016x", util.RandSeed())
+	seed = fmt.Sprintf("0x%016x", testutil.RandSeed())
 
 	log.Infof("WASM runtime wazero/%s %s %s/%s",
 		getWazeroVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
@@ -144,10 +144,10 @@ func run() error {
 	// Instantiate the guest Wasm into the same runtime.
 	for i := 0; i < runs; i++ {
 		if randomize {
-			seed = fmt.Sprintf("0x%016x", util.RandUint64())
+			seed = fmt.Sprintf("0x%016x", testutil.RandUint64())
 		}
 		log.Debugf("Using random seed %s", seed)
-		config = config.WithEnv(util.GORANDSEED, seed)
+		config = config.WithEnv(testutil.GORANDSEED, seed)
 
 		mod, err := r.InstantiateModule(ctx, compiledModule, config)
 		if err != nil {

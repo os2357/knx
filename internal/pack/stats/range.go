@@ -251,8 +251,8 @@ func buildRangeIndex[T constraints.Integer](src []T, minVal, maxVal T) *RangeInd
 }
 
 // Returns calculated slot and whether val underflows (val<min).
-func getSlotTyped(typ types.BlockType, val, minVal any) (int, bool) {
-	switch typ {
+func getSlotTyped(typ filter.ValueType, val, minVal any) (int, bool) {
+	switch types.BlockType(typ) {
 	case types.BlockInt64:
 		return getSlot(val.(int64), minVal.(int64))
 	case types.BlockInt32:

@@ -4,16 +4,15 @@
 package filter
 
 import (
+	"fmt"
 	"strings"
 
-	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 type (
 	FilterMode = types.FilterMode
-	BlockType  = block.BlockType
+	BlockType  = types.BlockType
 	FieldType  = types.FieldType
 )
 
@@ -56,9 +55,9 @@ type RangeValue [2]any
 func (r RangeValue) String() string {
 	var b strings.Builder
 	b.WriteByte('[')
-	b.WriteString(util.ToString(r[0]))
+	fmt.Fprintf(&b, "%v", r[0])
 	b.WriteByte(',')
-	b.WriteString(util.ToString(r[1]))
+	fmt.Fprintf(&b, "%v", r[1])
 	b.WriteByte(']')
 	return b.String()
 }

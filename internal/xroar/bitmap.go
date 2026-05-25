@@ -27,7 +27,7 @@ import (
 	"strings"
 	"sync"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/pkg/slicex"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/constraints"
 )
@@ -112,7 +112,7 @@ func NewFromBytes(src []byte) *Bitmap {
 }
 
 func NewFromIndexes[T constraints.Integer](src []T) *Bitmap {
-	util.Sort(src, 0)
+	slicex.Sort(src, 0)
 	return NewFromSorted(src)
 }
 

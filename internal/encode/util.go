@@ -29,7 +29,7 @@ type (
 	I256RangeMatchFunc func(src *num.Int256Stride, a, b num.Int256, bits, mask []byte) int64
 )
 
-func BlockType[T types.Number]() types.BlockType {
+func AsBlockType[T types.Number]() types.BlockType {
 	switch any(T(0)).(type) {
 	case uint64:
 		return types.BlockUint64

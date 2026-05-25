@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"sync"
@@ -13,7 +14,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // ensure we implement required interfaces
@@ -157,7 +157,7 @@ func (c *BitpackContainer[T]) Encode(ctx *Context[T], vals []T) NumberContainer[
 }
 
 func (c *BitpackContainer[T]) Cmp(i, j int) int {
-	return util.Cmp(c.Get(i), c.Get(j))
+	return cmp.Compare(c.Get(i), c.Get(j))
 }
 
 func (c *BitpackContainer[T]) MatchEqual(val T, bits, _ *Bitset) {

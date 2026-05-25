@@ -11,9 +11,9 @@ import (
 	"blockwatch.cc/knoxdb/internal/bitset"
 	etests "blockwatch.cc/knoxdb/internal/encode/tests"
 	"blockwatch.cc/knoxdb/internal/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/stringx"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -168,7 +168,7 @@ func testStringEncode(t *testing.T, scheme ContainerType) {
 			}
 
 			// validate append selector
-			sel := util.RandUintsn[uint32](max(1, c.N/2), uint32(c.N))
+			sel := testutil.RandUintsn[uint32](max(1, c.N/2), uint32(c.N))
 			dst.Clear()
 			enc2.AppendTo(dst, sel)
 			require.Equal(t, len(sel), dst.Len())
@@ -458,7 +458,7 @@ func testStringIterator(t *testing.T, scheme ContainerType) {
 			//
 			it = enc.Chunks()
 			for range src.Len() {
-				i := util.RandIntn(src.Len())
+				i := testutil.RandIntn(src.Len())
 				ok := it.Seek(i)
 				require.True(t, ok, "seek to existing pos %d/%d failed", i, src.Len())
 				vals, n := it.NextChunk()

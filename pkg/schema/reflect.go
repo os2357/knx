@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
 const TAG_NAME = "knox"
@@ -29,13 +29,13 @@ func LookupSchema(typ reflect.Type) (*Schema, bool) {
 	return nil, ok
 }
 
-func GenericSchema[T any]() (*Schema, error) {
+func SchemaFor[T any]() (*Schema, error) {
 	var m T
 	return SchemaOf(m)
 }
 
-func MustSchemaOf(m any) *Schema {
-	s, err := SchemaOf(m)
+func MustSchemaFor[T any]() *Schema {
+	s, err := SchemaFor[T]()
 	if err != nil {
 		panic(err)
 	}
@@ -44,6 +44,14 @@ func MustSchemaOf(m any) *Schema {
 
 func SchemaOf(m any) (*Schema, error) {
 	return SchemaOfTag(m, TAG_NAME)
+}
+
+func MustSchemaOf(m any) *Schema {
+	s, err := SchemaOf(m)
+	if err != nil {
+		panic(err)
+	}
+	return s
 }
 
 func SchemaOfTag(m any, tag string) (*Schema, error) {
@@ -84,7 +92,7 @@ func SchemaOfTag(m any, tag string) (*Schema, error) {
 
 	// create new schema
 	s := &Schema{
-		Name:        util.FromCamelCase(typ.Name(), "_"),
+		Name:        fromCamelCase(typ.Name(), "_"),
 		Fields:      make([]*Field, 0),
 		IsFixedSize: true,
 		Version:     1,
@@ -197,7 +205,7 @@ func (s *Schema) NativeStructType() reflect.Type {
 			continue
 		}
 		sfields = append(sfields, reflect.StructField{
-			Name: util.ToTitle(sanitize(f.Name)),
+			Name: toTitle(sanitize(f.Name)),
 			Type: rtyp,
 		})
 	}
@@ -233,7 +241,7 @@ func (s *Schema) StructType() reflect.Type {
 		}
 		tag += `"`
 		sfields = append(sfields, reflect.StructField{
-			Name: util.ToTitle(sanitize(f.Name)),
+			Name: toTitle(sanitize(f.Name)),
 			Type: f.GoType(),
 			Tag:  reflect.StructTag(tag),
 		})
@@ -260,6 +268,26 @@ func sanitize(s string) string {
 	s = strings.ReplaceAll(s, "__", "_")
 
 	return s
+}
+
+func toTitle(src string) string {
+	if len(src) == 0 {
+		return src
+	}
+	return strings.ToUpper(src[:1]) + src[1:]
+}
+
+func fromCamelCase(src, sep string) string {
+	var chunks []string
+	for idx := 0; idx < len(src); {
+		offs := strings.IndexFunc(src[idx+1:], unicode.IsUpper) + 1
+		if offs <= 0 {
+			offs = len(src) - idx
+		}
+		chunks = append(chunks, strings.ToLower(src[idx:idx+offs]))
+		idx += offs
+	}
+	return strings.Join(chunks, sep)
 }
 
 var (
@@ -389,7 +417,7 @@ func (f *Field) ParseType(r reflect.StructField) error {
 		switch r.Type.String() {
 		case "time.Time":
 			typ = FT_TIMESTAMP
-			scale = TIME_SCALE_NANO.AsUint()
+			scale = types.TIME_SCALE_NANO.AsUint()
 		case "num.Decimal32":
 			typ = FT_D32
 			scale = num.MaxDecimal32Precision
@@ -522,7 +550,7 @@ func (f *Field) ParseTag(tag string) error {
 					return fmt.Errorf("missing value for scale tag")
 				}
 			case FT_TIMESTAMP, FT_TIME:
-				s, ok := ParseTimeScale(val)
+				s, ok := types.ParseTimeScale(val)
 				if !ok {
 					return fmt.Errorf("invalid time scale value %q", val)
 				}
@@ -552,13 +580,13 @@ func (f *Field) ParseTag(tag string) error {
 			flags &^= F_NULLABLE
 		case "timestamp":
 			f.Type = FT_TIMESTAMP
-			scale = TIME_SCALE_NANO.AsUint()
+			scale = types.TIME_SCALE_NANO.AsUint()
 		case "date":
 			f.Type = FT_DATE
-			scale = TIME_SCALE_DAY.AsUint()
+			scale = types.TIME_SCALE_DAY.AsUint()
 		case "time":
 			f.Type = FT_TIME
-			scale = TIME_SCALE_SECOND.AsUint()
+			scale = types.TIME_SCALE_SECOND.AsUint()
 		case "timebase":
 			flags |= F_TIMEBASE
 		default:

@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"sort"
@@ -12,7 +13,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/encode/hashprobe"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // ensure we implement required interfaces
@@ -139,7 +139,7 @@ func (c *FloatDictionaryContainer[T]) Encode(ctx *Context[T], vals []T) NumberCo
 }
 
 func (c *FloatDictionaryContainer[T]) Cmp(i, j int) int {
-	return util.Cmp(c.Get(i), c.Get(j))
+	return cmp.Compare(c.Get(i), c.Get(j))
 }
 
 func (c *FloatDictionaryContainer[T]) MatchEqual(val T, bits, mask *Bitset) {

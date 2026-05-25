@@ -10,15 +10,27 @@ import (
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 )
 
 const PACK_SIZE = 1 << 16
 
+var (
+	enums *enum.EnumRegistry
+)
+
 func init() {
 	// register enum type with global schema registry (before first schema is created)
-	myEnum := schema.NewEnumDictionary("my_enum")
+	myEnum := enum.NewEnumDictionary("my_enum")
 	myEnum.Append([]string{"one", "two", "three", "four"}...)
-	schema.RegisterEnum(0, myEnum)
+
+	// create test registry and add enum to registry
+	enums = enum.NewEnumRegistry()
+	enums.Register(0, myEnum)
+
+	// init schema and link enums (will lookup myEnum and link to field)
+	s := schema.MustSchemaFor[specialStruct]()
+	s.WithEnums(enums)
 }
 
 var (
@@ -72,7 +84,7 @@ func makeTypedPackage(typ any, fill int) *Package {
 	if err != nil {
 		panic(err)
 	}
-	s.WithEnums(schema.GlobalRegistry)
+	s.WithEnums(enums)
 	pkg := New().WithMaxRows(PACK_SIZE).WithSchema(s)
 	enc := schema.NewEncoder(s)
 	buf, err := enc.Encode(makeZeroStruct(typ), nil)

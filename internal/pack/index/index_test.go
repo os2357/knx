@@ -22,11 +22,11 @@ func TestIndex(t *testing.T) {
 		types.IndexTypeInt,
 		types.IndexTypeHash,
 	}
-	etests.TestIndexEngine[Index, *Index](t, "mem", "pack", table.NewTable(), typs)
-	etests.TestIndexEngine[Index, *Index](t, "bolt", "pack", table.NewTable(), typs)
+	etests.TestIndexEngine[Index](t, "mem", "pack", table.NewTable(), typs)
+	etests.TestIndexEngine[Index](t, "bolt", "pack", table.NewTable(), typs)
 }
 
 func TestIndexComposite(t *testing.T) {
-	etests.TestCompositeIndexEngine[Index, *Index](t, "mem", "pack", table.NewTable())
-	etests.TestCompositeIndexEngine[Index, *Index](t, "bolt", "pack", table.NewTable())
+	etests.TestCompositeIndexEngine[Index](t, "mem", "pack", table.NewTable())
+	etests.TestCompositeIndexEngine[Index](t, "bolt", "pack", table.NewTable())
 }

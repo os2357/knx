@@ -11,7 +11,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/reducer"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 )
 
@@ -22,13 +21,13 @@ type LimitableRequest interface {
 }
 
 type Request struct {
-	Select   ExprList         `form:"select"`
-	Range    util.TimeRange   `form:"range,default=M"`
-	Interval util.TimeUnit    `form:"interval,default=d"`
-	Fill     reducer.FillMode `form:"fill,default=none"`
-	Limit    int              `form:"limit,default=100"`
-	GroupBy  string           `form:"group_by"`
-	Table    string           `form:"table"`
+	Select   ExprList          `form:"select"`
+	Range    reducer.TimeRange `form:"range,default=M"`
+	Interval reducer.TimeUnit  `form:"interval,default=d"`
+	Fill     reducer.FillMode  `form:"fill,default=none"`
+	Limit    int               `form:"limit,default=100"`
+	GroupBy  string            `form:"group_by"`
+	Table    string            `form:"table"`
 	TypeMap  TypeMap
 	table    engine.TableEngine
 	log      log.Logger
@@ -36,10 +35,10 @@ type Request struct {
 
 func NewRequest() *Request {
 	now := time.Now().UTC()
-	unit := util.TimeUnit{Value: 1, Unit: 'M'}
+	unit := reducer.TimeUnit{Value: 1, Unit: 'M'}
 	return &Request{
 		Select: make(ExprList, 0),
-		Range: util.TimeRange{
+		Range: reducer.TimeRange{
 			From: unit.Sub(now).UTC(),
 			To:   now,
 		},
@@ -66,12 +65,12 @@ func (r *Request) WithExpr(field string, fn reducer.ReducerFunc) *Request {
 	return r
 }
 
-func (r *Request) WithRange(rng util.TimeRange) *Request {
+func (r *Request) WithRange(rng reducer.TimeRange) *Request {
 	r.Range = rng
 	return r
 }
 
-func (r *Request) WithInterval(u util.TimeUnit) *Request {
+func (r *Request) WithInterval(u reducer.TimeUnit) *Request {
 	r.Interval = u
 	return r
 }
@@ -156,14 +155,14 @@ type Expr struct {
 
 type ExprList []Expr
 
-func (l ExprList) Cols() (cols util.StringList) {
+func (l ExprList) Cols() (cols StringList) {
 	for _, v := range l {
 		cols = append(cols, v.Field)
 	}
 	return
 }
 
-func (l ExprList) QueryFields() (cols util.StringList) {
+func (l ExprList) QueryFields() (cols StringList) {
 	for _, v := range l {
 		if v.Field == "count" || (v.Reduce == reducer.ReducerFuncCount && v.Field == "*") {
 			continue

@@ -8,12 +8,12 @@ import (
 	"sort"
 )
 
-func Int256Sort(a []Int256) []Int256 {
+func SortInt256(a []Int256) []Int256 {
 	sort.Slice(a, func(i, j int) bool { return a[i].Lt(a[j]) })
 	return a
 }
 
-func Int256MinMax(s []Int256) (Int256, Int256) {
+func MinMaxInt256(s []Int256) (Int256, Int256) {
 	switch l := len(s); l {
 	case 0:
 		return ZeroInt256, ZeroInt256
@@ -24,7 +24,7 @@ func Int256MinMax(s []Int256) (Int256, Int256) {
 	}
 }
 
-func Int256Unique(s []Int256) []Int256 {
+func UniqueInt256(s []Int256) []Int256 {
 	if len(s) == 0 {
 		return s
 	}
@@ -44,7 +44,7 @@ func Int256Unique(s []Int256) []Int256 {
 	return s[:j+1]
 }
 
-func Int256Contains(s []Int256, val Int256) bool {
+func ContainsInt256(s []Int256, val Int256) bool {
 	// empty s cannot contain values
 	if len(s) == 0 {
 		return false
@@ -63,7 +63,7 @@ func Int256Contains(s []Int256, val Int256) bool {
 	return i < len(s) && s[i].Eq(val)
 }
 
-func Int256ContainsRange(s []Int256, from, to Int256) bool {
+func ContainsRangeInt256(s []Int256, from, to Int256) bool {
 	n := len(s)
 	if n == 0 {
 		return false
@@ -110,7 +110,7 @@ func Int256ContainsRange(s []Int256, from, to Int256) bool {
 	return min < max
 }
 
-func Int256Intersect(a, b []Int256) []Int256 {
+func IntersectInt256(a, b []Int256) []Int256 {
 	if a == nil || b == nil {
 		return nil
 	}
@@ -151,7 +151,7 @@ func Int256Intersect(a, b []Int256) []Int256 {
 	return out
 }
 
-func Int256Union(a, b []Int256) []Int256 {
+func UnionInt256(a, b []Int256) []Int256 {
 	if a == nil {
 		return b
 	}
@@ -206,7 +206,7 @@ func Int256Union(a, b []Int256) []Int256 {
 	return s
 }
 
-func Int256Difference(a, b []Int256) []Int256 {
+func DifferenceInt256(a, b []Int256) []Int256 {
 	if len(b) == 0 {
 		return a
 	}
@@ -227,7 +227,7 @@ func Int256Difference(a, b []Int256) []Int256 {
 	return out[:j]
 }
 
-func Int256RemoveRange(s []Int256, from, to Int256) []Int256 {
+func RemoveRangeInt256(s []Int256, from, to Int256) []Int256 {
 	n := len(s)
 	start := sort.Search(n, func(i int) bool {
 		return s[i].Cmp(from) >= 0
@@ -247,7 +247,7 @@ func Int256RemoveRange(s []Int256, from, to Int256) []Int256 {
 	return out
 }
 
-func Int256IntersectRange(s []Int256, from, to Int256) []Int256 {
+func IntersectRangeInt256(s []Int256, from, to Int256) []Int256 {
 	if s == nil {
 		return nil
 	}

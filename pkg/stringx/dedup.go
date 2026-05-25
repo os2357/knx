@@ -26,7 +26,7 @@ var (
 
 // DedupPool is a memory efficient pool for variable length strings
 // which only stores unique values. This has the potential to
-// reduce memory consumption many values are duplicates.
+// reduce memory consumption when many values are duplicates.
 type DedupPool struct {
 	*StringPool
 	hash  map[uint64]int // hash -> pos

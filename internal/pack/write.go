@@ -199,7 +199,7 @@ func (p *Package) SetValue(col, row int, val any) error {
 		if v.IsZero() {
 			b.Int64().Set(row, 0)
 		} else {
-			b.Int64().Set(row, schema.TimeScale(p.schema.Fields[col].Scale).ToUnix(v))
+			b.Int64().Set(row, types.TimeScale(p.schema.Fields[col].Scale).ToUnix(v))
 		}
 	case bool:
 		if v {

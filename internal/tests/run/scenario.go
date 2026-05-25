@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"blockwatch.cc/knoxdb/pkg/util"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"github.com/echa/log"
 	"golang.org/x/time/rate"
 )
@@ -71,7 +71,7 @@ func run() error {
 		if f != nil {
 			f.Close()
 		}
-		os.Unsetenv(util.GORANDSEED)
+		os.Unsetenv(testutil.GORANDSEED)
 	}()
 
 	for round := range maxRound {
@@ -81,14 +81,14 @@ func run() error {
 		} else {
 			for {
 				// ensure seed is at least 16 char long
-				rnd = util.RandUint64n(1<<64 - 1)
+				rnd = testutil.RandUint64n(1<<64 - 1)
 				if len(strconv.FormatUint(rnd, 16)) == 16 {
 					break
 				}
 			}
 		}
 
-		os.Setenv(util.GORANDSEED, "0x"+strconv.FormatUint(rnd, 16))
+		os.Setenv(testutil.GORANDSEED, "0x"+strconv.FormatUint(rnd, 16))
 
 		// create log file
 		now := time.Now().UTC()
@@ -131,7 +131,7 @@ func run() error {
 			}()
 		}
 
-		log.Infof("Run scenario #%d/%d with %s=0x%016x", round+1, maxRound, util.GORANDSEED, rnd)
+		log.Infof("Run scenario #%d/%d with %s=0x%016x", round+1, maxRound, testutil.GORANDSEED, rnd)
 
 		// run test in child process
 		if timeout > 0 {
@@ -158,7 +158,7 @@ func run() error {
 
 		// handle test run error
 		if err != nil {
-			log.Errorf("Fail scenario #%d/%d with %s=0x%016x err=%v", round+1, maxRound, util.GORANDSEED, rnd, err)
+			log.Errorf("Fail scenario #%d/%d with %s=0x%016x err=%v", round+1, maxRound, testutil.GORANDSEED, rnd, err)
 
 			if !errLimit.Allow() {
 				return fmt.Errorf("stopping due to too high error frequency")
@@ -195,7 +195,7 @@ func run() error {
 			}
 
 		} else {
-			log.Infof("Done scenario #%d/%d with %s=0x%016x", round+1, maxRound, util.GORANDSEED, rnd)
+			log.Infof("Done scenario #%d/%d with %s=0x%016x", round+1, maxRound, testutil.GORANDSEED, rnd)
 		}
 
 		// cleanup log file

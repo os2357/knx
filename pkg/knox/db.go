@@ -8,6 +8,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 )
 
 type TxFlags = engine.TxFlags
@@ -148,7 +149,7 @@ func (d *DB) ListEnums() []string {
 	return d.engine.EnumNames()
 }
 
-func (d *DB) FindEnum(name string) (*schema.EnumDictionary, error) {
+func (d *DB) FindEnum(name string) (*enum.EnumDictionary, error) {
 	enum, err := d.engine.FindEnum(name)
 	if err != nil {
 		return nil, err
@@ -156,7 +157,7 @@ func (d *DB) FindEnum(name string) (*schema.EnumDictionary, error) {
 	return enum, nil
 }
 
-func (d *DB) CreateEnum(ctx context.Context, name string) (*schema.EnumDictionary, error) {
+func (d *DB) CreateEnum(ctx context.Context, name string) (*enum.EnumDictionary, error) {
 	return d.engine.CreateEnum(ctx, name)
 }
 

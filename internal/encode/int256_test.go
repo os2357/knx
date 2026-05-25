@@ -10,9 +10,9 @@ import (
 	"blockwatch.cc/knoxdb/internal/bitset"
 	etests "blockwatch.cc/knoxdb/internal/encode/tests"
 	"blockwatch.cc/knoxdb/internal/tests"
+	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,7 +54,7 @@ func TestInt256Encode(t *testing.T) {
 			require.Equal(t, c.Data, dst)
 
 			// validate append selector
-			sel := util.RandUintsn[uint32](max(1, c.N/2), uint32(c.N))
+			sel := testutil.RandUintsn[uint32](max(1, c.N/2), uint32(c.N))
 			clear(dst.X0)
 			clear(dst.X1)
 			enc2.AppendTo(dst, sel)
@@ -134,7 +134,7 @@ func TestInt256Iterator(t *testing.T) {
 				//
 				it = enc.Chunks()
 				for range c.N {
-					i := util.RandIntn(c.N)
+					i := testutil.RandIntn(c.N)
 					ok := it.Seek(i)
 					require.True(t, ok, "seek to existing pos %d/%d failed", i, c.N)
 					vals, n := it.NextChunk()

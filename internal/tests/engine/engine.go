@@ -14,7 +14,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/echa/log"
 	"github.com/stretchr/testify/require"
 )
@@ -24,9 +23,18 @@ const (
 	SAVE_PATH    = "./data"
 )
 
+func firstOf(s ...string) string {
+	for _, v := range s {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func NewTestDatabaseOptions(t testing.TB, driver string) engine.Options {
 	t.Helper()
-	driver = util.NonEmptyString(driver, os.Getenv("KNOX_DRIVER"), "bolt")
+	driver = firstOf(driver, os.Getenv("KNOX_DRIVER"), "bolt")
 	return engine.Options{
 		Path:       t.TempDir(),
 		MaxWorkers: 2,
@@ -44,8 +52,8 @@ func NewTestDatabaseOptions(t testing.TB, driver string) engine.Options {
 
 func NewTestTableOptions(t testing.TB, driver, eng string) engine.Options {
 	t.Helper()
-	driver = util.NonEmptyString(driver, os.Getenv("KNOX_DRIVER"), "bolt")
-	eng = util.NonEmptyString(eng, os.Getenv("KNOX_ENGINE"), "pack")
+	driver = firstOf(driver, os.Getenv("KNOX_DRIVER"), "bolt")
+	eng = firstOf(eng, os.Getenv("KNOX_ENGINE"), "pack")
 	return engine.Options{
 		Driver:      driver,
 		Engine:      eng,
@@ -62,8 +70,8 @@ func NewTestTableOptions(t testing.TB, driver, eng string) engine.Options {
 
 func NewTestIndexOptions(t testing.TB, driver, eng string) engine.Options {
 	t.Helper()
-	driver = util.NonEmptyString(driver, os.Getenv("KNOX_DRIVER"), "bolt")
-	eng = util.NonEmptyString(eng, os.Getenv("KNOX_ENGINE"), "pack")
+	driver = firstOf(driver, os.Getenv("KNOX_DRIVER"), "bolt")
+	eng = firstOf(eng, os.Getenv("KNOX_ENGINE"), "pack")
 	return engine.Options{
 		Driver:      driver,
 		Engine:      eng,

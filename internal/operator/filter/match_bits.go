@@ -10,7 +10,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/hash"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/slicex"
-	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 type BitMatcherFactory struct{}
@@ -49,7 +48,11 @@ type bitMatcher struct {
 
 func (m *bitMatcher) WithValue(v any) {
 	m.val = v.(bool)
-	m.hash = hash.Uint8(util.Bool2byte(m.val))
+	if m.val {
+		m.hash = hash.Uint8(1)
+	} else {
+		m.hash = hash.Uint8(0)
+	}
 }
 
 func (m *bitMatcher) Value() any {
@@ -445,7 +448,7 @@ func (m *bitInSetMatcher) WithValue(val any) {
 func (m *bitInSetMatcher) WithSlice(slice any) {
 	m.from = false
 	m.to = false
-	vals := slicex.UniqueBools(slice.([]bool))
+	vals := slicex.UniqueBool(slice.([]bool))
 	switch len(vals) {
 	case 1:
 		m.from, m.to = vals[0], vals[0]

@@ -12,6 +12,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/filter/fuse"
 	"blockwatch.cc/knoxdb/internal/filter/llb"
 	"blockwatch.cc/knoxdb/internal/hash"
+	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
@@ -98,7 +99,7 @@ func (idx Index) buildFilters(pkg *pack.Package, node *SNode) error {
 		}
 
 		// build range filters for int columns
-		if b.Type().IsInt() && idx.use.Is(FeatRangeFilter) {
+		if filter.ValueType(b.Type()).IsInt() && idx.use.Is(FeatRangeFilter) {
 			pkg := node.spack.Load()
 			minv := pkg.Block(minColIndex(i)).Get(n)
 			maxv := pkg.Block(maxColIndex(i)).Get(n)
@@ -218,7 +219,7 @@ func EstimateCardinality(b *block.Block, precision int) (int, []uint64) {
 		return 1, nil
 	case 2:
 		minVal, maxVal := b.MinMax()
-		if b.Type().EQ(minVal, maxVal) {
+		if filter.ValueType(b.Type()).EQ(minVal, maxVal) {
 			return 1, nil
 		}
 		return 2, nil
