@@ -13,6 +13,7 @@ var (
 	ErrInvalidValueType = errors.New("encode: invalid value type")
 	ErrInvalidField     = errors.New("encode: invalid field")
 	ErrOverflow         = errors.New("encode: integer overflow")
+	ErrLongValue        = errors.New("encode: value too long")
 	ErrShortValue       = errors.New("encode: value too short")
 	ErrShortBuffer      = errors.New("encode: short buffer")
 	ErrEnumUndefined    = errors.New("encode: missing enum dictionary")

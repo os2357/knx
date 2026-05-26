@@ -256,7 +256,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 		case types.FT_BOOL:
 			e.buf = strconv.AppendBool(e.buf, *(*bool)(ptr))
 
-		case types.FT_STRING:
+		case types.FT_STRING, types.FT_TEXT:
 			// quote strings that contain (a) a separator character or (b)
 			// start with a quote character. Escape quotes inside quoted strings.
 			s := *(*string)(ptr)
@@ -269,7 +269,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 				e.buf = append(e.buf, util.UnsafeGetBytes(s)...)
 			}
 
-		case types.FT_BYTES:
+		case types.FT_BYTES, types.FT_BLOB:
 			// encode hex
 			if f.IsArray() {
 				e.buf = hex.AppendEncode(e.buf, unsafe.Slice((*byte)(ptr), f.Scale))

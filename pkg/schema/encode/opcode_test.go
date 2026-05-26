@@ -31,7 +31,9 @@ func TestFieldCodecMapping(t *testing.T) {
 		{"Float32", NewField(FT_F32), OC_F32},
 		{"Boolean", NewField(FT_BOOL), OC_BOOL},
 		{"String", NewField(FT_STRING), OC_STRING},
+		{"ArrayString", NewField(FT_STRING).WithArray(2), OC_FIXSTRING},
 		{"Bytes", NewField(FT_BYTES), OC_BYTES},
+		{"ArrayBytes", NewField(FT_BYTES).WithArray(2), OC_FIXBYTES},
 		{"Int256", NewField(FT_I256), OC_I256},
 		{"Int128", NewField(FT_I128), OC_I128},
 		{"Decimal256", NewField(FT_D256), OC_D256},
@@ -39,6 +41,8 @@ func TestFieldCodecMapping(t *testing.T) {
 		{"Decimal64", NewField(FT_D64), OC_D64},
 		{"Decimal32", NewField(FT_D32), OC_D32},
 		{"Bigint", NewField(FT_BIGINT), OC_BIGINT},
+		{"Text", NewField(FT_TEXT), OC_TEXT},
+		{"Blob", NewField(FT_BLOB), OC_BLOB},
 	}
 
 	for _, tc := range testCases {

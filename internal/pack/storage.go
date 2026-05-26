@@ -9,7 +9,6 @@ import (
 	"slices"
 
 	"blockwatch.cc/knoxdb/internal/block"
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -142,7 +141,7 @@ func (p *Package) LoadFromDisk(ctx context.Context, bucket store.Bucket, fids []
 		}
 
 		// skip inactive fields
-		if f.Flags.Is(types.F_DELETED) {
+		if !f.IsActive() {
 			continue
 		}
 
@@ -199,7 +198,7 @@ func (p *Package) StoreToDisk(ctx context.Context, bucket store.Bucket) (int, er
 	for i, f := range p.schema.Fields {
 		// skip empty blocks, deleted fields; write all blocks for consistent version
 		b := p.blocks[i]
-		if b == nil || f.Flags.Is(types.F_DELETED) {
+		if b == nil || !f.IsActive() {
 			continue
 		}
 

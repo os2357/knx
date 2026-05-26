@@ -58,6 +58,8 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
+	FT_TEXT      = types.FieldTypeText
+	FT_BLOB      = types.FieldTypeBlob
 )
 
 type FieldFlags = types.FieldFlags

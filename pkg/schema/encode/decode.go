@@ -144,6 +144,7 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 			// noop
 
 		case OC_FIXBYTES:
+			// explicit copy
 			_, err = d.buf.Read(unsafe.Slice((*byte)(ptr), field.Scale))
 
 		case OC_FIXSTRING:
@@ -151,7 +152,7 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 			*(*string)(ptr) = string(d.buf.Next(int(field.Scale)))
 
 		case OC_STRING:
-			l := d.layout.Uint32(d.buf.Next(4))
+			l := int(d.buf.Next(1)[0])
 			n, err = io.CopyN(d.buf, r, int64(l)) // may realloc!
 			if err != nil {
 				return err
@@ -160,10 +161,10 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 				return ErrShortBuffer
 			}
 			// explicit copy
-			*(*string)(ptr) = string(d.buf.Next(int(l)))
+			*(*string)(ptr) = string(d.buf.Next(l))
 
 		case OC_BYTES:
-			l := d.layout.Uint32(d.buf.Next(4))
+			l := int(d.buf.Next(1)[0])
 			n, err = io.CopyN(d.buf, r, int64(l)) // may realloc!
 			if err != nil {
 				return err
@@ -172,7 +173,31 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 				return ErrShortBuffer
 			}
 			// explicit copy
-			*(*[]byte)(ptr) = bytes.Clone(d.buf.Next(int(l)))
+			*(*[]byte)(ptr) = bytes.Clone(d.buf.Next(l))
+
+		case OC_TEXT:
+			l := int(d.layout.Uint32(d.buf.Next(4)))
+			n, err = io.CopyN(d.buf, r, int64(l)) // may realloc!
+			if err != nil {
+				return err
+			}
+			if n != int64(l) {
+				return ErrShortBuffer
+			}
+			// explicit copy
+			*(*string)(ptr) = string(d.buf.Next(l))
+
+		case OC_BLOB:
+			l := int(d.layout.Uint32(d.buf.Next(4)))
+			n, err = io.CopyN(d.buf, r, int64(l)) // may realloc!
+			if err != nil {
+				return err
+			}
+			if n != int64(l) {
+				return ErrShortBuffer
+			}
+			// explicit copy
+			*(*[]byte)(ptr) = bytes.Clone(d.buf.Next(l))
 
 		case OC_TIMESTAMP, OC_TIME, OC_DATE:
 			ts := int64(d.layout.Uint64(d.buf.Next(8)))
@@ -213,7 +238,7 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 			}
 		case OC_BIGINT:
 			// read as raw bytes and create num.Big
-			l := d.layout.Uint32(d.buf.Next(4))
+			l := int(d.buf.Next(1)[0])
 			n, err = io.CopyN(d.buf, r, int64(l)) // may realloc!
 			if err != nil {
 				return err
@@ -221,7 +246,7 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 			if n != int64(l) {
 				return ErrShortBuffer
 			}
-			err = (*num.Big)(ptr).UnmarshalBinary(d.buf.Next(int(l)))
+			err = (*num.Big)(ptr).UnmarshalBinary(d.buf.Next(l))
 		}
 
 		if err != nil {
@@ -312,6 +337,24 @@ func (d *Decoder) readField(code OpCode, field *Field, ptr unsafe.Pointer, buf [
 		buf = buf[field.Scale:]
 
 	case OC_STRING:
+		l := int(buf[0])
+		buf = buf[1:]
+		if l > 0 {
+			_ = buf[l-1]
+			*(*string)(ptr) = unsafe.String(unsafe.SliceData(buf), l)
+			buf = buf[l:]
+		}
+
+	case OC_BYTES:
+		l := int(buf[0])
+		buf = buf[1:]
+		if l > 0 {
+			_ = buf[l-1]
+			*(*[]byte)(ptr) = buf[:l]
+			buf = buf[l:]
+		}
+
+	case OC_TEXT:
 		l := d.layout.Uint32(buf)
 		buf = buf[4:]
 		if l > 0 {
@@ -320,7 +363,7 @@ func (d *Decoder) readField(code OpCode, field *Field, ptr unsafe.Pointer, buf [
 			buf = buf[l:]
 		}
 
-	case OC_BYTES:
+	case OC_BLOB:
 		l := d.layout.Uint32(buf)
 		buf = buf[4:]
 		if l > 0 {
@@ -376,8 +419,8 @@ func (d *Decoder) readField(code OpCode, field *Field, ptr unsafe.Pointer, buf [
 		*(*string)(ptr) = val // FIXME: may break when enum dict grows
 
 	case OC_BIGINT:
-		l := d.layout.Uint32(buf)
-		buf = buf[4:]
+		l := buf[0]
+		buf = buf[1:]
 		if l > 0 {
 			_ = buf[l-1]
 			_ = (*num.Big)(ptr).UnmarshalBinary(buf[:l])

@@ -30,6 +30,8 @@ package schema
 // timestamp     type timestamp in nanoseconds
 // date          type date in unix days
 // time          type time in seconds
+// text          type text for UTF8 text up to 2^32-1 bytes
+// blob          type blob for binary data up to 2^32-1 bytes
 // ```
 //
 // A schema is a list of immutable fields with properties like name, data type,

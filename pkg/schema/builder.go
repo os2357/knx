@@ -5,6 +5,8 @@ package schema
 
 import (
 	"strconv"
+
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 )
 
 type (
@@ -53,6 +55,28 @@ func Timebase() BuilderOption {
 func Nullable() BuilderOption {
 	return func(f *Field) {
 		f.Flags |= F_NULLABLE
+	}
+}
+
+func Metadata() BuilderOption {
+	return func(f *Field) {
+		f.Flags |= F_METADATA
+	}
+}
+
+func Action() BuilderOption {
+	return func(f *Field) {
+		f.Flags |= F_ACTION
+	}
+}
+
+func Enum(e *enum.EnumDictionary) BuilderOption {
+	return func(f *Field) {
+		if e != nil {
+			f.Flags |= F_ENUM
+			f.Type = FT_U16
+			f.Enum = e
+		}
 	}
 }
 
@@ -129,10 +153,6 @@ func (b *Builder) WithVersion(v uint32) *Builder {
 	b.s.WithVersion(v)
 	b.final = false
 	return b
-}
-
-func (b *Builder) currentField() *Field {
-	return b.s.Fields[len(b.s.Fields)-1]
 }
 
 func (b *Builder) addField(typ FieldType, name string, opts ...BuilderOption) *Builder {
@@ -220,8 +240,16 @@ func (b *Builder) String(name string, opts ...BuilderOption) *Builder {
 	return b.addField(FT_STRING, name, opts...)
 }
 
+func (b *Builder) Text(name string, opts ...BuilderOption) *Builder {
+	return b.addField(FT_TEXT, name, opts...)
+}
+
 func (b *Builder) Bytes(name string, opts ...BuilderOption) *Builder {
 	return b.addField(FT_BYTES, name, opts...)
+}
+
+func (b *Builder) Blob(name string, opts ...BuilderOption) *Builder {
+	return b.addField(FT_BLOB, name, opts...)
 }
 
 func (b *Builder) Int128(name string, opts ...BuilderOption) *Builder {
@@ -250,6 +278,10 @@ func (b *Builder) Decimal256(name string, opts ...BuilderOption) *Builder {
 
 func (b *Builder) Bigint(name string, opts ...BuilderOption) *Builder {
 	return b.addField(FT_BIGINT, name, opts...)
+}
+
+func (b *Builder) Enum(name string, e *enum.EnumDictionary, opts ...BuilderOption) *Builder {
+	return b.addField(FT_U16, name, append(opts, Enum(e))...)
 }
 
 func (b *Builder) AddIndex(name string, typ IndexType, opts ...IndexOption) *Builder {

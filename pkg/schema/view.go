@@ -372,8 +372,6 @@ func (v View) Set(i int, val any) {
 		if u64, ok := val.(uint64); ok {
 			LE.PutUint64(v.buf[x:y], u64)
 		}
-	case FT_STRING, FT_BYTES, FT_BIGINT:
-		// unsupported, may alter length
 	case FT_TIMESTAMP, FT_TIME, FT_DATE:
 		if tm, ok := val.(time.Time); ok {
 			LE.PutUint64(v.buf[x:y], uint64(types.TimeScale(field.Scale).ToUnix(tm)))
@@ -446,6 +444,8 @@ func (v View) Set(i int, val any) {
 		if d32, ok := val.(num.Decimal32); ok {
 			LE.PutUint32(v.buf[x:y], uint32(d32.Int64()))
 		}
+	case FT_STRING, FT_BYTES, FT_BIGINT, FT_TEXT, FT_BLOB:
+		// unsupported, may alter length
 	}
 }
 
@@ -479,12 +479,18 @@ func (v *View) Reset(buf []byte) *View {
 					v.len[i] = int(f.Scale)
 					ofs += int(f.Scale)
 				} else {
-					u32 := LE.Uint32(buf[ofs:])
-					ofs += 4
+					l := int(buf[ofs])
+					ofs++
 					v.ofs[i] = ofs
-					v.len[i] = int(u32)
-					ofs += int(u32)
+					v.len[i] = l
+					ofs += l
 				}
+			case FT_TEXT, FT_BLOB:
+				u32 := LE.Uint32(buf[ofs:])
+				ofs += 4
+				v.ofs[i] = ofs
+				v.len[i] = int(u32)
+				ofs += int(u32)
 			default:
 				v.ofs[i] = ofs
 				ofs += v.len[i]

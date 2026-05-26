@@ -20,7 +20,9 @@ import (
 )
 
 const (
-	defaultVarFieldSize = 32 // variable number of bytes for strings and byte slices
+	// defaultVarFieldSize is an estimation for variable sized
+	// bytes slices and strings used as hint for buffer allocs
+	defaultVarFieldSize = 32
 )
 
 type Schema struct {
@@ -485,7 +487,9 @@ func (s *Schema) Select(fields ...string) (*Schema, error) {
 }
 
 func (s *Schema) Sort() *Schema {
-	sort.Slice(s.Fields, func(i, j int) bool { return s.Fields[i].Id < s.Fields[j].Id })
+	sort.Slice(s.Fields, func(i, j int) bool {
+		return s.Fields[i].Id < s.Fields[j].Id
+	})
 	s.Hash = 0
 	s.Finalize()
 	return s
@@ -550,11 +554,12 @@ func (s *Schema) Validate() error {
 		return fmt.Errorf("missing schema name")
 	}
 
+	// require fields
 	if len(s.Fields) == 0 {
 		return fmt.Errorf("empty schema, no supported fields found")
 	}
 
-	// count special fields, require no duplicate names and ids
+	// require no duplicate names, ids, pk or timebase fields
 	uniqueNames := make(map[string]struct{})
 	uniqueIds := make(map[uint16]struct{})
 	var firstTimebase, firstPkField *Field
@@ -589,7 +594,7 @@ func (s *Schema) Validate() error {
 			}
 		}
 
-		// check timebase flag is unique
+		// check timebase field is unique
 		if f.IsTimebase() {
 			if firstTimebase != nil {
 				return fmt.Errorf("schema %s: timebase flag on multiple fields %q and %q",

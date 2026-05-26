@@ -34,7 +34,7 @@ func TestFieldNew(t *testing.T) {
 		expected  *Field
 	}{
 		{"Int32", FT_I32, &Field{Type: FT_I32, Size: 4}},
-		{"String", FT_STRING, &Field{Type: FT_STRING, Size: 4}},
+		{"String", FT_STRING, &Field{Type: FT_STRING, Size: 1}},
 		{"DateTime", FT_TIMESTAMP, &Field{Type: FT_TIMESTAMP, Size: 8}},
 		{"Boolean", FT_BOOL, &Field{Type: FT_BOOL, Size: 1}},
 	}
@@ -43,6 +43,95 @@ func TestFieldNew(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			field := NewField(tc.fieldType)
 			assert.Equal(t, tc.expected, field)
+		})
+	}
+}
+
+func TestFieldCreate(t *testing.T) {
+	tests := []struct {
+		name            string
+		field           *Field
+		expectedValid   bool
+		expectedVisible bool
+		expectedFixed   bool
+	}{
+		{
+			name:            "Valid and visible field",
+			field:           NewField(FT_I32).WithName("test"),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   true,
+		},
+		{
+			name:            "Float64",
+			field:           NewField(FT_F64).WithName("float64"),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   true,
+		},
+		{
+			name:            "Invalid field (no name)",
+			field:           NewField(FT_I32),
+			expectedValid:   false,
+			expectedVisible: true,
+			expectedFixed:   true,
+		},
+		{
+			name:            "Invisible field",
+			field:           NewField(FT_I32).WithName("test").WithFlags(F_DELETED),
+			expectedValid:   true,
+			expectedVisible: false,
+			expectedFixed:   true,
+		},
+		{
+			name:            "Variable string",
+			field:           NewField(FT_STRING).WithName("test"),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   false,
+		},
+		{
+			name:            "Variable text",
+			field:           NewField(FT_TEXT).WithName("text"),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   false,
+		},
+		{
+			name:            "Variable Bytes",
+			field:           NewField(FT_BYTES).WithName("bytes"),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   false,
+		},
+		{
+			name:            "Variable Blob",
+			field:           NewField(FT_BLOB).WithName("blob"),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   false,
+		},
+		{
+			name:            "String Array",
+			field:           NewField(FT_STRING).WithName("string_array").WithArray(10),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   true,
+		},
+		{
+			name:            "Bytes Array",
+			field:           NewField(FT_BYTES).WithName("bytes_array").WithArray(10),
+			expectedValid:   true,
+			expectedVisible: true,
+			expectedFixed:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expectedValid, tt.field.IsValid())
+			assert.Equal(t, tt.expectedVisible, tt.field.IsVisible())
+			assert.Equal(t, tt.expectedFixed, tt.field.IsFixedSize())
 		})
 	}
 }
@@ -57,11 +146,11 @@ func TestFieldWithMethods(t *testing.T) {
 	})
 
 	t.Run("WithFlags", func(t *testing.T) {
-		field := baseField.WithFlags(types.FieldFlagTimebase)
+		field := baseField.WithFlags(F_TIMEBASE)
 		assert.True(t, field.Is(types.FieldFlagTimebase))
 	})
 
-	t.Run("WithFixed", func(t *testing.T) {
+	t.Run("WithArray", func(t *testing.T) {
 		field := NewField(FT_STRING).WithArray(10)
 		assert.Equal(t, uint8(10), field.Scale)
 		assert.Equal(t, F_ARRAY, field.Flags)
@@ -75,6 +164,11 @@ func TestFieldWithMethods(t *testing.T) {
 	t.Run("WithFilter", func(t *testing.T) {
 		field := baseField.WithFilter(types.FilterTypeBits)
 		assert.Equal(t, types.FilterTypeBits, field.Filter)
+	})
+
+	t.Run("WithCompress", func(t *testing.T) {
+		field := baseField.WithCompression(types.BlockCompressLZ4)
+		assert.Equal(t, types.BlockCompressLZ4, field.Compress)
 	})
 }
 

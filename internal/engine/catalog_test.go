@@ -117,6 +117,7 @@ func TestCatalogAddTable(t *testing.T) {
 	require.NoError(t, err)
 	defer abort()
 	s, err := reflect.SchemaFor[TestTable]()
+	require.NoError(t, err)
 	s.WithMeta()
 	require.NoError(t, err)
 	opts := Options{

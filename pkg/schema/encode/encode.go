@@ -188,13 +188,31 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 		_, err = buf.Write(unsafe.Slice(unsafe.StringData(s), field.Scale))
 
 	case OC_STRING:
+		// 1 byte len
+		s := *(*string)(ptr)
+		_, err = buf.Write([]byte{byte(len(s))})
+		if err == nil {
+			_, err = buf.WriteString(s)
+		}
+
+	case OC_BYTES:
+		// 1 byte len
+		b := *(*[]byte)(ptr)
+		_, err = buf.Write([]byte{byte(len(b))})
+		if err == nil {
+			_, err = buf.Write(b)
+		}
+
+	case OC_TEXT:
+		// 4 byte len
 		s := *(*string)(ptr)
 		err = writeU32(buf, len(s), e.layout)
 		if err == nil {
 			_, err = buf.WriteString(s)
 		}
 
-	case OC_BYTES:
+	case OC_BLOB:
+		// 4 byte len
 		b := *(*[]byte)(ptr)
 		err = writeU32(buf, len(b), e.layout)
 		if err == nil {
@@ -243,11 +261,16 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 		}
 
 	case OC_BIGINT:
+		// 1 byte len
 		v := *(*num.Big)(ptr)
 		b := v.Bytes()
-		err = writeU32(buf, len(b), e.layout)
-		if err == nil {
-			_, err = buf.Write(b)
+		if len(b) > 255 {
+			err = fmt.Errorf("%s: bigint too large %q", field.Name, v)
+		} else {
+			_, err = buf.Write([]byte{byte(len(b))})
+			if err == nil {
+				_, err = buf.Write(b)
+			}
 		}
 	}
 	return

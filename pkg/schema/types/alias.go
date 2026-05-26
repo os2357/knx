@@ -24,6 +24,8 @@ const (
 	FT_BIGINT    = FieldTypeBigint
 	FT_TIME      = FieldTypeTime
 	FT_DATE      = FieldTypeDate
+	FT_TEXT      = FieldTypeText
+	FT_BLOB      = FieldTypeBlob
 
 	F_PRIMARY  = FieldFlagPrimary
 	F_ARRAY    = FieldFlagArray

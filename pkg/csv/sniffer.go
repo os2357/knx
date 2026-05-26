@@ -119,12 +119,20 @@ func (s *Sniffer) Schema() *schema.Schema {
 	fopts := make([]schema.BuilderOption, 0, 4)
 	for i, f := range s.fields {
 		fopts = fopts[:0]
-		if f.is(fFixed) && (f.Type() == types.FT_BYTES || f.Type() == types.FT_STRING) && f.len <= types.MAX_ARRAY {
-			l := f.len
-			if f.is(fHex) {
-				l /= 2
+		ty := f.Type()
+		if ty == types.FT_BYTES || ty == types.FT_STRING {
+			switch {
+			case f.is(fFixed) && f.len <= types.MAX_ARRAY:
+				l := f.len
+				if f.is(fHex) {
+					l /= 2
+				}
+				fopts = append(fopts, schema.Array(l))
+			case ty == types.FT_BYTES && f.len > types.MAX_BYTES:
+				ty = types.FT_BLOB
+			case ty == types.FT_STRING && f.len > types.MAX_BYTES:
+				ty = types.FT_TEXT
 			}
-			fopts = append(fopts, schema.Array(l))
 		}
 		if f.isDateTime() {
 			fopts = append(fopts, schema.Scale(f.scale))
@@ -132,7 +140,7 @@ func (s *Sniffer) Schema() *schema.Schema {
 		if f.isDecimal() {
 			fopts = append(fopts, schema.Scale(f.dot-1))
 		}
-		b.Add(s.head[i], f.Type(), fopts...)
+		b.Add(s.head[i], ty, fopts...)
 	}
 	return b.Finalize().Schema()
 }

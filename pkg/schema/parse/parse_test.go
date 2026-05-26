@@ -128,6 +128,8 @@ func TestErrorHandling(t *testing.T) {
 		{"InvalidBool", NewParser(types.FT_BOOL, 0, nil), "not_a_bool", "strconv.ParseBool: parsing \"not_a_bool\": invalid syntax"},
 		{"InvalidTime", NewParser(types.FT_TIMESTAMP, 0, nil), "not_a_time", "parsing time"},
 		{"InvalidHex", NewParser(types.FT_BYTES, 0, nil), "0xnothex", "encoding/hex: invalid byte: U+006E 'n'"},
+		{"InvalidOver", NewParser(types.FT_BYTES, 2, nil), "0x123456", "bytes len 3 > max 2"},
+		{"InvalidUnder", NewParser(types.FT_BYTES, 2, nil), "0x12", "bytes len 1 < min 2"},
 	}
 
 	for _, tt := range tests {

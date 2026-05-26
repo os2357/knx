@@ -111,17 +111,32 @@ func (w *Writer) Write(i int, val any) error {
 		default:
 			err = ErrInvalidValueType
 		}
-		if field.IsArray() {
+		switch {
+		case field.IsArray():
 			// fixed size
 			if len(buf) == int(field.Scale) {
 				copy(w.buf[x:y], buf)
 			} else {
 				err = ErrShortValue
 			}
-		} else {
+		case len(buf) <= 255:
 			// variable size, reference buf (no copy)
 			w.dyn[i] = buf
+		default:
+			err = ErrLongValue
 		}
+
+	case FT_TEXT, FT_BLOB:
+		var buf []byte
+		switch v := val.(type) {
+		case []byte:
+			buf = v
+		case string:
+			buf = util.UnsafeGetBytes(v)
+		default:
+			err = ErrInvalidValueType
+		}
+		w.dyn[i] = buf
 
 	case FT_TIMESTAMP:
 		switch tm := val.(type) {
@@ -273,8 +288,12 @@ func (w *Writer) Write(i int, val any) error {
 		default:
 			err = ErrInvalidValueType
 		}
-		// variable size (already in new allocated []byte)
-		w.dyn[i] = buf
+		if len(buf) <= 255 {
+			// variable size (already in new allocated []byte)
+			w.dyn[i] = buf
+		} else {
+			err = ErrLongValue
+		}
 
 	default:
 		err = ErrInvalidField
@@ -311,11 +330,17 @@ func (w *Writer) Bytes() []byte {
 		}
 
 		// write next visible field
-		if f.IsFixedSize() {
+		switch {
+		case f.IsFixedSize():
 			// write fixed size field
 			buf.Write(w.buf[w.ofs[n] : w.ofs[n]+w.len[n]])
-		} else {
-			// write dynamic field
+		case f.Type == FT_STRING || f.Type == FT_BYTES:
+			// write dynamic field with 1 byte len
+			val := w.dyn[n]
+			buf.Write([]byte{byte(len(val))})
+			buf.Write(val)
+		default:
+			// write dynamic field with 4 byte len
 			val := w.dyn[n]
 			writeU32(buf, len(val), w.layout)
 			buf.Write(val)

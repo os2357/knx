@@ -38,10 +38,12 @@ const (
 	OC_BIGINT                  // 0x19 25
 	OC_ENUM                    // 0x1A 26
 	OC_SKIP                    // 0x1B 27
+	OC_TEXT                    // 0x1C 28
+	OC_BLOB                    // 0x1D 29
 )
 
 var (
-	opCodeStrings = "__i8_i16_i32_i64_u8_u16_u32_u64_f32_f64_bool_fixbyte_fixstr_str_byte_timestamp_time_date_i128_i256_d32_d64_d128_d256_bigint_enum_skip"
+	opCodeStrings = "__i8_i16_i32_i64_u8_u16_u32_u64_f32_f64_bool_fixbyte_fixstr_str_byte_timestamp_time_date_i128_i256_d32_d64_d128_d256_bigint_enum_skip_text_blob"
 	opCodeIdx     = [...]int{
 		0,                           // invalid
 		2, 5, 9, 13, 17, 20, 24, 28, // int/uint
@@ -55,7 +57,37 @@ var (
 		117, // bigint
 		124, // enum
 		129, // skip
-		134, // end-of-string
+		134, // text
+		139, // blob
+		144, // end-of-string
+	}
+
+	ft2oc = map[FieldType]OpCode{
+		FT_TIMESTAMP: OC_TIMESTAMP,
+		FT_DATE:      OC_DATE,
+		FT_TIME:      OC_TIME,
+		FT_I64:       OC_I64,
+		FT_I32:       OC_I32,
+		FT_I16:       OC_I16,
+		FT_I8:        OC_I8,
+		FT_U64:       OC_U64,
+		FT_U32:       OC_U32,
+		FT_U16:       OC_U16,
+		FT_U8:        OC_U8,
+		FT_F64:       OC_F64,
+		FT_F32:       OC_F32,
+		FT_BOOL:      OC_BOOL,
+		FT_STRING:    OC_STRING,
+		FT_BYTES:     OC_BYTES,
+		FT_I256:      OC_I256,
+		FT_I128:      OC_I128,
+		FT_D256:      OC_D256,
+		FT_D128:      OC_D128,
+		FT_D64:       OC_D64,
+		FT_D32:       OC_D32,
+		FT_BIGINT:    OC_BIGINT,
+		FT_TEXT:      OC_TEXT,
+		FT_BLOB:      OC_BLOB,
 	}
 )
 
@@ -79,88 +111,23 @@ func CodecFor(f *Field) OpCode {
 		return OC_SKIP
 	}
 
-	switch f.Type {
-	case FT_TIMESTAMP:
-		return OC_TIMESTAMP
-
-	case FT_DATE:
-		return OC_DATE
-
-	case FT_TIME:
-		return OC_TIME
-
-	case FT_I64:
-		return OC_I64
-
-	case FT_I32:
-		return OC_I32
-
-	case FT_I16:
-		return OC_I16
-
-	case FT_I8:
-		return OC_I8
-
-	case FT_U64:
-		return OC_U64
-
-	case FT_U32:
-		return OC_U32
-
-	case FT_U16:
-		if f.IsEnum() {
-			return OC_ENUM
-		}
-		return OC_U16
-
-	case FT_U8:
-		return OC_U8
-
-	case FT_F64:
-		return OC_F64
-
-	case FT_F32:
-		return OC_F32
-
-	case FT_BOOL:
-		return OC_BOOL
-
-	case FT_STRING:
-		if f.IsArray() {
-			return OC_FIXSTRING
-		} else {
-			return OC_STRING
-		}
-
-	case FT_BYTES:
-		if f.IsArray() {
-			return OC_FIXBYTES
-		} else {
-			return OC_BYTES
-		}
-
-	case FT_I256:
-		return OC_I256
-
-	case FT_I128:
-		return OC_I128
-
-	case FT_D256:
-		return OC_D256
-
-	case FT_D128:
-		return OC_D128
-
-	case FT_D64:
-		return OC_D64
-
-	case FT_D32:
-		return OC_D32
-
-	case FT_BIGINT:
-		return OC_BIGINT
-
-	default:
+	oc, ok := ft2oc[f.Type]
+	if !ok {
 		return OC_INVALID
 	}
+
+	if f.IsArray() {
+		if f.Type == FT_STRING {
+			return OC_FIXSTRING
+		}
+		if f.Type == FT_BYTES {
+			return OC_FIXBYTES
+		}
+	}
+
+	if f.IsEnum() {
+		return OC_ENUM
+	}
+
+	return oc
 }

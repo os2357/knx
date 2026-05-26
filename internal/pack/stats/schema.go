@@ -36,6 +36,7 @@ func MakeSchema(s *schema.Schema) *schema.Schema {
 
 	// TODO:
 	// - convert string/byte to [n]byte type (n = min(f.fixed||8, 8))
+	// - exclude text/blob fields or limit to first 8 bytes as well
 	// - use schema builder
 
 	// add min/max fields interleaved
@@ -45,10 +46,12 @@ func MakeSchema(s *schema.Schema) *schema.Schema {
 			WithName("min_" + src.Name).
 			// add scale or fixed array len
 			WithScale(src.Scale).
-			// only keep fixed and deleted flags
+			// only keep array and deleted flags
 			WithFlags(src.Flags & (types.F_DELETED | types.F_ARRAY)).
 			// keep filter (in case its bloom)
-			WithFilter(src.Filter)
+			WithFilter(src.Filter).
+			// keep enum for validation
+			WithEnum(src.Enum)
 
 		statsSchema.WithField(f)
 		statsSchema.WithField(f.Clone().WithName("max_" + src.Name))

@@ -35,6 +35,8 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
+	FT_TEXT      = types.FieldTypeText
+	FT_BLOB      = types.FieldTypeBlob
 
 	F_PRIMARY  = types.FieldFlagPrimary
 	F_ARRAY    = types.FieldFlagArray
@@ -45,10 +47,10 @@ const (
 	F_TIMEBASE = types.FieldFlagTimebase
 	F_ACTION   = types.FieldFlagAction
 
-	I_HASH      = types.IndexTypeHash
-	I_INT       = types.IndexTypeInt
-	I_PK        = types.IndexTypePk
-	I_COMPOSITE = types.IndexTypeComposite
+	IT_HASH      = types.IndexTypeHash
+	IT_INT       = types.IndexTypeInt
+	IT_PK        = types.IndexTypePk
+	IT_COMPOSITE = types.IndexTypeComposite
 
 	FL_BITS    = types.FilterTypeBits
 	FL_BLOOM2B = types.FilterTypeBloom2b

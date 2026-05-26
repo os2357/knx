@@ -91,11 +91,21 @@ func (p *Package) AppendWire(buf []byte, meta *types.Meta) {
 
 		case types.BlockBytes:
 			if field.IsArray() {
+				// length in schema
 				b.Bytes().Append(buf[:field.Scale])
 				buf = buf[field.Scale:]
 			} else {
-				l := LE.Uint32(buf)
-				buf = buf[4:]
+				var l int
+				switch field.Type {
+				case types.FT_BYTES, types.FT_STRING, types.FT_BIGINT:
+					// 1 byte length
+					l = int(buf[0])
+					buf = buf[1:]
+				default:
+					// 4 byte length
+					l = int(LE.Uint32(buf))
+					buf = buf[4:]
+				}
 				b.Bytes().Append(buf[:l])
 				buf = buf[l:]
 			}
@@ -312,11 +322,21 @@ func (p *Package) SetWire(row int, buf []byte) {
 
 		case types.BlockBytes:
 			if field.IsArray() {
+				// length in schema
 				b.Bytes().Set(row, buf[:field.Scale])
 				buf = buf[field.Scale:]
 			} else {
-				l := LE.Uint32(buf)
-				buf = buf[4:]
+				var l int
+				switch field.Type {
+				case types.FT_BYTES, types.FT_STRING, types.FT_BIGINT:
+					// 1 byte length
+					l = int(buf[0])
+					buf = buf[1:]
+				default:
+					// 4 byte length
+					l = int(LE.Uint32(buf))
+					buf = buf[4:]
+				}
 				b.Bytes().Set(row, buf[:l])
 				buf = buf[l:]
 			}

@@ -24,12 +24,17 @@ func EncodeField(w io.Writer, f *Field, val any, layout binary.ByteOrder) (err e
 	default:
 		err = writeInt(w, code, val, layout)
 
-	case OC_FIXSTRING,
-		OC_FIXBYTES,
-		OC_STRING,
-		OC_BYTES:
+	case OC_FIXSTRING, OC_FIXBYTES:
+		// no len
+		err = writeBytes(w, val, f.Scale, false, layout)
 
-		err = writeBytes(w, val, f.Scale, layout)
+	case OC_STRING, OC_BYTES:
+		// 1 byte len
+		err = writeBytes(w, val, 0, true, layout)
+
+	case OC_TEXT, OC_BLOB:
+		// 4 byte len
+		err = writeBytes(w, val, 0, false, layout)
 
 	case OC_BOOL:
 		b, ok := val.(bool)
@@ -99,9 +104,10 @@ func EncodeField(w io.Writer, f *Field, val any, layout binary.ByteOrder) (err e
 		err = writeInt(w, OC_U16, val.(uint16), layout)
 
 	case OC_BIGINT:
+		// 1 byte len
 		v, ok := val.(num.Big)
 		if ok {
-			err = writeBytes(w, v.Bytes(), 0, layout)
+			err = writeBytes(w, v.Bytes(), 0, true, layout)
 		}
 	}
 	return
@@ -176,15 +182,24 @@ func DecodeField(r io.Reader, f *Field, layout binary.ByteOrder) (val any, err e
 			}
 			val = string(b[:n])
 		} else {
-			_, err = r.Read(buf[:4])
+			_, err = r.Read(buf[:1])
 			if err != nil {
 				return
 			}
-			u32 := layout.Uint32(buf[:4])
-			b := make([]byte, int(u32))
+			b := make([]byte, int(buf[0]))
 			n, err = r.Read(b)
 			val = string(b[:n])
 		}
+
+	case FT_TEXT:
+		_, err = r.Read(buf[:4])
+		if err != nil {
+			return
+		}
+		u32 := layout.Uint32(buf[:4])
+		b := make([]byte, int(u32))
+		n, err = r.Read(b)
+		val = string(b[:n])
 
 	case FT_BYTES:
 		if f.IsArray() {
@@ -195,15 +210,24 @@ func DecodeField(r io.Reader, f *Field, layout binary.ByteOrder) (val any, err e
 			}
 			val = string(b[:n])
 		} else {
-			_, err = r.Read(buf[:4])
+			_, err = r.Read(buf[:1])
 			if err != nil {
 				return
 			}
-			u32 := layout.Uint32(buf[:4])
-			b := make([]byte, int(u32))
+			b := make([]byte, int(buf[0]))
 			n, err = r.Read(b)
 			val = b[:n]
 		}
+
+	case FT_BLOB:
+		_, err = r.Read(buf[:4])
+		if err != nil {
+			return
+		}
+		u32 := layout.Uint32(buf[:4])
+		b := make([]byte, int(u32))
+		n, err = r.Read(b)
+		val = b[:n]
 
 	case FT_I256:
 		_, err = r.Read(buf[:32])

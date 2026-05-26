@@ -86,6 +86,8 @@ var (
 		FieldTypeBigint:     BlockBytes,
 		FieldTypeDate:       BlockInt64,
 		FieldTypeTime:       BlockInt64,
+		FieldTypeText:       BlockBytes,
+		FieldTypeBlob:       BlockBytes,
 	}
 )
 

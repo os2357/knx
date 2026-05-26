@@ -31,8 +31,18 @@ func NewParser(typ types.FieldType, scale uint8, enum ValueParser) ValueParser {
 	case types.FT_BOOL:
 		return BoolParser{}
 	case types.FT_STRING:
-		return StringParser{}
+		if scale > 0 {
+			return StringParser{int(scale), int(scale)}
+		}
+		return StringParser{0, 255}
 	case types.FT_BYTES:
+		if scale > 0 {
+			return BytesParser{int(scale), int(scale)}
+		}
+		return BytesParser{0, 255}
+	case types.FT_TEXT:
+		return StringParser{}
+	case types.FT_BLOB:
 		return BytesParser{}
 	case types.FT_I8:
 		return IntParser[int8]{8}
@@ -279,27 +289,71 @@ func (p D256Parser) ParseSlice(s string) (any, error) {
 }
 
 // string parser
-type StringParser struct{}
+type StringParser struct {
+	minLen int
+	maxLen int
+}
 
-func (StringParser) ParseValue(s string) (any, error) {
+func (p StringParser) ensureLength(n int) error {
+	if p.minLen > 0 && n < p.minLen {
+		return fmt.Errorf("string len %d < min %d", n, p.minLen)
+	}
+	if p.maxLen > 0 && n > p.maxLen {
+		return fmt.Errorf("string len %d > max %d", n, p.maxLen)
+	}
+	return nil
+}
+
+func (p StringParser) ParseValue(s string) (any, error) {
+	if err := p.ensureLength(len(s)); err != nil {
+		return nil, err
+	}
 	return []byte(s), nil
 }
 
 func (p StringParser) ParseSlice(s string) (any, error) {
-	return bytes.Split([]byte(s), []byte(",")), nil
+	res := bytes.Split([]byte(s), []byte(","))
+	if p.maxLen > 0 || p.minLen > 0 {
+		for _, v := range res {
+			if err := p.ensureLength(len(v)); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return res, nil
 }
 
 // bytes parser
-type BytesParser struct{}
-
-func (BytesParser) ParseValue(s string) (any, error) {
-	if strings.HasPrefix(s, "0x") {
-		return hex.DecodeString(s[2:])
-	}
-	return util.UnsafeGetBytes(s), nil
+type BytesParser struct {
+	minLen int
+	maxLen int
 }
 
-func (BytesParser) ParseSlice(s string) (any, error) {
+func (p BytesParser) ensureLength(n int) error {
+	if p.minLen > 0 && n < p.minLen {
+		return fmt.Errorf("bytes len %d < min %d", n, p.minLen)
+	}
+	if p.maxLen > 0 && n > p.maxLen {
+		return fmt.Errorf("bytes len %d > max %d", n, p.maxLen)
+	}
+	return nil
+}
+
+func (p BytesParser) ParseValue(s string) (any, error) {
+	if strings.HasPrefix(s, "0x") {
+		if err := p.ensureLength(len(s)/2 - 1); err != nil {
+			return nil, err
+		}
+		return hex.DecodeString(s[2:])
+	} else {
+		if err := p.ensureLength(len(s)); err != nil {
+			return nil, err
+		}
+		return util.UnsafeGetBytes(s), nil
+	}
+}
+
+func (p BytesParser) ParseSlice(s string) (any, error) {
 	if len(s) == 0 {
 		return nil, nil
 	}
@@ -308,6 +362,9 @@ func (BytesParser) ParseSlice(s string) (any, error) {
 	if strings.HasPrefix(vv[0], "0x") {
 		var err error
 		for i, v := range vv {
+			if err = p.ensureLength(len(s)/2 - 1); err != nil {
+				return nil, err
+			}
 			slice[i], err = hex.DecodeString(v[2:])
 			if err != nil {
 				return nil, err
@@ -315,6 +372,9 @@ func (BytesParser) ParseSlice(s string) (any, error) {
 		}
 	} else {
 		for i, v := range vv {
+			if err := p.ensureLength(len(s)); err != nil {
+				return nil, err
+			}
 			slice[i] = util.UnsafeGetBytes(v)
 		}
 	}

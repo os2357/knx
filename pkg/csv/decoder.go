@@ -222,9 +222,6 @@ func (d *Decoder) Decode() (any, error) {
 		}
 	}
 
-	// init type (only on first call)
-	// d.initType()
-
 	// create new struct
 	rval := reflect.New(d.typ)
 
@@ -249,9 +246,6 @@ func (d *Decoder) DecodeSlice(v []any) (int, error) {
 		return 0, ErrEmptySlice
 	}
 	v = v[:cap(v)]
-
-	// init type (only on first call)
-	// d.initType()
 
 	// reset string pool
 	d.pool.Clear()
@@ -435,6 +429,7 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 				return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 			}
 			*(*int64)(ptr) = val
+
 		case types.FT_I32:
 			val, err := strconv.ParseInt(line[i], 10, 32)
 			if err != nil {
@@ -505,13 +500,13 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 			}
 			*(*bool)(ptr) = val
 
-		case types.FT_STRING:
+		case types.FT_STRING, types.FT_TEXT:
 			// use string pool to avoid string allocs
 			n := d.pool.Len()
 			d.pool.AppendString(line[i])
 			*(*string)(ptr) = d.pool.GetString(n)
 
-		case types.FT_BYTES:
+		case types.FT_BYTES, types.FT_BLOB:
 			// decode hex to binary
 			s := strings.TrimPrefix(line[i], "0x")
 			if f.IsArray() {
@@ -648,6 +643,7 @@ func (d *Decoder) decodeLogical(base unsafe.Pointer, line []string) error {
 				return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 			}
 			*(*int64)(ptr) = val
+
 		case types.FT_I32:
 			val, err := strconv.ParseInt(line[i], 10, 32)
 			if err != nil {
@@ -718,13 +714,13 @@ func (d *Decoder) decodeLogical(base unsafe.Pointer, line []string) error {
 			}
 			*(*bool)(ptr) = val
 
-		case types.FT_STRING:
+		case types.FT_STRING, types.FT_TEXT:
 			// use string pool to avoid string allocs
 			n := d.pool.Len()
 			d.pool.AppendString(line[i])
 			*(*string)(ptr) = d.pool.GetString(n)
 
-		case types.FT_BYTES:
+		case types.FT_BYTES, types.FT_BLOB:
 			// decode hex to binary
 			s := strings.TrimPrefix(line[i], "0x")
 			if f.IsArray() {
@@ -980,10 +976,10 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 			}
 			b.Bool().Append(val)
 
-		case types.FT_STRING:
+		case types.FT_STRING, types.FT_TEXT:
 			b.Bytes().Append(util.UnsafeGetBytes(line[i]))
 
-		case types.FT_BYTES:
+		case types.FT_BYTES, types.FT_BLOB:
 			// decode hex to binary
 			s := strings.TrimPrefix(line[i], "0x")
 			var (

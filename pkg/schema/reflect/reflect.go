@@ -197,9 +197,9 @@ func NativeStructType(s *Schema) reflect.Type {
 			rtyp = reflect.TypeFor[float64]()
 		case FT_BOOL:
 			rtyp = reflect.TypeFor[bool]()
-		case FT_STRING:
+		case FT_STRING, FT_TEXT:
 			rtyp = reflect.TypeFor[string]()
-		case FT_BYTES, FT_BIGINT:
+		case FT_BYTES, FT_BIGINT, FT_BLOB:
 			if f.IsArray() {
 				rtyp = reflect.ArrayOf(int(f.Scale), reflect.TypeFor[byte]())
 			} else {
@@ -251,7 +251,7 @@ func StructType(s *Schema) reflect.Type {
 			tag += ",enum"
 		}
 		if f.IsArray() && f.Type == FT_STRING {
-			tag += fmt.Sprintf(",fixed=%d", f.Scale)
+			tag += fmt.Sprintf(",array=%d", f.Scale)
 		}
 		if !f.IsArray() && f.Scale > 0 {
 			tag += fmt.Sprintf(",scale=%d", f.Scale)
@@ -521,11 +521,12 @@ func parseFieldType(f *Field, r reflect.StructField) error {
 				return fmt.Errorf("unsupported array type %s", r.Type)
 			}
 			if r.Type.Len() > types.MAX_ARRAY {
-				return fmt.Errorf("unsupported array length %s > 255", r.Type)
+				typ = FT_BLOB
+			} else {
+				typ = FT_BYTES
+				scale = uint8(r.Type.Len())
+				flags |= F_ARRAY
 			}
-			typ = FT_BYTES
-			scale = uint8(r.Type.Len())
-			flags |= F_ARRAY
 		}
 	default:
 		return fmt.Errorf("unsupported type %s (%v)", r.Type, r.Type.Kind())
@@ -561,7 +562,11 @@ func parseFieldTag(f *Field, tag string) error {
 		case "index", "fields", "extra":
 			// skip here
 		case "pk":
-			flags |= F_PRIMARY
+			if f.Type == FT_U64 {
+				flags |= F_PRIMARY
+			} else {
+				return fmt.Errorf("pk tag unsupported on field type %s", f.Type)
+			}
 		case "filter":
 			switch val {
 			case "bits":
@@ -664,6 +669,20 @@ func parseFieldTag(f *Field, tag string) error {
 			scale = types.TIME_SCALE_SECOND.AsUint()
 		case "timebase":
 			flags |= F_TIMEBASE
+		case "text":
+			if f.Type != FT_STRING {
+				return fmt.Errorf("text tag unsupported on type %s", f.Type)
+			}
+			f.Type = FT_TEXT
+			flags &^= F_ARRAY
+			scale = 0
+		case "blob":
+			if f.Type != FT_BYTES {
+				return fmt.Errorf("blob tag unsupported on type %s", f.Type)
+			}
+			f.Type = FT_BLOB
+			flags &^= F_ARRAY
+			scale = 0
 		default:
 			return fmt.Errorf("unsupported struct tag '%s'", key)
 		}

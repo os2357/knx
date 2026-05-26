@@ -38,20 +38,26 @@ const (
 	FieldTypeBigint
 	FieldTypeDate
 	FieldTypeTime
-
-	// TODO: new types
 	FieldTypeText
 	FieldTypeBlob
+
+	// TODO: new types
 	FieldTypeList
 	FieldTypeMap
 	FieldTypeAny
 )
 
-const MAX_ARRAY = 1<<8 - 1 // 255
+const (
+	MAX_ARRAY  = 1<<8 - 1  // 255
+	MAX_STRING = 1<<8 - 1  // 255
+	MAX_BYTES  = 1<<8 - 1  // 255
+	MAX_TEXT   = 1<<32 - 1 // 4G
+	MAX_BLOB   = 1<<32 - 1 // 4G
+)
 
 var (
-	fieldTypeString  = "__timestamp_int64_uint64_float64_boolean_string_bytes_int32_int16_int8_uint32_uint16_uint8_float32_int256_int128_decimal256_decimal128_decimal64_decimal32_bigint_date_time"
-	fieldTypeIdx     = [...]int{0, 2, 12, 18, 25, 33, 41, 48, 54, 60, 66, 71, 78, 85, 91, 99, 106, 113, 124, 135, 145, 155, 162, 167, 172}
+	fieldTypeString  = "__timestamp_int64_uint64_float64_boolean_string_bytes_int32_int16_int8_uint32_uint16_uint8_float32_int256_int128_decimal256_decimal128_decimal64_decimal32_bigint_date_time_text_blob"
+	fieldTypeIdx     = [...]int{0, 2, 12, 18, 25, 33, 41, 48, 54, 60, 66, 71, 78, 85, 91, 99, 106, 113, 124, 135, 145, 155, 162, 167, 172, 177, 182}
 	fieldTypeReverse = map[string]FieldType{}
 
 	fieldTypeWireSize = [...]int{
@@ -61,8 +67,8 @@ var (
 		FieldTypeUint64:     8,
 		FieldTypeFloat64:    8,
 		FieldTypeBoolean:    1,
-		FieldTypeString:     4, // minimum uint32 for size
-		FieldTypeBytes:      4, // minimum uint32 for size
+		FieldTypeString:     1, // 1 byte size
+		FieldTypeBytes:      1, // 1 byte size
 		FieldTypeInt32:      4,
 		FieldTypeInt16:      2,
 		FieldTypeInt8:       1,
@@ -76,14 +82,16 @@ var (
 		FieldTypeDecimal128: 16,
 		FieldTypeDecimal64:  8,
 		FieldTypeDecimal32:  4,
-		FieldTypeBigint:     4, // stored as var bytes
+		FieldTypeBigint:     1, // stored as var bytes with 1 byte size
 		FieldTypeDate:       8, // i64
 		FieldTypeTime:       8, // i64
+		FieldTypeText:       4, // minimum uint32 for size
+		FieldTypeBlob:       4, // minimum uint32 for size
 	}
 )
 
 func init() {
-	for t := FieldTypeInvalid; t <= FieldTypeTime; t++ {
+	for t := FieldTypeInvalid; t <= FieldTypeBlob; t++ {
 		fieldTypeReverse[t.String()] = t
 	}
 	for f := FieldFlagPrimary; f <= FieldFlagAction; f++ {
@@ -92,7 +100,7 @@ func init() {
 }
 
 func (t FieldType) IsValid() bool {
-	return t > FieldTypeInvalid && t <= FieldTypeTime
+	return t > FieldTypeInvalid && t <= FieldTypeBlob
 }
 
 func (t FieldType) String() string {
@@ -112,9 +120,9 @@ func (t FieldType) Zero() any {
 		return float64(0)
 	case FT_BOOL:
 		return false
-	case FT_STRING:
+	case FT_STRING, FT_TEXT:
 		return ""
-	case FT_BYTES:
+	case FT_BYTES, FT_BLOB:
 		return []byte{}
 	case FT_I32:
 		return int32(0)
@@ -180,17 +188,13 @@ var (
 	fieldFlagReverse = map[string]FieldFlags{}
 )
 
-func (i FieldFlags) Is(f FieldFlags) bool {
-	return i&f > 0
-}
-
 func (i FieldFlags) String() string {
 	if i == 0 {
 		return ""
 	}
 	var b strings.Builder
 	for p, k := 0, FieldFlags(1); p < 7; p, k = p+1, k<<1 {
-		if i.Is(k) {
+		if i&k > 0 {
 			start, end := fieldFlagIdx[p], fieldFlagIdx[p+1]-1
 			if b.Len() > 0 {
 				b.WriteString(",")

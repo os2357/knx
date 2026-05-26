@@ -147,22 +147,22 @@ func reflectStructFieldForIndex(f reflect.StructField, tagName string, base *Sch
 		val = strings.TrimSpace(val)
 		switch key {
 		case "pk":
-			index.Type = I_PK
+			index.Type = IT_PK
 		case "index":
 			switch val {
 			case "hash":
-				index.Type = I_HASH
+				index.Type = IT_HASH
 			case "int":
-				index.Type = I_INT
+				index.Type = IT_INT
 			case "pk":
-				index.Type = I_PK
+				index.Type = IT_PK
 			case "composite":
-				index.Type = I_COMPOSITE
+				index.Type = IT_COMPOSITE
 			default:
 				return nil, fmt.Errorf("unsupported index type %q", val)
 			}
 		case "fields":
-			if index.Type != I_COMPOSITE {
+			if index.Type != IT_COMPOSITE {
 				return nil, fmt.Errorf("unsupported fields list for index type %q", index.Type)
 			}
 			// parse field names

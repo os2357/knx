@@ -32,10 +32,10 @@ func (p *Package) ReadWire(row int) ([]byte, error) {
 func (p *Package) ReadWireFields(buf *bytes.Buffer, row int, cols []int) error {
 	for _, v := range cols {
 		var (
-			b   = p.blocks[v]
-			f   = p.schema.Fields[v]
-			x   [8]byte
-			err error
+			b     = p.blocks[v]
+			field = p.schema.Fields[v]
+			x     [8]byte
+			err   error
 		)
 		switch b.Type() {
 		case types.BlockUint64:
@@ -70,12 +70,19 @@ func (p *Package) ReadWireFields(buf *bytes.Buffer, row int, cols []int) error {
 			v := b.Bool().Get(row)
 			err = buf.WriteByte(*(*byte)(unsafe.Pointer(&v)))
 		case types.BlockBytes:
-			if f.IsArray() {
-				_, err = buf.Write(b.Bytes().Get(row)[:f.Scale])
+			v := b.Bytes().Get(row)
+			if field.IsArray() {
+				_, err = buf.Write(v[:field.Scale])
 			} else {
-				v := b.Bytes().Get(row)
-				LE.PutUint32(x[:], uint32(len(v)))
-				_, err = buf.Write(x[:4])
+				switch field.Type {
+				case types.FT_BYTES, types.FT_STRING, types.FT_BIGINT:
+					// 1 byte length
+					_, err = buf.Write([]byte{byte(len(v))})
+				default:
+					// 4 byte length
+					LE.PutUint32(x[:], uint32(len(v)))
+					_, err = buf.Write(x[:4])
+				}
 				if err == nil {
 					_, err = buf.Write(v)
 				}
@@ -87,9 +94,9 @@ func (p *Package) ReadWireFields(buf *bytes.Buffer, row int, cols []int) error {
 		default:
 			// oh, its a type we don't support yet
 			assert.Unreachable("unhandled field type",
-				"typeid", int(f.Type),
+				"typeid", int(field.Type),
 				"type", b.Type().String(),
-				"field", f.Name,
+				"field", field.Name,
 				"pack", p.key,
 				"schema", p.schema.Name,
 				"version", p.schema.Version,
@@ -169,12 +176,19 @@ func (p *Package) ReadWireBuffer(buf *bytes.Buffer, row int) error {
 			v := b.Bool().Get(row)
 			err = buf.WriteByte(*(*byte)(unsafe.Pointer(&v)))
 		case types.BlockBytes:
+			v := b.Bytes().Get(row)
 			if field.IsArray() {
-				_, err = buf.Write(b.Bytes().Get(row)[:field.Scale])
+				_, err = buf.Write(v[:field.Scale])
 			} else {
-				v := b.Bytes().Get(row)
-				LE.PutUint32(x[:], uint32(len(v)))
-				_, err = buf.Write(x[:4])
+				switch field.Type {
+				case types.FT_BYTES, types.FT_STRING, types.FT_BIGINT:
+					// 1 byte length
+					_, err = buf.Write([]byte{byte(len(v))})
+				default:
+					// 4 byte length
+					LE.PutUint32(x[:], uint32(len(v)))
+					_, err = buf.Write(x[:4])
+				}
 				if err == nil {
 					_, err = buf.Write(v)
 				}
@@ -288,7 +302,7 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 		case types.FT_BOOL:
 			*(*bool)(fptr) = b.Bool().Get(row)
 
-		case types.FT_BYTES:
+		case types.FT_BYTES, types.FT_BLOB:
 			if field.IsArray() {
 				copy(unsafe.Slice((*byte)(fptr), field.Scale), b.Bytes().Get(row))
 			} else {
@@ -304,7 +318,7 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 				*(*[]byte)(fptr) = b.Bytes().Get(row)
 			}
 
-		case types.FT_STRING:
+		case types.FT_STRING, types.FT_TEXT:
 			// safe version with copy
 			// *(*string)(fptr) = string(b.Bytes().Get(row))
 

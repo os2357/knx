@@ -6,6 +6,7 @@ import (
 )
 
 type (
+	FieldType = types.FieldType
 	TimeScale = types.TimeScale
 	Schema    = schema.Schema
 	Field     = schema.Field
@@ -35,4 +36,6 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
+	FT_TEXT      = types.FieldTypeText
+	FT_BLOB      = types.FieldTypeBlob
 )

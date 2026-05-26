@@ -99,9 +99,9 @@ func (p *Package) ReadValue(col, row int, typ types.FieldType, scale uint8) any 
 		}
 	case types.FT_BOOL:
 		return b.Bool().Get(row)
-	case types.FT_BYTES:
+	case types.FT_BYTES, types.FT_BLOB:
 		return b.Bytes().Get(row)
-	case types.FT_STRING:
+	case types.FT_STRING, types.FT_TEXT:
 		return util.UnsafeGetString(b.Bytes().Get(row))
 	case types.FT_I256:
 		return b.Int256().Get(row)

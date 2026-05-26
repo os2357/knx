@@ -50,6 +50,8 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
+	FT_TEXT      = types.FieldTypeText
+	FT_BLOB      = types.FieldTypeBlob
 
 	F_PRIMARY  = types.FieldFlagPrimary
 	F_ARRAY    = types.FieldFlagArray
@@ -116,7 +118,7 @@ func (f *Field) IsValid() bool {
 }
 
 func (f *Field) Is(v FieldFlags) bool {
-	return f.Flags.Is(v)
+	return f.Flags&v > 0
 }
 
 func (f *Field) IsVisible() bool {
@@ -124,38 +126,38 @@ func (f *Field) IsVisible() bool {
 }
 
 func (f *Field) IsActive() bool {
-	return !f.Flags.Is(F_DELETED)
+	return f.Flags&F_DELETED == 0
 }
 
 func (f *Field) IsMeta() bool {
-	return f.Flags.Is(F_METADATA)
+	return f.Flags&F_METADATA > 0
 }
 
 func (f *Field) IsPrimary() bool {
-	return f.Flags.Is(F_PRIMARY)
+	return f.Flags&F_PRIMARY > 0
 }
 
 func (f *Field) IsTimebase() bool {
-	return f.Flags.Is(F_TIMEBASE)
+	return f.Flags&F_TIMEBASE > 0
 }
 
 func (f *Field) IsNullable() bool {
-	return f.Flags.Is(F_NULLABLE)
+	return f.Flags&F_NULLABLE > 0
 }
 
 func (f *Field) IsEnum() bool {
-	return f.Flags.Is(F_ENUM)
+	return f.Flags&F_ENUM > 0
 }
 
 func (f *Field) IsArray() bool {
-	return f.Flags.Is(F_ARRAY)
+	return f.Flags&F_ARRAY > 0
 }
 
 func (f *Field) IsFixedSize() bool {
 	switch f.Type {
 	case FT_STRING, FT_BYTES:
 		return f.IsArray()
-	case FT_BIGINT:
+	case FT_BIGINT, FT_TEXT, FT_BLOB:
 		return false
 	default:
 		return true
@@ -269,6 +271,11 @@ func (f *Field) WithFlags(v FieldFlags) *Field {
 
 func (f *Field) WithEnum(d *enum.EnumDictionary) *Field {
 	f.Enum = d
+	if d != nil {
+		f.Flags |= F_ENUM
+	} else {
+		f.Flags &^= F_ENUM
+	}
 	return f
 }
 
@@ -364,7 +371,7 @@ func (f *Field) Validate() error {
 		return fmt.Errorf("field[%s]: nil enum registry", f.Name)
 	}
 
-	// require timebase flag only to be used with timestamp fields
+	// allow timebase flag only on timestamp fields
 	if f.IsTimebase() && f.Type != FT_TIMESTAMP {
 		return fmt.Errorf("field[%s]: invalid use of timebase flag on type %s", f.Name, f.Type)
 	}
@@ -386,7 +393,7 @@ func (f *Field) WriteTo(w *bytes.Buffer) error {
 		byte(f.Flags),
 		byte(f.Compress),
 		byte(f.Filter),
-		byte(f.Scale),
+		f.Scale,
 	})
 
 	return nil
@@ -423,7 +430,7 @@ func (f *Field) ReadFrom(buf *bytes.Buffer) (err error) {
 	// init related properties
 	f.Size = uint16(f.Type.Size())
 
-	// alloc enum dict
+	// alloc empty enum dict to satisfy field validity
 	if f.IsEnum() {
 		f.Enum = enum.NewEnumDictionary(f.Name)
 	}

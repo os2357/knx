@@ -66,6 +66,8 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
+	FT_TEXT      = types.FieldTypeText
+	FT_BLOB      = types.FieldTypeBlob
 
 	F_PRIMARY  = types.FieldFlagPrimary
 	F_ARRAY    = types.FieldFlagArray
@@ -246,6 +248,12 @@ func NewAllTypes(i int64) AllTypes {
 	}
 }
 
+type NativeTypes struct {
+	BaseModel
+	Int  int  `knox:"int"`
+	Uint uint `knox:"uint"`
+}
+
 type ArrayTypes struct {
 	BaseModel
 	ByteArray   [20]byte `knox:"byte_array"`
@@ -264,12 +272,6 @@ func NewArrayTypes(i int64) ArrayTypes {
 	}
 }
 
-type NativeTypes struct {
-	BaseModel
-	Int  int  `knox:"int"`
-	Uint uint `knox:"uint"`
-}
-
 type TimeTypes struct {
 	TimestampNs time.Time `knox:"tsn,timestamp,scale=ns"`
 	TimestampUs time.Time `knox:"tsu,timestamp,scale=us"`
@@ -280,6 +282,11 @@ type TimeTypes struct {
 	TimeMs      time.Time `knox:"tmm,time,scale=ms"`
 	TimeS       time.Time `knox:"tms,time,scale=s"`
 	Date        time.Time `knox:"dt,date"`
+}
+
+type LargeArrayToBlob struct {
+	BaseModel
+	F [256]byte
 }
 
 type MarshalerTypes struct {
@@ -353,6 +360,12 @@ type DuplicateField struct {
 	B int64 `knox:"x"`
 }
 
+type InvalidNativeTypes struct {
+	BaseModel
+	Int  int  `knox:"int"`
+	Uint uint `knox:"uint"`
+}
+
 type InvalidArrayType struct {
 	BaseModel
 	F int64 `knox:",array=1"`
@@ -381,11 +394,6 @@ type InvalidArrayNeg struct {
 type InvalidArraySizeMismatch struct {
 	BaseModel
 	F [20]byte `knox:",array=21"`
-}
-
-type InvalidArrayTooLarge struct {
-	BaseModel
-	F [256]byte
 }
 
 type InvalidScaleType struct {
