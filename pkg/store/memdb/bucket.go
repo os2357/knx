@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"blockwatch.cc/knoxdb/pkg/btree"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -58,7 +57,7 @@ func (b *bucket) Buckets() iter.Seq2[[]byte, store.Bucket] {
 		}
 
 		// walk direct nested buckets
-		prefix := store.UnsafeString(num.EncodeUvarint(b.id))
+		prefix := store.UnsafeString(store.EncodeUvarint(b.id))
 		for n, id := range b.tx.db.buckets {
 			if !strings.HasPrefix(n, prefix) {
 				continue
@@ -134,7 +133,7 @@ func (b *bucket) DeleteBucket(key []byte) error {
 		toRemove = toRemove[:len(toRemove)-1]
 
 		// Delete all keys through tx.pending
-		prefix := num.EncodeUvarint(id)
+		prefix := store.EncodeUvarint(id)
 		for k := range b.tx.db.Scan(prefix) {
 			b.tx.pending.Delete(k)
 		}
@@ -238,7 +237,7 @@ func (b *bucket) Scan(prefix []byte) iter.Seq2[[]byte, []byte] {
 	// strip bucket id from key prefixes on return
 	if b.tx.IsWriteable() {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			btree.Merge2(
 				b.tx.pending.Scan(prefix),
 				b.tx.db.Scan(prefix),
@@ -246,7 +245,7 @@ func (b *bucket) Scan(prefix []byte) iter.Seq2[[]byte, []byte] {
 		)
 	} else {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			b.tx.db.Scan(prefix),
 		)
 	}
@@ -265,7 +264,7 @@ func (b *bucket) ScanReverse(prefix []byte) iter.Seq2[[]byte, []byte] {
 	// strip bucket id from key prefixes on return
 	if b.tx.IsWriteable() {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			btree.Merge2R(
 				b.tx.pending.ScanReverse(prefix),
 				b.tx.db.ScanReverse(prefix),
@@ -273,7 +272,7 @@ func (b *bucket) ScanReverse(prefix []byte) iter.Seq2[[]byte, []byte] {
 		)
 	} else {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			b.tx.db.ScanReverse(prefix),
 		)
 	}
@@ -300,7 +299,7 @@ func (b *bucket) ScanRange(start, end []byte) iter.Seq2[[]byte, []byte] {
 	// strip bucket id from key prefixes on return
 	if b.tx.IsWriteable() {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			btree.Merge2(
 				b.tx.pending.ScanRange(start, end),
 				b.tx.db.ScanRange(start, end),
@@ -308,7 +307,7 @@ func (b *bucket) ScanRange(start, end []byte) iter.Seq2[[]byte, []byte] {
 		)
 	} else {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			b.tx.db.ScanRange(start, end),
 		)
 	}
@@ -335,7 +334,7 @@ func (b *bucket) ScanRangeReverse(start, end []byte) iter.Seq2[[]byte, []byte] {
 	// strip bucket id from key prefixes on return
 	if b.tx.IsWriteable() {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			btree.Merge2R(
 				b.tx.pending.ScanRangeReverse(start, end),
 				b.tx.db.ScanRangeReverse(start, end),
@@ -343,7 +342,7 @@ func (b *bucket) ScanRangeReverse(start, end []byte) iter.Seq2[[]byte, []byte] {
 		)
 	} else {
 		return store.TrimKeyPrefix(
-			num.UvarintLen(b.id),
+			store.UvarintLen(b.id),
 			b.tx.db.ScanRangeReverse(start, end),
 		)
 	}
@@ -407,8 +406,8 @@ func (db *db) nextBucketID() (uint32, error) {
 // the bucket id. This encoding is unique and sortable.
 // The serialized bucketized key format is: <varint(bucketid)><key>
 func bucketizedKey(id uint32, key []byte) []byte {
-	bkey := make([]byte, num.UvarintLen(id)+len(key))
-	n := num.PutUvarint(bkey, uint64(id))
+	bkey := make([]byte, store.UvarintLen(id)+len(key))
+	n := store.PutUvarint(bkey, uint64(id))
 	n += copy(bkey[n:], key)
 	return bkey[:n]
 }
@@ -420,7 +419,7 @@ func (b *bucket) Stats() (stats store.BucketStats) {
 	}
 
 	// count direct nested buckets
-	prefix := store.UnsafeString(num.EncodeUvarint(b.id))
+	prefix := store.UnsafeString(store.EncodeUvarint(b.id))
 	for n := range b.tx.db.buckets {
 		if !strings.HasPrefix(n, prefix) {
 			continue

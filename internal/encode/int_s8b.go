@@ -5,6 +5,7 @@ package encode
 
 import (
 	"cmp"
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"sync"
@@ -13,7 +14,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/encode/s8b"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // ensure we implement required interfaces
@@ -58,9 +58,9 @@ func (c *Simple8Container[T]) Len() int {
 }
 
 func (c *Simple8Container[T]) Size() int {
-	return 1 + num.UvarintLen(uint64(c.For)) +
-		num.UvarintLen(uint64(c.N)) +
-		num.UvarintLen(uint64(len(c.Packed))) +
+	return 1 + UvarintLen(uint64(c.For)) +
+		UvarintLen(uint64(c.N)) +
+		UvarintLen(uint64(len(c.Packed))) +
 		len(c.Packed)
 }
 
@@ -86,9 +86,9 @@ func (c *Simple8Container[T]) Iterator() iter.Seq2[int, T] {
 
 func (c *Simple8Container[T]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TIntSimple8))
-	dst = num.AppendUvarint(dst, uint64(c.For))
-	dst = num.AppendUvarint(dst, uint64(c.N))
-	dst = num.AppendUvarint(dst, uint64(len(c.Packed)))
+	dst = binary.AppendUvarint(dst, uint64(c.For))
+	dst = binary.AppendUvarint(dst, uint64(c.N))
+	dst = binary.AppendUvarint(dst, uint64(len(c.Packed)))
 	dst = append(dst, c.Packed...)
 	return dst
 }
@@ -98,15 +98,15 @@ func (c *Simple8Container[T]) Load(buf []byte) ([]byte, error) {
 		return buf, ErrInvalidType
 	}
 	buf = buf[1:]
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	buf = buf[n:]
 	c.For = T(v)
 
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	buf = buf[n:]
 	c.N = int(v)
 
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	buf = buf[n:]
 	c.Packed = buf[:int(v)]
 	c.free = false

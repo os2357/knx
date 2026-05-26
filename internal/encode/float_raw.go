@@ -5,6 +5,7 @@ package encode
 
 import (
 	stdcmp "cmp"
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"slices"
@@ -13,7 +14,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/cmp"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -49,7 +49,7 @@ func (c *FloatRawContainer[T]) Len() int {
 }
 
 func (c *FloatRawContainer[T]) Size() int {
-	return 1 + num.UvarintLen(uint64(util.SizeOf[T]()*len(c.Values))) +
+	return 1 + UvarintLen(uint64(util.SizeOf[T]()*len(c.Values))) +
 		util.SizeOf[T]()*len(c.Values)
 }
 
@@ -73,7 +73,7 @@ func (c *FloatRawContainer[T]) Iterator() iter.Seq2[int, T] {
 
 func (c *FloatRawContainer[T]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TFloatRaw))
-	dst = num.AppendUvarint(dst, uint64(util.SizeOf[T]()*len(c.Values)))
+	dst = binary.AppendUvarint(dst, uint64(util.SizeOf[T]()*len(c.Values)))
 	return append(dst, util.ToByteSlice(c.Values)...)
 }
 
@@ -82,7 +82,7 @@ func (c *FloatRawContainer[T]) Load(buf []byte) ([]byte, error) {
 		return buf, ErrInvalidType
 	}
 	buf = buf[1:]
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	buf = buf[n:]
 	c.Values = util.FromByteSlice[T](buf[:int(v)])
 	c.typ = AsBlockType[T]()

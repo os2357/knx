@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"sync"
@@ -12,7 +13,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 var _ bitset.BitmapAccessor = (*BitmapContainer)(nil)
@@ -97,13 +97,13 @@ func (c *BitmapContainer) Len() int {
 
 func (c *BitmapContainer) Size() int {
 	// Typ (1) + n (varint) + bits (variable)
-	return 1 + num.UvarintLen(c.N) + num.UvarintLen(len(c.Buf)) + len(c.Buf)
+	return 1 + UvarintLen(c.N) + UvarintLen(len(c.Buf)) + len(c.Buf)
 }
 
 func (c *BitmapContainer) Store(dst []byte) []byte {
 	dst = append(dst, byte(c.Typ))
-	dst = num.AppendUvarint(dst, uint64(c.N))
-	dst = num.AppendUvarint(dst, uint64(len(c.Buf)))
+	dst = binary.AppendUvarint(dst, uint64(c.N))
+	dst = binary.AppendUvarint(dst, uint64(len(c.Buf)))
 	return append(dst, c.Buf...)
 }
 
@@ -117,12 +117,12 @@ func (c *BitmapContainer) Load(buf []byte) ([]byte, error) {
 	}
 
 	// num bits
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	c.N = int(v)
 	buf = buf[n:]
 
 	// buf len
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	sz := int(v)
 	buf = buf[n:]
 	if sz > 0 {

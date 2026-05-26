@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	"blockwatch.cc/knoxdb/internal/engine"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
@@ -42,11 +41,11 @@ var (
 )
 
 func encodeNodeKey(kind byte, id, key, ver uint32) []byte {
-	var b [1 + 3*num.MaxVarintLen32]byte
+	var b [1 + 3*store.MaxVarintLen32]byte
 	b[0] = kind
-	buf := num.AppendUvarint(b[:1], uint64(id))
-	buf = num.AppendUvarint(buf, uint64(key))
-	buf = num.AppendUvarint(buf, uint64(ver))
+	buf := store.AppendUvarint(b[:1], uint64(id))
+	buf = store.AppendUvarint(buf, uint64(key))
+	buf = store.AppendUvarint(buf, uint64(ver))
 	return buf
 }
 
@@ -55,7 +54,7 @@ func decodeNodeKey(buf []byte) (kind byte, id, key, ver uint32) {
 	buf = buf[1:]
 	var vals [3]uint32
 	for i := range 3 {
-		v, n := num.Uvarint(buf)
+		v, n := store.Uvarint(buf)
 		if n == 0 {
 			break
 		}

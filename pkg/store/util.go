@@ -36,32 +36,12 @@ func GetKey(tx Tx, keys ...[]byte) ([]byte, error) {
 	case 1:
 		return nil, ErrIncompatibleValue
 	default:
-		b, err := GetBucket(tx, keys[:l-1]...)
+		b, err := tx.BucketPath(keys[:l-1]...)
 		if err != nil {
 			return nil, err
 		}
 		return b.Get(keys[l-1])
 	}
-}
-
-// GetBucket traverses a path of nested buckets and returns
-// the last bucket in the list. When a bucket is missig along
-// the path an error is returned.
-func GetBucket(tx Tx, keys ...[]byte) (Bucket, error) {
-	if len(keys) == 0 {
-		return nil, ErrKeyRequired
-	}
-	b, err := tx.Bucket(keys[0])
-	if err != nil {
-		return nil, err
-	}
-	for _, k := range keys[1:] {
-		b, err = b.Bucket(k)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return b, nil
 }
 
 // PrefixRange returns key range that satisfies the given

@@ -5,9 +5,9 @@ package engine
 
 import (
 	"context"
+	"encoding/binary"
 
 	"blockwatch.cc/knoxdb/internal/wal"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -49,12 +49,12 @@ func (s *ObjectState) Reset() {
 }
 
 func (s *ObjectState) Encode() []byte {
-	var tmp [5 * num.MaxVarintLen64]byte
-	buf := num.AppendUvarint(tmp[:0], s.NextRid)
-	buf = num.AppendUvarint(buf, s.NextPk)
-	buf = num.AppendUvarint(buf, s.NRows)
-	buf = num.AppendUvarint(buf, s.Epoch)
-	buf = num.AppendUvarint(buf, uint64(s.Checkpoint))
+	var tmp [5 * binary.MaxVarintLen64]byte
+	buf := binary.AppendUvarint(tmp[:0], s.NextRid)
+	buf = binary.AppendUvarint(buf, s.NextPk)
+	buf = binary.AppendUvarint(buf, s.NRows)
+	buf = binary.AppendUvarint(buf, s.Epoch)
+	buf = binary.AppendUvarint(buf, uint64(s.Checkpoint))
 	return buf
 }
 
@@ -64,7 +64,7 @@ func (s *ObjectState) Decode(buf []byte) error {
 		vals [5]uint64
 	)
 	for i := range 5 {
-		vals[i], n = num.Uvarint(buf)
+		vals[i], n = binary.Uvarint(buf)
 		if n == 0 {
 			return ErrDatabaseCorrupt
 		}

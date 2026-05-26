@@ -10,7 +10,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/hash"
 	"blockwatch.cc/knoxdb/internal/pack"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
@@ -31,25 +30,25 @@ func (idx *Index) dataBucket(tx store.Tx) store.Bucket {
 // We append primary keys for uniqueness in case the same
 // non-unique index key spans multiple packs.
 func (idx *Index) encodePackKey(ik, pk uint64, id int) []byte {
-	var b [2*num.MaxVarintLen64 + num.MaxVarintLen16]byte
-	buf := num.AppendUvarint(b[:0], ik)
-	buf = num.AppendUvarint(buf, pk)
-	buf = num.AppendUvarint(buf, uint64(id))
+	var b [2*store.MaxVarintLen64 + store.MaxVarintLen16]byte
+	buf := store.AppendUvarint(b[:0], ik)
+	buf = store.AppendUvarint(buf, pk)
+	buf = store.AppendUvarint(buf, uint64(id))
 	return buf
 }
 
 func (idx *Index) decodePackKey(buf []byte) (ik, pk uint64, id int) {
 	var n int
-	ik, n = num.Uvarint(buf)
+	ik, n = store.Uvarint(buf)
 	// if n == 0 {
 	// 	panic(fmt.Errorf("invalid key %s", hex.EncodeToString(buf)))
 	// }
 	buf = buf[n:]
-	pk, n = num.Uvarint(buf)
+	pk, n = store.Uvarint(buf)
 	// if n == 0 {
 	// 	panic(fmt.Errorf("invalid key %s", hex.EncodeToString(buf)))
 	// }
-	v, _ := num.Uvarint(buf[n:])
+	v, _ := store.Uvarint(buf[n:])
 	// if n == 0 {
 	// 	panic(fmt.Errorf("invalid key %s", hex.EncodeToString(buf)))
 	// }

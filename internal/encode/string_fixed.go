@@ -5,12 +5,12 @@ package encode
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"iter"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // ensure we implement required interfaces
@@ -49,7 +49,7 @@ func (c *FixedStringContainer) Len() int {
 }
 
 func (c *FixedStringContainer) Size() int {
-	return 1 + num.UvarintLen(c.n) + num.UvarintLen(c.sz) + len(c.buf)
+	return 1 + UvarintLen(c.n) + UvarintLen(c.sz) + len(c.buf)
 }
 
 func (c *FixedStringContainer) Matcher() types.StringMatcher {
@@ -58,8 +58,8 @@ func (c *FixedStringContainer) Matcher() types.StringMatcher {
 
 func (c *FixedStringContainer) Store(dst []byte) []byte {
 	dst = append(dst, byte(TStringFixed))
-	dst = num.AppendUvarint(dst, uint64(c.n))
-	dst = num.AppendUvarint(dst, uint64(c.sz))
+	dst = binary.AppendUvarint(dst, uint64(c.n))
+	dst = binary.AppendUvarint(dst, uint64(c.sz))
 	return append(dst, c.buf...)
 }
 
@@ -68,10 +68,10 @@ func (c *FixedStringContainer) Load(buf []byte) ([]byte, error) {
 		return buf, ErrInvalidType
 	}
 	buf = buf[1:]
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	c.n = int(v)
 	buf = buf[n:]
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	buf = buf[n:]
 	c.sz = int(v)
 	sz := c.sz * c.n

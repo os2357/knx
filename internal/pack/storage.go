@@ -10,7 +10,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -34,21 +33,21 @@ func cacheKey(packkey, version uint32, blockId uint16) uint64 {
 // The key clusters blocks of the same column into on-disk data pages which
 // amortizes load costs.
 func EncodeBlockKey(packkey, version uint32, blockId uint16) []byte {
-	var b [num.MaxVarintLen32 + 2*num.MaxVarintLen16]byte
-	buf := num.AppendUvarint(b[:0], uint64(blockId))
-	buf = num.AppendUvarint(buf, uint64(packkey))
-	buf = num.AppendUvarint(buf, uint64(version))
+	var b [store.MaxVarintLen32 + 2*store.MaxVarintLen16]byte
+	buf := store.AppendUvarint(b[:0], uint64(blockId))
+	buf = store.AppendUvarint(buf, uint64(packkey))
+	buf = store.AppendUvarint(buf, uint64(version))
 	return buf
 }
 
 func DecodeBlockKey(buf []byte) (packkey uint32, version uint32, blockId uint16) {
-	v, n := num.Uvarint(buf)
+	v, n := store.Uvarint(buf)
 	buf = buf[n:]
 	blockId = uint16(v)
-	v, n = num.Uvarint(buf)
+	v, n = store.Uvarint(buf)
 	buf = buf[n:]
 	packkey = uint32(v)
-	v, _ = num.Uvarint(buf)
+	v, _ = store.Uvarint(buf)
 	version = uint32(v)
 	return
 }

@@ -18,7 +18,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/assert"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"blockwatch.cc/knoxdb/pkg/util"
@@ -26,10 +25,10 @@ import (
 
 // key = [field_id:pack_id:version], cluster filter types in storage pages
 func encodeFilterKey(pkey, ver uint32, fx uint16) []byte {
-	var b [num.MaxVarintLen32 + 2*num.MaxVarintLen16]byte
-	buf := num.AppendUvarint(b[:0], uint64(fx))
-	buf = num.AppendUvarint(buf, uint64(pkey))
-	buf = num.AppendUvarint(buf, uint64(ver&0xFFFF))
+	var b [store.MaxVarintLen32 + 2*store.MaxVarintLen16]byte
+	buf := store.AppendUvarint(b[:0], uint64(fx))
+	buf = store.AppendUvarint(buf, uint64(pkey))
+	buf = store.AppendUvarint(buf, uint64(ver&0xFFFF))
 	return buf
 }
 

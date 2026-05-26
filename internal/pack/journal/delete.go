@@ -5,13 +5,13 @@ package journal
 
 import (
 	"context"
+	"encoding/binary"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // Deletes selected records from pack and writes WAL records. Src pack is
@@ -56,9 +56,9 @@ func (j *Journal) deletePackWithWal(src *pack.Package, xid types.XID, w *wal.Wal
 
 	// dimension WAL write buffer
 	if sel == nil {
-		buf = arena.AllocBytes(num.MaxVarintLen64 * src.Len())
+		buf = arena.AllocBytes(binary.MaxVarintLen64 * src.Len())
 	} else {
-		buf = arena.AllocBytes(num.MaxVarintLen64 * len(sel))
+		buf = arena.AllocBytes(binary.MaxVarintLen64 * len(sel))
 	}
 
 	if sel == nil {
@@ -77,7 +77,7 @@ func (j *Journal) deletePackWithWal(src *pack.Package, xid types.XID, w *wal.Wal
 				// collect rowids for deletion and add to tomb
 				for _, rid := range rids[:m] {
 					// append to WAL record
-					buf = num.AppendUvarint(buf, rid)
+					buf = binary.AppendUvarint(buf, rid)
 
 					// append to tomb, set xmax on rid when in tip segment
 					j.tip.NotifyDelete(xid, rid)
@@ -113,7 +113,7 @@ func (j *Journal) deletePackWithWal(src *pack.Package, xid types.XID, w *wal.Wal
 				rid := src.RowId(int(v))
 
 				// append to WAL record
-				buf = num.AppendUvarint(buf, rid)
+				buf = binary.AppendUvarint(buf, rid)
 
 				// append to tomb, set xmax on ref when in tip segment
 				j.tip.NotifyDelete(xid, rid)

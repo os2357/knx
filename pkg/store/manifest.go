@@ -4,13 +4,12 @@
 package store
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 type Manifest struct {
@@ -56,10 +55,10 @@ func (m *Manifest) Bytes() []byte {
 
 func (m *Manifest) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, 0, 128)
-	buf = num.AppendUvarint(buf, uint64(m.CreatedAt.Unix()))
-	buf = num.AppendUvarint(buf, uint64(len(m.Name)))
+	buf = binary.AppendUvarint(buf, uint64(m.CreatedAt.Unix()))
+	buf = binary.AppendUvarint(buf, uint64(len(m.Name)))
 	buf = append(buf, []byte(m.Name)...)
-	buf = num.AppendUvarint(buf, uint64(len(m.Label)))
+	buf = binary.AppendUvarint(buf, uint64(len(m.Label)))
 	buf = append(buf, []byte(m.Label)...)
 	return buf, nil
 }
@@ -70,16 +69,16 @@ func (m *Manifest) UnmarshalBinary(buf []byte) (err error) {
 			err = io.ErrShortBuffer
 		}
 	}()
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	buf = buf[n:]
 	m.CreatedAt = time.Unix(int64(v), 0)
 
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	buf = buf[n:]
 	m.Name = string(buf[:v])
 	buf = buf[v:]
 
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	buf = buf[n:]
 	m.Label = string(buf[:v])
 

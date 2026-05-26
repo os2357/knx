@@ -6,13 +6,14 @@ package journal
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"io"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
 )
 
@@ -67,7 +68,7 @@ func (j *Journal) InsertRecords(ctx context.Context, buf []byte) (uint64, int, e
 				Tag:    types.ObjectTagTable,
 				Entity: j.id,
 				TxID:   xid,
-				Data:   [][]byte{num.EncodeUvarint(firstRid), buf[:sz]},
+				Data:   [][]byte{binary.AppendUvarint(nil, firstRid), buf[:sz]},
 			})
 			if err != nil {
 				// will likely abort the tx
@@ -185,7 +186,7 @@ func (j *Journal) insertPackWithWal(_ context.Context, src *pack.Package, xid ty
 	)
 
 	// dimension WAL write buffer (may still with grow with long strings)
-	sz := num.MaxVarintLen64
+	sz := binary.MaxVarintLen64
 	if sel == nil {
 		sz += j.schema.AverageSize() * src.Len()
 	} else {
@@ -201,7 +202,7 @@ func (j *Journal) insertPackWithWal(_ context.Context, src *pack.Package, xid ty
 			n := min(src.Len()-count, j.Capacity())
 
 			// 1 create & assign pks, rids, xid, write to journal vectors
-			num.WriteUvarint(msg, nextRid)
+			writeBinaryUvarint(msg, nextRid)
 			for range n {
 				// create wire format for wal write
 				start := msg.Len()
@@ -245,7 +246,7 @@ func (j *Journal) insertPackWithWal(_ context.Context, src *pack.Package, xid ty
 			n := min(len(sel), j.Capacity())
 
 			// 1 create & assign pks, rids, xid, write to journal vectors
-			num.WriteUvarint(msg, nextRid)
+			writeBinaryUvarint(msg, nextRid)
 			for _, v := range sel[:n] {
 				start := msg.Len()
 				if err := src.ReadWireBuffer(msg, int(v)); err != nil {
@@ -287,4 +288,10 @@ func (j *Journal) insertPackWithWal(_ context.Context, src *pack.Package, xid ty
 	arena.Free(buf)
 
 	return firstPk, count, nil
+}
+
+func writeBinaryUvarint(w io.Writer, x uint64) (int, error) {
+	var v [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(v[:], x)
+	return w.Write(v[:n])
 }

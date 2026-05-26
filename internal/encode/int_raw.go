@@ -5,6 +5,7 @@ package encode
 
 import (
 	stdcmp "cmp"
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"slices"
@@ -14,7 +15,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/cmp"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -50,7 +50,7 @@ func (c *RawContainer[T]) Len() int {
 }
 
 func (c *RawContainer[T]) Size() int {
-	return 1 + num.UvarintLen(len(c.Values)) + c.sz*len(c.Values)
+	return 1 + UvarintLen(len(c.Values)) + c.sz*len(c.Values)
 }
 
 func (c *RawContainer[T]) Matcher() types.NumberMatcher[T] {
@@ -73,7 +73,7 @@ func (c *RawContainer[T]) Iterator() iter.Seq2[int, T] {
 
 func (c *RawContainer[T]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TIntRaw))
-	dst = num.AppendUvarint(dst, uint64(len(c.Values)))
+	dst = binary.AppendUvarint(dst, uint64(len(c.Values)))
 	// if cpu.IsBigEndian {
 	//  // TODO: flip byte order
 	// }
@@ -85,7 +85,7 @@ func (c *RawContainer[T]) Load(buf []byte) ([]byte, error) {
 		return buf, ErrInvalidType
 	}
 	buf = buf[1:]
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	buf = buf[n:]
 	c.sz = util.SizeOf[T]()
 	c.typ = AsBlockType[T]()

@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/bits"
 
@@ -81,4 +82,9 @@ func TypeName[T types.Number]() string {
 	default:
 		return fmt.Sprintf("%T", T(0))
 	}
+}
+
+func UvarintLen[T types.Integer | int](v T) int {
+	var buf [binary.MaxVarintLen64]byte
+	return binary.PutUvarint(buf[:], uint64(v))
 }

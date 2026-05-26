@@ -4,13 +4,13 @@
 package alp
 
 import (
+	"encoding/binary"
 	"math"
 	"math/bits"
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
@@ -48,7 +48,10 @@ func dictCosts(n, w, c, minv int) int {
 }
 
 func bitPackCosts(n, w, minv int) int {
-	return 2 + num.UvarintLen(minv) + num.UvarintLen(n) + (w*n+63)&^63/8
+	var buf [binary.MaxVarintLen64]byte
+	sz := binary.PutUvarint(buf[:], uint64(minv))
+	sz += binary.PutUvarint(buf[:], uint64(n))
+	return 2 + sz + (w*n+63)&^63/8
 }
 
 func countZeros[T types.Float](src []T) (n int) {

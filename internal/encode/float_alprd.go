@@ -5,13 +5,13 @@ package encode
 
 import (
 	"cmp"
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"sync"
 
 	"blockwatch.cc/knoxdb/internal/encode/alp"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // ensure we implement required interfaces
@@ -81,7 +81,7 @@ func (c *FloatAlpRdContainer[T, E]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TFloatAlpRd))
 	dst = c.Left.Store(dst)
 	dst = c.Right.Store(dst)
-	dst = num.AppendUvarint(dst, uint64(c.Shift))
+	dst = binary.AppendUvarint(dst, uint64(c.Shift))
 	return dst
 }
 
@@ -100,7 +100,7 @@ func (c *FloatAlpRdContainer[T, E]) Load(buf []byte) ([]byte, error) {
 	if err != nil {
 		return buf, err
 	}
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	c.Shift = int(v)
 	c.dec = alp.NewDecoderRD[T, E](c.Shift)
 	return buf[n:], nil

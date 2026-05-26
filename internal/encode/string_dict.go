@@ -5,12 +5,12 @@ package encode
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"iter"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // ensure we implement required interfaces
@@ -60,7 +60,7 @@ func (c *DictStringContainer) Len() int {
 
 func (c *DictStringContainer) Size() int {
 	return 1 + c.ofs.Size() + c.len.Size() + c.code.Size() +
-		num.UvarintLen(len(c.dict)) + len(c.dict)
+		UvarintLen(len(c.dict)) + len(c.dict)
 }
 
 func (c *DictStringContainer) Matcher() types.StringMatcher {
@@ -72,7 +72,7 @@ func (c *DictStringContainer) Store(dst []byte) []byte {
 	dst = c.ofs.Store(dst)
 	dst = c.len.Store(dst)
 	dst = c.code.Store(dst)
-	dst = num.AppendUvarint(dst, uint64(len(c.dict)))
+	dst = binary.AppendUvarint(dst, uint64(len(c.dict)))
 	return append(dst, c.dict...)
 }
 
@@ -102,7 +102,7 @@ func (c *DictStringContainer) Load(buf []byte) ([]byte, error) {
 	}
 	c.n = c.code.Len()
 
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	buf = buf[n:]
 	c.dict = buf[:int(v)]
 	return buf[int(v):], nil

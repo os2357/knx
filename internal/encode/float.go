@@ -10,7 +10,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/encode/alp"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -73,7 +72,7 @@ func EstimateFloat[T types.Float](ctx *Context[T], scheme ContainerType, vals []
 	)
 	switch scheme {
 	case TFloatConstant:
-		estSize = 1 + w + num.MaxVarintLen32
+		estSize = 1 + w + binary.MaxVarintLen32
 
 	case TFloatRaw:
 		estSize = rawSize

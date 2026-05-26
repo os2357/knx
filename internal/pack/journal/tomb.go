@@ -13,7 +13,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -270,11 +269,11 @@ func (t *Tomb) Remove(ctx context.Context, bucket store.Bucket, id uint32) error
 }
 
 func (t *Tomb) MarshalBinary() ([]byte, error) {
-	var b [num.MaxVarintLen64]byte
+	var b [binary.MaxVarintLen64]byte
 	buf := bytes.NewBuffer(make([]byte, 0, len(t.stones)*8)) // approx
 
 	// n items
-	buf.Write(b[:num.PutUvarint(b[:], uint64(len(t.stones)))])
+	buf.Write(b[:binary.PutUvarint(b[:], uint64(len(t.stones)))])
 
 	if len(t.stones) == 0 {
 		return buf.Bytes(), nil
@@ -288,8 +287,8 @@ func (t *Tomb) MarshalBinary() ([]byte, error) {
 	}
 
 	// write minima
-	buf.Write(b[:num.PutUvarint(b[:], minRid)])
-	buf.Write(b[:num.PutUvarint(b[:], uint64(minXid))])
+	buf.Write(b[:binary.PutUvarint(b[:], minRid)])
+	buf.Write(b[:binary.PutUvarint(b[:], uint64(minXid))])
 
 	// write diffs
 	for _, v := range t.stones {
@@ -302,7 +301,7 @@ func (t *Tomb) MarshalBinary() ([]byte, error) {
 
 func (t *Tomb) UnmarshalBinary(buf []byte) error {
 	// n items
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	t.stones = make(Tombstones, int(v))
 	buf = buf[n:]
 
@@ -322,13 +321,13 @@ func (t *Tomb) UnmarshalBinary(buf []byte) error {
 
 	// read diffs
 	for i := range t.stones {
-		v, n = num.Uvarint(buf)
+		v, n = binary.Uvarint(buf)
 		buf = buf[n:]
 		rid := v + minRid
 		t.stones[i].Rid = rid
 		t.rids.Set(rid)
 
-		v, n = num.Uvarint(buf)
+		v, n = binary.Uvarint(buf)
 		buf = buf[n:]
 		t.stones[i].Xid = types.XID(v + minXid)
 

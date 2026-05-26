@@ -625,7 +625,7 @@ func (c *Catalog) GetEnum(ctx context.Context, key uint64) (e *enum.EnumDictiona
 	if err != nil {
 		return
 	}
-	bucket, err := store.GetBucket(tx, enumsKey, encodeKey(key))
+	bucket, err := tx.BucketPath(enumsKey, encodeKey(key))
 	if err != nil {
 		err = ErrDatabaseCorrupt
 		return
@@ -651,7 +651,7 @@ func (c *Catalog) PutEnum(ctx context.Context, e *enum.EnumDictionary) error {
 		return err
 	}
 	tag := types.TaggedHash(types.ObjectTagEnum, e.Name())
-	bucket, err := store.GetBucket(tx, enumsKey, encodeKey(tag))
+	bucket, err := tx.BucketPath(enumsKey, encodeKey(tag))
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}

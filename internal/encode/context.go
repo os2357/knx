@@ -4,6 +4,7 @@
 package encode
 
 import (
+	"encoding/binary"
 	"math/bits"
 	"sync"
 	"unsafe"
@@ -15,7 +16,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/filter/llb"
 	"blockwatch.cc/knoxdb/internal/hash"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -345,7 +345,7 @@ func (c *Context[T]) runEndCosts() int {
 }
 
 func (c *Context[T]) rawCosts() int {
-	return 1 + num.UvarintLen(c.NumValues) + c.NumValues*c.PhyBits/8
+	return 1 + UvarintLen(c.NumValues) + c.NumValues*c.PhyBits/8
 }
 
 func dictCosts(n, w, c int) int {
@@ -353,7 +353,7 @@ func dictCosts(n, w, c int) int {
 }
 
 func bitPackCosts(n, w int) int {
-	return 2 + num.MaxVarintLen32 + num.UvarintLen(n) + (n*w+63)&^63/8
+	return 2 + binary.MaxVarintLen32 + UvarintLen(n) + (n*w+63)&^63/8
 }
 
 func runEndCosts(n, r, w int) int {

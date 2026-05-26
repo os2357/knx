@@ -5,6 +5,7 @@ package encode
 
 import (
 	"cmp"
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"sync"
@@ -12,7 +13,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // ensure we implement required interfaces
@@ -46,7 +46,7 @@ func (c *DeltaContainer[T]) Len() int {
 }
 
 func (c *DeltaContainer[T]) Size() int {
-	return 1 + num.UvarintLen(c.For) + num.UvarintLen(c.Delta) + num.UvarintLen(c.N)
+	return 1 + UvarintLen(c.For) + UvarintLen(c.Delta) + UvarintLen(c.N)
 }
 
 func (c *DeltaContainer[T]) Matcher() types.NumberMatcher[T] {
@@ -69,9 +69,9 @@ func (c *DeltaContainer[T]) Iterator() iter.Seq2[int, T] {
 
 func (c *DeltaContainer[T]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TIntDelta))
-	dst = num.AppendUvarint(dst, uint64(c.For))
-	dst = num.AppendUvarint(dst, uint64(c.Delta))
-	return num.AppendUvarint(dst, uint64(c.N))
+	dst = binary.AppendUvarint(dst, uint64(c.For))
+	dst = binary.AppendUvarint(dst, uint64(c.Delta))
+	return binary.AppendUvarint(dst, uint64(c.N))
 }
 
 func (c *DeltaContainer[T]) Load(buf []byte) ([]byte, error) {
@@ -79,13 +79,13 @@ func (c *DeltaContainer[T]) Load(buf []byte) ([]byte, error) {
 		return buf, ErrInvalidType
 	}
 	buf = buf[1:]
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	c.For = T(v)
 	buf = buf[n:]
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	c.Delta = T(v)
 	buf = buf[n:]
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	c.N = int(v)
 	return buf[n:], nil
 }

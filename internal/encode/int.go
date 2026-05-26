@@ -4,10 +4,10 @@
 package encode
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // NewInt creates a new integer container from scheme type.
@@ -71,9 +71,9 @@ func EstimateInt[T types.Integer](ctx *Context[T], scheme ContainerType, v []T) 
 	)
 	switch scheme {
 	case TIntConstant:
-		estSize, ok = 1+2*num.MaxVarintLen32, true
+		estSize, ok = 1+2*binary.MaxVarintLen32, true
 	case TIntDelta:
-		estSize, ok = 1+3*num.MaxVarintLen64, true
+		estSize, ok = 1+3*binary.MaxVarintLen64, true
 	case TIntBitpacked:
 		estSize, ok = ctx.bitPackCosts(), true
 	case TIntRaw:

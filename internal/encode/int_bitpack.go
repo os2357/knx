@@ -5,6 +5,7 @@ package encode
 
 import (
 	"cmp"
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"sync"
@@ -13,7 +14,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/encode/bitpack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 // ensure we implement required interfaces
@@ -68,7 +68,7 @@ func (c *BitpackContainer[T]) Len() int {
 
 func (c *BitpackContainer[T]) Size() int {
 	// Typ (1) + FOR (varint) + log2 (1) + n (varint) + bits (variable)
-	return 2 + num.UvarintLen(c.For) + num.UvarintLen(c.N) + len(c.Packed)
+	return 2 + UvarintLen(c.For) + UvarintLen(c.N) + len(c.Packed)
 }
 
 func (c *BitpackContainer[T]) Matcher() types.NumberMatcher[T] {
@@ -91,9 +91,9 @@ func (c *BitpackContainer[T]) Iterator() iter.Seq2[int, T] {
 
 func (c *BitpackContainer[T]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TIntBitpacked))
-	dst = num.AppendUvarint(dst, uint64(c.For))
-	dst = num.AppendUvarint(dst, uint64(c.Log2))
-	dst = num.AppendUvarint(dst, uint64(c.N))
+	dst = binary.AppendUvarint(dst, uint64(c.For))
+	dst = binary.AppendUvarint(dst, uint64(c.Log2))
+	dst = binary.AppendUvarint(dst, uint64(c.N))
 	return append(dst, c.Packed...)
 }
 
@@ -102,13 +102,13 @@ func (c *BitpackContainer[T]) Load(buf []byte) ([]byte, error) {
 		return buf, ErrInvalidType
 	}
 	buf = buf[1:]
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	c.For = T(v)
 	buf = buf[n:]
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	c.Log2 = int(v)
 	buf = buf[n:]
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	c.N = int(v)
 	buf = buf[n:]
 

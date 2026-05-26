@@ -8,7 +8,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
@@ -75,7 +74,7 @@ func (t *Tomb) WithDB(db store.DB) *Tomb {
 
 func (t *Tomb) WithEpoch(v uint32) *Tomb {
 	t.epoch = v
-	t.ekey = num.EncodeUvarint(uint64(v))
+	t.ekey = store.EncodeUvarint(uint64(v))
 	return t
 }
 
@@ -118,9 +117,9 @@ func (w *TombWriter) AddSPack(tx store.Tx, key, ver uint32) error {
 		return err
 	}
 	// fmt.Printf("Add tomb spack %d[v%d] to epoch %d\n", key, ver, w.t.epoch)
-	var b [2 * num.MaxVarintLen32]byte
-	buf := num.AppendUvarint(b[:0], uint64(key))
-	buf = num.AppendUvarint(buf, uint64(ver))
+	var b [2 * store.MaxVarintLen32]byte
+	buf := store.AppendUvarint(b[:0], uint64(key))
+	buf = store.AppendUvarint(buf, uint64(ver))
 	return w.sb.Put(buf, nil)
 }
 
@@ -134,9 +133,9 @@ func (w *TombWriter) AddNode(tx store.Tx, key []byte) error {
 
 func (t *Tomb) AddDataPack(tx store.Tx, key, ver uint32) error {
 	// fmt.Printf("Add tomb data pack %d[v%d] to epoch %d\n", key, ver, t.epoch)
-	var tmp [2 * num.MaxVarintLen32]byte
-	buf := num.AppendUvarint(tmp[:0], uint64(key))
-	buf = num.AppendUvarint(buf, uint64(ver))
+	var tmp [2 * store.MaxVarintLen32]byte
+	buf := store.AppendUvarint(tmp[:0], uint64(key))
+	buf = store.AppendUvarint(buf, uint64(ver))
 	b, err := t.bucket(tx, TOMB_KIND_TABLE_PACK)
 	if err != nil {
 		return err

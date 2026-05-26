@@ -10,7 +10,6 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/engine"
 	"blockwatch.cc/knoxdb/internal/pack"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
 
@@ -92,14 +91,14 @@ import (
 // adds the current epoch to the list of live epochs on storage
 func (idx *Index) addEpoch(tx store.Tx) error {
 	// idx.log.Tracef("Add tomb epoch %d", idx.epoch)
-	return idx.epochBucket(tx).Put(num.EncodeUvarint(uint64(idx.epoch)), nil)
+	return idx.epochBucket(tx).Put(store.EncodeUvarint(uint64(idx.epoch)), nil)
 }
 
 // removes the current epoch from the list of live epochs, which makes
 // the on-disk tombstones from this epoch garbage collectable.
 func (idx *Index) dropEpoch(tx store.Tx) error {
 	// idx.log.Tracef("Drop tomb epoch %d", idx.epoch)
-	return idx.epochBucket(tx).Delete(num.EncodeUvarint(uint64(idx.epoch)))
+	return idx.epochBucket(tx).Delete(store.EncodeUvarint(uint64(idx.epoch)))
 }
 
 // Delete all reclaimable tombstones.
@@ -111,7 +110,7 @@ func (idx *Index) RunGC(tx store.Tx) error {
 	// identify epochs with GC data
 	drop := make([]uint32, 0)
 	for key := range idx.tombBucket(tx).Scan(nil) {
-		v, _ := num.Uvarint(key)
+		v, _ := store.Uvarint(key)
 		if uint32(v) >= watermark {
 			break
 		}
@@ -136,7 +135,7 @@ func (idx *Index) CleanupEpochs(tx store.Tx) error {
 	drop := make([]uint32, 0)
 	epochs := idx.epochBucket(tx)
 	for key := range epochs.Scan(nil) {
-		v, _ := num.Uvarint(key)
+		v, _ := store.Uvarint(key)
 		if uint32(v) == idx.epoch {
 			continue
 		}
@@ -157,7 +156,7 @@ func (idx *Index) CleanupEpochs(tx store.Tx) error {
 
 		// drop epoch
 		idx.log.Debugf("drop epoch %d", v)
-		if err := epochs.Delete(num.EncodeUvarint(uint64(v))); err != nil {
+		if err := epochs.Delete(store.EncodeUvarint(uint64(v))); err != nil {
 			idx.log.Error(err)
 		}
 	}
@@ -173,7 +172,7 @@ func (idx *Index) CleanupEpochs(tx store.Tx) error {
 // Can run in read-only tx.
 func (idx *Index) NeedCleanup(tx store.Tx) bool {
 	for key := range idx.tombBucket(tx).Scan(nil) {
-		v, _ := num.Uvarint(key)
+		v, _ := store.Uvarint(key)
 		if uint32(v) != idx.epoch {
 			return true
 		}
@@ -187,7 +186,7 @@ func (idx *Index) NeedCleanup(tx store.Tx) bool {
 func (idx *Index) getWatermark(tx store.Tx) (ver uint32) {
 	ver = idx.epoch
 	for key := range idx.epochBucket(tx).Scan(nil) {
-		v, _ := num.Uvarint(key)
+		v, _ := store.Uvarint(key)
 		ver = min(ver, uint32(v))
 		break
 	}
@@ -201,7 +200,7 @@ func (idx *Index) numEpochs(tx store.Tx) int {
 
 func (idx *Index) gcEpoch(tx store.Tx, epoch uint32) error {
 	// resolve the epoch bucket
-	ekey := num.EncodeUvarint(uint64(epoch))
+	ekey := store.EncodeUvarint(uint64(epoch))
 	ebucket, err := idx.tombBucket(tx).Bucket(ekey)
 	if err != nil {
 		return err
@@ -222,8 +221,8 @@ func (idx *Index) gcEpoch(tx store.Tx, epoch uint32) error {
 		rbucket := idx.rangeBucket(tx)
 		for key := range b.Scan(nil) {
 			// key is pack-id + version
-			pk, n := num.Uvarint(key)
-			pv, _ := num.Uvarint(key[n:])
+			pk, n := store.Uvarint(key)
+			pv, _ := store.Uvarint(key[n:])
 			idx.log.Tracef("gc table pack 0x%08d[v%d]", pk, pv)
 
 			// drop blocks
@@ -260,8 +259,8 @@ func (idx *Index) gcEpoch(tx store.Tx, epoch uint32) error {
 		sbucket := idx.statsBucket(tx)
 		for key := range b.Scan(nil) {
 			// key is pack-id + version
-			pk, n := num.Uvarint(key)
-			pv, _ := num.Uvarint(key[n:])
+			pk, n := store.Uvarint(key)
+			pv, _ := store.Uvarint(key[n:])
 			idx.log.Tracef("gc spack 0x%08d[v%d]", pk, pv)
 
 			// drop blocks (id is u16(pos + 1))

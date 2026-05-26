@@ -6,6 +6,7 @@ package journal
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/bitset"
@@ -13,7 +14,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
 )
 
@@ -58,8 +58,8 @@ func (j *Journal) UpdateRecords(ctx context.Context, src []byte, ridMap map[uint
 	)
 
 	// dimension WAL write buffer
-	baseSz := (bits.Len()+7)/8 + num.MaxVarintLen64 // changeset + rid1
-	sz := baseSz + 2*num.MaxVarintLen64 + len(src)  // add max rid + refid space
+	baseSz := (bits.Len()+7)/8 + binary.MaxVarintLen64 // changeset + rid1
+	sz := baseSz + 2*binary.MaxVarintLen64 + len(src)  // add max rid + refid space
 	buf := arena.AllocBytes(sz)
 	msg := bytes.NewBuffer(buf)
 
@@ -83,8 +83,8 @@ func (j *Journal) UpdateRecords(ctx context.Context, src []byte, ridMap map[uint
 			ref := ridMap[pk]
 
 			// write to wal msg
-			num.WriteUvarint(msg, nextRid)
-			num.WriteUvarint(msg, ref)
+			writeBinaryUvarint(msg, nextRid)
+			writeBinaryUvarint(msg, ref)
 			msg.Write(view.Bytes())
 
 			// add update to journal
@@ -254,8 +254,8 @@ func (j *Journal) updatePackWithWal(src *pack.Package, xid types.XID, w *wal.Wal
 	}
 
 	// dimension WAL write buffer (may still with grow with long strings)
-	baseSz := (bits.Len()+7)/8 + num.MaxVarintLen64 // changeset + rid1
-	sz += num.MaxVarintLen64                        // add max refid space
+	baseSz := (bits.Len()+7)/8 + binary.MaxVarintLen64 // changeset + rid1
+	sz += binary.MaxVarintLen64                        // add max refid space
 	if sel == nil {
 		sz = baseSz + sz*src.Len()
 	} else {
@@ -273,10 +273,10 @@ func (j *Journal) updatePackWithWal(src *pack.Package, xid types.XID, w *wal.Wal
 			// 1 write WAL buffer and update journal metadata
 			// | changeset | rid1 | ref1 | wire1 | ..
 			msg.Write(bits.Bytes())
-			num.WriteUvarint(msg, nextRid)
+			writeBinaryUvarint(msg, nextRid)
 			for range n {
 				ref := rids.Get(i)
-				num.WriteUvarint(msg, ref)
+				writeBinaryUvarint(msg, ref)
 
 				// extract wire change format for the record
 				if err := src.ReadWireFields(msg, i, changed); err != nil {
@@ -317,10 +317,10 @@ func (j *Journal) updatePackWithWal(src *pack.Package, xid types.XID, w *wal.Wal
 			// 1 write WAL buffer and update journal metadata
 			// | changeset | rid1 | ref1 | wire1 | ..
 			msg.Write(bits.Bytes())
-			num.WriteUvarint(msg, nextRid)
+			writeBinaryUvarint(msg, nextRid)
 			for _, v := range sel[:n] {
 				ref := rids.Get(int(v))
-				num.WriteUvarint(msg, ref)
+				writeBinaryUvarint(msg, ref)
 
 				// extract wire change format for this record
 				if err := src.ReadWireFields(msg, int(v), changed); err != nil {

@@ -5,6 +5,7 @@ package encode
 
 import (
 	"cmp"
+	"encoding/binary"
 	"fmt"
 	"iter"
 	"math"
@@ -14,7 +15,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/encode/alp"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/num"
 )
 
 type AlpFlags byte
@@ -108,8 +108,8 @@ func (c *FloatAlpContainer[T, E]) Iterator() iter.Seq2[int, T] {
 
 func (c *FloatAlpContainer[T, E]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TFloatAlp))
-	dst = num.AppendUvarint(dst, uint64(c.Exponent))
-	dst = num.AppendUvarint(dst, uint64(c.Factor))
+	dst = binary.AppendUvarint(dst, uint64(c.Exponent))
+	dst = binary.AppendUvarint(dst, uint64(c.Factor))
 	dst = append(dst, byte(c.flags))
 	dst = c.Values.Store(dst)
 	if c.flags&FlagPatched > 0 {
@@ -125,11 +125,11 @@ func (c *FloatAlpContainer[T, E]) Load(buf []byte) ([]byte, error) {
 	}
 	buf = buf[1:]
 
-	v, n := num.Uvarint(buf)
+	v, n := binary.Uvarint(buf)
 	c.Exponent = uint8(v)
 	buf = buf[n:]
 
-	v, n = num.Uvarint(buf)
+	v, n = binary.Uvarint(buf)
 	c.Factor = uint8(v)
 	buf = buf[n:]
 

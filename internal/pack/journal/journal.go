@@ -5,6 +5,7 @@ package journal
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
@@ -14,7 +15,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/internal/xroar"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"github.com/echa/log"
 )
@@ -566,7 +566,7 @@ func (j *Journal) ReplayWalRecord(ctx context.Context, rec *wal.Record, rd engin
 	case wal.RecordTypeInsert:
 		// read data header (first rid)
 		buf := rec.Data[0]
-		rid, n := num.Uvarint(buf)
+		rid, n := binary.Uvarint(buf)
 		buf = buf[n:]
 		var (
 			count    uint64
@@ -615,7 +615,7 @@ func (j *Journal) ReplayWalRecord(ctx context.Context, rec *wal.Record, rd engin
 		buf = buf[csize:]
 
 		// peek first rowid
-		rid, _ := num.Uvarint(buf)
+		rid, _ := binary.Uvarint(buf)
 
 		// sanity check row id
 		if j.tip.tstate.NextRid != rid {
@@ -631,11 +631,11 @@ func (j *Journal) ReplayWalRecord(ctx context.Context, rec *wal.Record, rd engin
 			)
 			for len(buf) > 0 {
 				// decode rid
-				rid, n := num.Uvarint(buf)
+				rid, n := binary.Uvarint(buf)
 				buf = buf[n:]
 
 				// decode ref
-				ref, n := num.Uvarint(buf)
+				ref, n := binary.Uvarint(buf)
 				buf = buf[n:]
 
 				// decode record
@@ -677,11 +677,11 @@ func (j *Journal) ReplayWalRecord(ctx context.Context, rec *wal.Record, rd engin
 			)
 			for len(buf) > 0 {
 				// decode rid
-				_, n := num.Uvarint(buf)
+				_, n := binary.Uvarint(buf)
 				buf = buf[n:]
 				c += n
 				// decode ref
-				ref, n := num.Uvarint(buf)
+				ref, n := binary.Uvarint(buf)
 				buf = buf[n:]
 				c += n
 				refs.Set(ref)
@@ -753,7 +753,7 @@ func (j *Journal) ReplayWalRecord(ctx context.Context, rec *wal.Record, rd engin
 		buf := rec.Data[0]
 		var nDeleted uint64
 		for len(buf) > 0 && j.Capacity() > 0 {
-			rid, n := num.Uvarint(buf)
+			rid, n := binary.Uvarint(buf)
 			buf = buf[n:]
 
 			// append to tomb, set xmax on rid when in tip segment

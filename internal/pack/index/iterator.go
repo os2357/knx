@@ -17,7 +17,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/assert"
-	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/slicex"
 	"blockwatch.cc/knoxdb/pkg/store"
 )
@@ -176,7 +175,7 @@ func (it *LookupIterator) loadNextPack(ctx context.Context) (bool, error) {
 		search = it.idx.encodePackKey(it.keys[0], it.nextRid, 0)
 		// it.idx.log.Debugf("lookup: searchLE 0x%016x:%016x:%d", it.keys[0], it.nextRid, 0)
 	} else {
-		search = num.EncodeUvarint(it.keys[0])
+		search = store.EncodeUvarint(it.keys[0])
 		// it.idx.log.Debugf("lookup: searchLE 0x%016x", it.keys[0])
 	}
 	key, val, err := it.bucket.SearchLE(search)
@@ -392,28 +391,28 @@ func (it *ScanIterator) Next(ctx context.Context) (*pack.Package, []uint32, erro
 
 var (
 	FF  = []byte{0xFF}
-	END = num.EncodeUvarint(uint64(0xFFFFFFFFFFFFFFFF))
+	END = store.EncodeUvarint(uint64(0xFFFFFFFFFFFFFFFF))
 )
 
 // convert filter value to uvarint key
 func makePrefix(typ filter.ValueType, val any) []byte {
 	switch types.BlockType(typ) {
 	case block.BlockInt64:
-		return num.EncodeUvarint(uint64(val.(int64)))
+		return store.EncodeUvarint(uint64(val.(int64)))
 	case block.BlockInt32:
-		return num.EncodeUvarint(uint64(val.(int32)))
+		return store.EncodeUvarint(uint64(val.(int32)))
 	case block.BlockInt16:
-		return num.EncodeUvarint(uint64(val.(int16)))
+		return store.EncodeUvarint(uint64(val.(int16)))
 	case block.BlockInt8:
-		return num.EncodeUvarint(uint64(val.(int8)))
+		return store.EncodeUvarint(uint64(val.(int8)))
 	case block.BlockUint64:
-		return num.EncodeUvarint(val.(uint64))
+		return store.EncodeUvarint(val.(uint64))
 	case block.BlockUint32:
-		return num.EncodeUvarint(uint64(val.(uint32)))
+		return store.EncodeUvarint(uint64(val.(uint32)))
 	case block.BlockUint16:
-		return num.EncodeUvarint(uint64(val.(uint16)))
+		return store.EncodeUvarint(uint64(val.(uint16)))
 	case block.BlockUint8:
-		return num.EncodeUvarint(uint64(val.(uint8)))
+		return store.EncodeUvarint(uint64(val.(uint8)))
 	}
 	return []byte{0}
 }
