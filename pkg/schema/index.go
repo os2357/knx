@@ -168,7 +168,7 @@ func (s *IndexSchema) StorageSchema() (*Schema, error) {
 	// build storage schema (without flags to make all fields visible)
 	var b *Builder
 	switch s.Type {
-	case I_PK:
+	case IT_PK:
 		// pk -> rid
 		b = NewBuilder().
 			WithName(s.Name).
@@ -176,7 +176,7 @@ func (s *IndexSchema) StorageSchema() (*Schema, error) {
 			Uint64(s.Fields[0].Name, Id(s.Fields[0].Id)).
 			Uint64("rid", Id(MetaRid))
 
-	case I_HASH:
+	case IT_HASH:
 		// hash(any) -> rid
 		b = NewBuilder().
 			WithName(s.Name).
@@ -184,7 +184,7 @@ func (s *IndexSchema) StorageSchema() (*Schema, error) {
 			Uint64("hash").
 			Uint64("rid", Id(MetaRid))
 
-	case I_INT:
+	case IT_INT:
 		// int -> rid
 		b = NewBuilder().
 			WithName(s.Name).
@@ -192,7 +192,7 @@ func (s *IndexSchema) StorageSchema() (*Schema, error) {
 			Uint64(s.Fields[0].Name, Id(s.Fields[0].Id)).
 			Uint64("rid", Id(MetaRid))
 
-	case I_COMPOSITE:
+	case IT_COMPOSITE:
 		// hash(...) -> rid
 		b = NewBuilder().
 			WithName(s.Name).
@@ -261,7 +261,7 @@ func (s *IndexSchema) Validate() error {
 
 	// check type-specific restrictions
 	switch s.Type {
-	case I_INT:
+	case IT_INT:
 		// requires single integer field
 		if len(s.Fields) > 1 {
 			return fmt.Errorf("index[%s]: integer index requires single field", s.Name)
@@ -276,7 +276,7 @@ func (s *IndexSchema) Validate() error {
 				s.Name, f.Name, f.Type)
 		}
 
-	case I_PK:
+	case IT_PK:
 		// requires single integer field
 		if len(s.Fields) > 1 {
 			return fmt.Errorf("index[%s]: primary index requires single field", s.Name)
@@ -288,13 +288,13 @@ func (s *IndexSchema) Validate() error {
 				s.Name, f.Name, f.Type)
 		}
 
-	case I_HASH:
+	case IT_HASH:
 		// requires single field
 		if len(s.Fields) > 1 {
 			return fmt.Errorf("index[%s]: hash index requires single field", s.Name)
 		}
 
-	case I_COMPOSITE:
+	case IT_COMPOSITE:
 		// requires multiple fields
 		if len(s.Fields) < 2 {
 			return fmt.Errorf("index[%s]: composite index requires at least 2 fields", s.Name)

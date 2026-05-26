@@ -142,7 +142,7 @@ func (p *Package) LoadFromDisk(ctx context.Context, bucket store.Bucket, fids []
 		}
 
 		// skip inactive fields
-		if f.Flags.Is(types.FieldFlagDeleted) {
+		if f.Flags.Is(types.F_DELETED) {
 			continue
 		}
 
@@ -199,7 +199,7 @@ func (p *Package) StoreToDisk(ctx context.Context, bucket store.Bucket) (int, er
 	for i, f := range p.schema.Fields {
 		// skip empty blocks, deleted fields; write all blocks for consistent version
 		b := p.blocks[i]
-		if b == nil || f.Flags.Is(types.FieldFlagDeleted) {
+		if b == nil || f.Flags.Is(types.F_DELETED) {
 			continue
 		}
 

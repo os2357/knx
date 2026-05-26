@@ -8,7 +8,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/assert"
-	"blockwatch.cc/knoxdb/pkg/schema"
 )
 
 const (
@@ -49,8 +48,8 @@ func (p *Package) XminBlock() *block.Block  { return p.blocks[p.rx+xminOffs] }
 func (p *Package) XmaxBlock() *block.Block  { return p.blocks[p.rx+xmaxOffs] }
 func (p *Package) DelBlock() *block.Block   { return p.blocks[p.rx+delOffs] }
 
-func (p *Package) Meta(row int) *schema.Meta {
-	m := &schema.Meta{}
+func (p *Package) Meta(row int) *types.Meta {
+	m := &types.Meta{}
 	if p.HasMeta() {
 		m.Rid = p.RowId(row)
 		m.Ref = p.RefId(row)
@@ -61,7 +60,7 @@ func (p *Package) Meta(row int) *schema.Meta {
 	return m
 }
 
-func (p *Package) SetMeta(row int, m *schema.Meta) {
+func (p *Package) SetMeta(row int, m *types.Meta) {
 	if !p.HasMeta() {
 		return
 	}

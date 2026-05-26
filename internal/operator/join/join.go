@@ -751,12 +751,12 @@ func mergeJoinInner(p *JoinPlan, left, right QueryResult, out QueryResultConsume
 	// sorted input is required
 	//
 	// sort left result by predicate column unless it's the primary key
-	if !p.Left.On.Is(types.FieldFlagPrimary) {
+	if !p.Left.On.Is(types.F_PRIMARY) {
 		left.SortBy(p.Left.On.Name, types.OrderAsc)
 	}
 
 	// sort right result by predicate column unless it's the primary key
-	if !p.Right.On.Is(types.FieldFlagPrimary) {
+	if !p.Right.On.Is(types.F_PRIMARY) {
 		right.SortBy(p.Right.On.Name, types.OrderAsc)
 	}
 
@@ -862,12 +862,12 @@ func mergeJoinLeft(p *JoinPlan, left, right QueryResult, out QueryResultConsumer
 	// sorted input is required
 	//
 	// sort left result by predicate column unless it's the primary key
-	if !p.Left.On.Is(types.FieldFlagPrimary) {
+	if !p.Left.On.Is(types.F_PRIMARY) {
 		left.SortBy(p.Left.On.Name, types.OrderAsc)
 	}
 
 	// sort right result by predicate column unless it's the primary key
-	if !p.Right.On.Is(types.FieldFlagPrimary) {
+	if !p.Right.On.Is(types.F_PRIMARY) {
 		right.SortBy(p.Right.On.Name, types.OrderAsc)
 	}
 

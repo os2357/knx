@@ -269,7 +269,7 @@ func UpdateRowsTableTest(t *testing.T, e *engine.Engine, tab engine.TableEngine,
 	InsertData(t, e, tab)
 
 	// create fake pk index
-	idxSchema := schema.NewIndexSchema(types.IndexTypePk, tab.Schema(), tab.Schema().Pk(), tab.Schema().RowId())
+	idxSchema := schema.NewIndexSchema(types.IT_PK, tab.Schema(), tab.Schema().Pk(), tab.Schema().RowId())
 	idx := query.NewMockIndex(idxSchema, xroar.New())
 	tab.ConnectIndex(idx)
 

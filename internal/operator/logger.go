@@ -41,14 +41,14 @@ func (op *Logger) Process(_ context.Context, src *pack.Package) (*pack.Package, 
 	var cfgs []table.ColumnConfig
 	for _, field := range s.Fields {
 		switch field.Type {
-		case types.FieldTypeBytes:
+		case types.FT_BYTES:
 			cfgs = append(cfgs, table.ColumnConfig{
 				Name: field.Name,
 				Transformer: func(val any) string {
 					return hex.EncodeToString(val.([]byte))
 				},
 			})
-		case types.FieldTypeUint16:
+		case types.FT_U16:
 			if field.IsEnum() && field.Enum != nil {
 				cfgs = append(cfgs, table.ColumnConfig{
 					Name: field.Name,
@@ -61,7 +61,7 @@ func (op *Logger) Process(_ context.Context, src *pack.Package) (*pack.Package, 
 					},
 				})
 			}
-		case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
+		case types.FT_TIMESTAMP, types.FT_DATE, types.FT_TIME:
 			cfgs = append(cfgs, table.ColumnConfig{
 				Name: field.Name,
 				Transformer: func(val any) string {

@@ -6,12 +6,6 @@ import (
 )
 
 type (
-	FieldType        = types.FieldType
-	FieldFlags       = types.FieldFlags
-	IndexType        = types.IndexType
-	FilterType       = types.FilterType
-	BlockCompression = types.BlockCompression
-
 	Schema      = schema.Schema
 	Field       = schema.Field
 	IndexSchema = schema.IndexSchema

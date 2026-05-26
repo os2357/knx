@@ -135,7 +135,7 @@ func FillIndex(t *testing.T, e *engine.Engine, ie engine.IndexEngine) *pack.Pack
 	ctx := engine.WithEngine(context.Background(), e)
 	enc := encode.NewEncoder(ie.Table().Schema())
 	pkg := pack.New().WithSchema(ie.Table().Schema()).WithMaxRows(1 << 11).Alloc()
-	meta := &schema.Meta{}
+	meta := &types.Meta{}
 	for i := range 6 {
 		allType := NewAllTypes(i)
 		allType.Id = uint64(i + 1)
@@ -226,7 +226,7 @@ func CanMatchIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngine, ts
 
 	// check by type
 	switch is.Type {
-	case types.IndexTypeHash:
+	case types.IT_HASH:
 		// eq
 		require.True(t, ie.CanMatch(makeFilter(ts, "u64", EQ, 1, nil)), EQ)
 		// in
@@ -246,7 +246,7 @@ func CanMatchIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngine, ts
 		require.False(t, ie.CanMatch(makeFilter(ts, "i32", EQ, 1, nil)), "non index field")
 		require.False(t, ie.CanMatch(makeFilter(ts, "u64", NI, []int{1, 2}, nil)), NI)
 
-	case types.IndexTypeInt, types.IndexTypePk:
+	case types.IT_INT, types.IT_PK:
 		// eq
 		require.True(t, ie.CanMatch(makeFilter(ts, "u64", EQ, 1, nil)), EQ)
 		// le
@@ -281,11 +281,11 @@ func AddIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngine, ts *sch
 
 	// query data to confirm it is stored
 	switch is.Type {
-	case types.IndexTypeHash:
+	case types.IT_HASH:
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", EQ, 5, nil), 1)
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", EQ, 15, nil), 0)
 
-	case types.IndexTypeInt:
+	case types.IT_INT:
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", LT, 6, nil), 6)
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", GT, 15, nil), 0)
 
@@ -300,10 +300,10 @@ func DeleteIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngine, ts *
 	ctx := engine.WithEngine(context.Background(), e)
 
 	switch is.Type {
-	case types.IndexTypeHash:
+	case types.IT_HASH:
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", EQ, 5, nil), 1)
 
-	case types.IndexTypeInt:
+	case types.IT_INT:
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", LT, 6, nil), 6)
 
 	default:
@@ -317,10 +317,10 @@ func DeleteIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngine, ts *
 
 	// query again, confirm item is removed
 	switch is.Type {
-	case types.IndexTypeHash:
+	case types.IT_HASH:
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", EQ, 5, nil), 0)
 
-	case types.IndexTypeInt:
+	case types.IT_INT:
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", LT, 6, nil), 5)
 
 	default:
@@ -335,12 +335,12 @@ func QueryIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngine, ts *s
 
 	// query by type
 	switch is.Type {
-	case types.IndexTypeHash:
+	case types.IT_HASH:
 		// eq
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", EQ, 1, nil), 1)
 		// in
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", IN, []int{1, 2}, nil), 2)
-	case types.IndexTypeInt:
+	case types.IT_INT:
 		// eq
 		QueryIndex(t, ctx, ie, makeFilter(ts, "u64", EQ, 1, nil), 1)
 		// le

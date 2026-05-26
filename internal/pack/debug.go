@@ -71,51 +71,51 @@ func (p *Package) ReadValue(col, row int, typ types.FieldType, scale uint8) any 
 	b := p.blocks[col]
 
 	switch typ {
-	case types.FieldTypeInt64:
+	case types.FT_I64:
 		return b.Int64().Get(row)
-	case types.FieldTypeInt32:
+	case types.FT_I32:
 		return b.Int32().Get(row)
-	case types.FieldTypeInt16:
+	case types.FT_I16:
 		return b.Int16().Get(row)
-	case types.FieldTypeInt8:
+	case types.FT_I8:
 		return b.Int8().Get(row)
-	case types.FieldTypeUint64:
+	case types.FT_U64:
 		return b.Uint64().Get(row)
-	case types.FieldTypeUint32:
+	case types.FT_U32:
 		return b.Uint32().Get(row)
-	case types.FieldTypeUint16:
+	case types.FT_U16:
 		return b.Uint16().Get(row)
-	case types.FieldTypeUint8:
+	case types.FT_U8:
 		return b.Uint8().Get(row)
-	case types.FieldTypeFloat64:
+	case types.FT_F64:
 		return b.Float64().Get(row)
-	case types.FieldTypeFloat32:
+	case types.FT_F32:
 		return b.Float32().Get(row)
-	case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
+	case types.FT_TIMESTAMP, types.FT_DATE, types.FT_TIME:
 		if ts := b.Int64().Get(row); ts > 0 {
 			return types.TimeScale(scale).FromUnix(ts)
 		} else {
 			return zeroTime
 		}
-	case types.FieldTypeBoolean:
+	case types.FT_BOOL:
 		return b.Bool().Get(row)
-	case types.FieldTypeBytes:
+	case types.FT_BYTES:
 		return b.Bytes().Get(row)
-	case types.FieldTypeString:
+	case types.FT_STRING:
 		return util.UnsafeGetString(b.Bytes().Get(row))
-	case types.FieldTypeInt256:
+	case types.FT_I256:
 		return b.Int256().Get(row)
-	case types.FieldTypeInt128:
+	case types.FT_I128:
 		return b.Int128().Get(row)
-	case types.FieldTypeDecimal256:
+	case types.FT_D256:
 		return num.NewDecimal256(b.Int256().Get(row), scale)
-	case types.FieldTypeDecimal128:
+	case types.FT_D128:
 		return num.NewDecimal128(b.Int128().Get(row), scale)
-	case types.FieldTypeDecimal64:
+	case types.FT_D64:
 		return num.NewDecimal64(b.Int64().Get(row), scale)
-	case types.FieldTypeDecimal32:
+	case types.FT_D32:
 		return num.NewDecimal32(b.Int32().Get(row), scale)
-	case types.FieldTypeBigint:
+	case types.FT_BIGINT:
 		return num.NewBigFromBytes(b.Bytes().Get(row))
 	default:
 		// oh, its a type we don't support yet

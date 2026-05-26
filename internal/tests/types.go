@@ -11,19 +11,19 @@ var (
 	BlockTypes = types.BlockTypes
 
 	FieldTypes = [...]types.FieldType{
-		types.BlockBool:    types.FieldTypeBoolean,
-		types.BlockBytes:   types.FieldTypeBytes,
-		types.BlockInt8:    types.FieldTypeInt8,
-		types.BlockInt16:   types.FieldTypeInt16,
-		types.BlockInt32:   types.FieldTypeInt32,
-		types.BlockInt64:   types.FieldTypeInt64,
-		types.BlockInt128:  types.FieldTypeInt128,
-		types.BlockInt256:  types.FieldTypeInt256,
-		types.BlockUint8:   types.FieldTypeUint8,
-		types.BlockUint16:  types.FieldTypeUint16,
-		types.BlockUint32:  types.FieldTypeUint32,
-		types.BlockUint64:  types.FieldTypeUint64,
-		types.BlockFloat32: types.FieldTypeFloat32,
-		types.BlockFloat64: types.FieldTypeFloat64,
+		types.BlockBool:    types.FT_BOOL,
+		types.BlockBytes:   types.FT_BYTES,
+		types.BlockInt8:    types.FT_I8,
+		types.BlockInt16:   types.FT_I16,
+		types.BlockInt32:   types.FT_I32,
+		types.BlockInt64:   types.FT_I64,
+		types.BlockInt128:  types.FT_I128,
+		types.BlockInt256:  types.FT_I256,
+		types.BlockUint8:   types.FT_U8,
+		types.BlockUint16:  types.FT_U16,
+		types.BlockUint32:  types.FT_U32,
+		types.BlockUint64:  types.FT_U64,
+		types.BlockFloat32: types.FT_F32,
+		types.BlockFloat64: types.FT_F64,
 	}
 )

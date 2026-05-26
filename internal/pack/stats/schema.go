@@ -45,8 +45,8 @@ func MakeSchema(s *schema.Schema) *schema.Schema {
 			WithName("min_" + src.Name).
 			WithScale(src.Scale).
 			WithFixed(src.Fixed).
-			WithFlags(src.Flags & types.FieldFlagDeleted). // only keep deleted flag
-			WithFilter(src.Filter)                         // keep filter (in case its bloom)
+			WithFlags(src.Flags & types.F_DELETED). // only keep deleted flag
+			WithFilter(src.Filter)                  // keep filter (in case its bloom)
 
 		statsSchema.WithField(f)
 		statsSchema.WithField(f.Clone().WithName("max_" + src.Name))

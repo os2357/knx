@@ -38,16 +38,16 @@ func (t *Tomb) WithSchema(tableSchema, metaSchema *schema.Schema, use Features) 
 	t.activeFields = tableSchema.ActiveIds()
 	for _, f := range tableSchema.Fields {
 		switch f.Filter {
-		case types.FilterTypeBloom2b, types.FilterTypeBloom3b,
-			types.FilterTypeBloom4b, types.FilterTypeBloom5b:
+		case types.FL_BLOOM2B, types.FL_BLOOM3B,
+			types.FL_BLOOM4B, types.FL_BLOOM5B:
 			if use.Is(FeatBloomFilter) {
 				t.filteredFields = append(t.filteredFields, f.Id)
 			}
-		case types.FilterTypeBfuse8, types.FilterTypeBfuse16:
+		case types.FL_BFUSE8, types.FL_BFUSE16:
 			if use.Is(FeatFuseFilter) {
 				t.filteredFields = append(t.filteredFields, f.Id)
 			}
-		case types.FilterTypeBits:
+		case types.FL_BITS:
 			if use.Is(FeatBitsFilter) {
 				t.filteredFields = append(t.filteredFields, f.Id)
 			}

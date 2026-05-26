@@ -64,13 +64,13 @@ func (idx *Index) canMatchFilter(f *filter.Filter) bool {
 	case types.FilterModeEqual:
 		return true
 	case types.FilterModeIn:
-		return idx.sindex.Type == types.IndexTypeHash
+		return idx.sindex.Type == types.IT_HASH
 	case types.FilterModeLt,
 		types.FilterModeLe,
 		types.FilterModeGt,
 		types.FilterModeGe,
 		types.FilterModeRange:
-		return idx.sindex.Type == types.IndexTypeInt
+		return idx.sindex.Type == types.IT_INT
 	default:
 		return false
 	}
@@ -97,11 +97,11 @@ func (idx *Index) Query(ctx context.Context, c engine.QueryCondition) (*xroar.Bi
 		err  error
 	)
 	switch idx.sindex.Type {
-	case types.IndexTypeHash:
+	case types.IT_HASH:
 		// convert query values to hash values and lookup
 		bits, err = idx.lookupKeys(ctx, idx.convert.QueryKeys(node))
 
-	case types.IndexTypeInt:
+	case types.IT_INT:
 		// execute the condition directly (like on table scans)
 		bits, err = idx.queryKeys(ctx, idx.convert.QueryNode(node))
 	}
@@ -110,7 +110,7 @@ func (idx *Index) Query(ctx context.Context, c engine.QueryCondition) (*xroar.Bi
 	}
 
 	// collide depend on method
-	canCollide := idx.sindex.Type == types.IndexTypeHash
+	canCollide := idx.sindex.Type == types.IT_HASH
 	return bits, canCollide, err
 }
 

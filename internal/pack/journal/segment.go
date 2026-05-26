@@ -46,7 +46,7 @@ type Segment struct {
 	data     *pack.Package      // full column data (insert/update) and tx metadata
 	stats    *stats.Record      // column statistics (available when full: waiting++)
 	tomb     *Tomb              // tombstone (compact delete records) with tx metadata
-	meta     *schema.Meta       // cache for decoded row metadata
+	meta     *types.Meta        // cache for decoded row metadata
 	lsn      wal.LSN            // WAL checkpoint, i.e. first LSN that holds data for this segment
 	xact     types.XID          // single uncommitted xid in this segment (0 = none)
 	tstate   engine.ObjectState // table state (serial number generators, checkpoint LSN)
@@ -74,7 +74,7 @@ func newSegment(s *schema.Schema, id uint32, maxsz int) *Segment {
 			WithVersion(id).
 			Alloc(),
 		tomb:  newTomb(maxsz),
-		meta:  &schema.Meta{},
+		meta:  &types.Meta{},
 		xmin:  1<<64 - 1,
 		xmax:  0,
 		rmin:  1<<64 - 1,
@@ -96,7 +96,7 @@ func (s *Segment) Reset() {
 		s.replaced = nil
 	}
 	s.stats = nil
-	s.meta = &schema.Meta{}
+	s.meta = &types.Meta{}
 	s.xmin = 1<<64 - 1
 	s.xmax = 0
 	s.rmin = 1<<64 - 1

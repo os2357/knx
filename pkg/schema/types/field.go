@@ -14,8 +14,6 @@ import (
 type FieldType byte
 
 const (
-	// TODO: rename to short & unify across codebase
-
 	FieldTypeInvalid FieldType = iota
 	FieldTypeTimestamp
 	FieldTypeInt64
@@ -103,48 +101,48 @@ func (t FieldType) String() string {
 
 func (t FieldType) Zero() any {
 	switch t {
-	case FieldTypeTimestamp, FieldTypeDate, FieldTypeTime:
+	case FT_TIMESTAMP, FT_DATE, FT_TIME:
 		var t time.Time
 		return t.UTC()
-	case FieldTypeInt64:
+	case FT_I64:
 		return int64(0)
-	case FieldTypeUint64:
+	case FT_U64:
 		return uint64(0)
-	case FieldTypeFloat64:
+	case FT_F64:
 		return float64(0)
-	case FieldTypeBoolean:
+	case FT_BOOL:
 		return false
-	case FieldTypeString:
+	case FT_STRING:
 		return ""
-	case FieldTypeBytes:
+	case FT_BYTES:
 		return []byte{}
-	case FieldTypeInt32:
+	case FT_I32:
 		return int32(0)
-	case FieldTypeInt16:
+	case FT_I16:
 		return int16(0)
-	case FieldTypeInt8:
+	case FT_I8:
 		return int8(0)
-	case FieldTypeUint32:
+	case FT_U32:
 		return uint32(0)
-	case FieldTypeUint16:
+	case FT_U16:
 		return uint16(0)
-	case FieldTypeUint8:
+	case FT_U8:
 		return uint8(0)
-	case FieldTypeFloat32:
+	case FT_F32:
 		return float32(0)
-	case FieldTypeInt256:
+	case FT_I256:
 		return num.ZeroInt256
-	case FieldTypeInt128:
+	case FT_I128:
 		return num.ZeroInt128
-	case FieldTypeDecimal256:
+	case FT_D256:
 		return num.ZeroDecimal256
-	case FieldTypeDecimal128:
+	case FT_D128:
 		return num.ZeroDecimal128
-	case FieldTypeDecimal64:
+	case FT_D64:
 		return num.ZeroDecimal64
-	case FieldTypeDecimal32:
+	case FT_D32:
 		return num.ZeroDecimal32
-	case FieldTypeBigint:
+	case FT_BIGINT:
 		return num.BigZero
 	default:
 		return nil

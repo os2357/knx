@@ -3,8 +3,6 @@
 
 package schema
 
-import "blockwatch.cc/knoxdb/internal/types"
-
 const (
 	// reserved metadata field ids
 	MetaRid    uint16 = 0xFFFF
@@ -14,19 +12,6 @@ const (
 	MetaDel    uint16 = 0xFFFB
 	MetaAction uint16 = 0xFFFA
 )
-
-// Internal schema for record metadata
-type Meta struct {
-	Rid   uint64    `knox:"$rid,metadata,id=0xffff"`  // unique row id
-	Ref   uint64    `knox:"$ref,metadata,id=0xfffe"`  // previous version, ref == rid on first insert
-	Xmin  types.XID `knox:"$xmin,metadata,id=0xfffd"` // txid where this row was created
-	Xmax  types.XID `knox:"$xmax,metadata,id=0xfffc"` // txid where this row was deleted
-	IsDel bool      `knox:"$del,metadata,id=0xfffb"`  // record was deleted (true) or updated (false)
-}
-
-// type ChangeCaptureMeta struct {
-// 	Action types.ChangeAction `knox:$action,metadata,id=0xfffa`
-// }
 
 var (
 	MetaFieldIds = []uint16{MetaRid, MetaRef, MetaXmin, MetaXmax, MetaDel}

@@ -7,7 +7,6 @@ type BlockType = types.BlockType
 var BlockTypes = types.BlockTypes
 
 const (
-	BlockInvalid = types.BlockInvalid
 	BlockInt64   = types.BlockInt64
 	BlockInt32   = types.BlockInt32
 	BlockInt16   = types.BlockInt16
@@ -36,43 +35,42 @@ const (
 type FieldType = types.FieldType
 
 const (
-	FieldTypeInvalid    = types.FieldTypeInvalid
-	FieldTypeTimestamp  = types.FieldTypeTimestamp
-	FieldTypeInt64      = types.FieldTypeInt64
-	FieldTypeUint64     = types.FieldTypeUint64
-	FieldTypeFloat64    = types.FieldTypeFloat64
-	FieldTypeBoolean    = types.FieldTypeBoolean
-	FieldTypeString     = types.FieldTypeString
-	FieldTypeBytes      = types.FieldTypeBytes
-	FieldTypeInt32      = types.FieldTypeInt32
-	FieldTypeInt16      = types.FieldTypeInt16
-	FieldTypeInt8       = types.FieldTypeInt8
-	FieldTypeUint32     = types.FieldTypeUint32
-	FieldTypeUint16     = types.FieldTypeUint16
-	FieldTypeUint8      = types.FieldTypeUint8
-	FieldTypeFloat32    = types.FieldTypeFloat32
-	FieldTypeInt256     = types.FieldTypeInt256
-	FieldTypeInt128     = types.FieldTypeInt128
-	FieldTypeDecimal256 = types.FieldTypeDecimal256
-	FieldTypeDecimal128 = types.FieldTypeDecimal128
-	FieldTypeDecimal64  = types.FieldTypeDecimal64
-	FieldTypeDecimal32  = types.FieldTypeDecimal32
-	FieldTypeBigint     = types.FieldTypeBigint
-	FieldTypeDate       = types.FieldTypeDate
-	FieldTypeTime       = types.FieldTypeTime
+	FT_TIMESTAMP = types.FieldTypeTimestamp
+	FT_I8        = types.FieldTypeInt8
+	FT_I16       = types.FieldTypeInt16
+	FT_I32       = types.FieldTypeInt32
+	FT_I64       = types.FieldTypeInt64
+	FT_I128      = types.FieldTypeInt128
+	FT_I256      = types.FieldTypeInt256
+	FT_U8        = types.FieldTypeUint8
+	FT_U16       = types.FieldTypeUint16
+	FT_U32       = types.FieldTypeUint32
+	FT_U64       = types.FieldTypeUint64
+	FT_F32       = types.FieldTypeFloat32
+	FT_F64       = types.FieldTypeFloat64
+	FT_D32       = types.FieldTypeDecimal32
+	FT_D64       = types.FieldTypeDecimal64
+	FT_D128      = types.FieldTypeDecimal128
+	FT_D256      = types.FieldTypeDecimal256
+	FT_BOOL      = types.FieldTypeBoolean
+	FT_STRING    = types.FieldTypeString
+	FT_BYTES     = types.FieldTypeBytes
+	FT_BIGINT    = types.FieldTypeBigint
+	FT_TIME      = types.FieldTypeTime
+	FT_DATE      = types.FieldTypeDate
 )
 
 type FieldFlags = types.FieldFlags
 
 const (
-	FieldFlagPrimary  = types.FieldFlagPrimary
-	FieldFlagFixed    = types.FieldFlagFixed
-	FieldFlagEnum     = types.FieldFlagEnum
-	FieldFlagDeleted  = types.FieldFlagDeleted
-	FieldFlagMetadata = types.FieldFlagMetadata
-	FieldFlagNullable = types.FieldFlagNullable
-	FieldFlagTimebase = types.FieldFlagTimebase
-	FieldFlagAction   = types.FieldFlagAction
+	F_PRIMARY  = types.FieldFlagPrimary
+	F_FIXED    = types.FieldFlagFixed
+	F_ENUM     = types.FieldFlagEnum
+	F_DELETED  = types.FieldFlagDeleted
+	F_METADATA = types.FieldFlagMetadata
+	F_NULLABLE = types.FieldFlagNullable
+	F_TIMEBASE = types.FieldFlagTimebase
+	F_ACTION   = types.FieldFlagAction
 )
 
 type TimeScale = types.TimeScale
@@ -80,22 +78,22 @@ type TimeScale = types.TimeScale
 type FilterType = types.FilterType
 
 const (
-	FilterTypeNone    = types.FilterTypeNone
-	FilterTypeBits    = types.FilterTypeBits
-	FilterTypeBloom2b = types.FilterTypeBloom2b
-	FilterTypeBloom3b = types.FilterTypeBloom3b
-	FilterTypeBloom4b = types.FilterTypeBloom4b
-	FilterTypeBloom5b = types.FilterTypeBloom5b
-	FilterTypeBfuse8  = types.FilterTypeBfuse8
-	FilterTypeBfuse16 = types.FilterTypeBfuse16
+	FL_NONE    = types.FilterTypeNone
+	FL_BITS    = types.FilterTypeBits
+	FL_BLOOM2B = types.FilterTypeBloom2b
+	FL_BLOOM3B = types.FilterTypeBloom3b
+	FL_BLOOM4B = types.FilterTypeBloom4b
+	FL_BLOOM5B = types.FilterTypeBloom5b
+	FL_BFUSE8  = types.FilterTypeBfuse8
+	FL_BFUSE16 = types.FilterTypeBfuse16
 )
 
 type IndexType = types.IndexType
 
 const (
-	IndexTypeNone      = types.IndexTypeNone
-	IndexTypeHash      = types.IndexTypeHash
-	IndexTypeInt       = types.IndexTypeInt
-	IndexTypePk        = types.IndexTypePk
-	IndexTypeComposite = types.IndexTypeComposite
+	IT_NONE      = types.IndexTypeNone
+	IT_HASH      = types.IndexTypeHash
+	IT_INT       = types.IndexTypeInt
+	IT_PK        = types.IndexTypePk
+	IT_COMPOSITE = types.IndexTypeComposite
 )

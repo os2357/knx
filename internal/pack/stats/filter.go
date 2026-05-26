@@ -52,8 +52,8 @@ func (idx Index) buildFilters(pkg *pack.Package, node *SNode) error {
 		}
 
 		switch f.Filter {
-		case types.FilterTypeBloom2b, types.FilterTypeBloom3b,
-			types.FilterTypeBloom4b, types.FilterTypeBloom5b:
+		case types.FL_BLOOM2B, types.FL_BLOOM3B,
+			types.FL_BLOOM4B, types.FL_BLOOM5B:
 			if idx.use.Is(FeatBloomFilter) {
 				// use cardinality from pack analyze step if exists, otherwise
 				// fall back to cardinality estimation and reuse hashes
@@ -66,7 +66,7 @@ func (idx Index) buildFilters(pkg *pack.Package, node *SNode) error {
 					blooms[f.Id] = flt.Bytes()
 				}
 			}
-		case types.FilterTypeBfuse8:
+		case types.FL_BFUSE8:
 			if idx.use.Is(FeatFuseFilter) {
 				// TODO: use unique values from pack analyis step
 				flt, err := BuildFuseFilter[uint8](b)
@@ -75,7 +75,7 @@ func (idx Index) buildFilters(pkg *pack.Package, node *SNode) error {
 				}
 				fuses[f.Id], _ = flt.MarshalBinary()
 			}
-		case types.FilterTypeBfuse16:
+		case types.FL_BFUSE16:
 			if idx.use.Is(FeatFuseFilter) {
 				// TODO: use unique values from pack analyis step
 				flt, err := BuildFuseFilter[uint16](b)
@@ -84,7 +84,7 @@ func (idx Index) buildFilters(pkg *pack.Package, node *SNode) error {
 				}
 				fuses[f.Id], _ = flt.MarshalBinary()
 			}
-		case types.FilterTypeBits:
+		case types.FL_BITS:
 			if idx.use.Is(FeatBitsFilter) {
 				// use cardinality from pack analyze step if exists, otherwise
 				// fall back to cardinality estimation

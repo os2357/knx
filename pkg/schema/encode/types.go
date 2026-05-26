@@ -6,16 +6,9 @@ import (
 )
 
 type (
-	FieldType  = types.FieldType
-	FieldFlags = types.FieldFlags
-	TimeScale  = types.TimeScale
-	// IndexType        = types.IndexType
-	// FilterType       = types.FilterType
-	// BlockCompression = types.BlockCompression
-
-	Schema = schema.Schema
-	Field  = schema.Field
-	// IndexSchema = schema.IndexSchema
+	TimeScale = types.TimeScale
+	Schema    = schema.Schema
+	Field     = schema.Field
 )
 
 const (
@@ -42,26 +35,4 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
-
-	F_PRIMARY  = types.FieldFlagPrimary
-	F_FIXED    = types.FieldFlagFixed
-	F_ENUM     = types.FieldFlagEnum
-	F_DELETED  = types.FieldFlagDeleted
-	F_METADATA = types.FieldFlagMetadata
-	F_NULLABLE = types.FieldFlagNullable
-	F_TIMEBASE = types.FieldFlagTimebase
-	F_ACTION   = types.FieldFlagAction
-
-	I_HASH      = types.IndexTypeHash
-	I_INT       = types.IndexTypeInt
-	I_PK        = types.IndexTypePk
-	I_COMPOSITE = types.IndexTypeComposite
-
-	FL_BITS    = types.FilterTypeBits
-	FL_BLOOM2B = types.FilterTypeBloom2b
-	FL_BLOOM3B = types.FilterTypeBloom3b
-	FL_BLOOM4B = types.FilterTypeBloom4b
-	FL_BLOOM5B = types.FilterTypeBloom5b
-	FL_BFUSE8  = types.FilterTypeBfuse8
-	FL_BFUSE16 = types.FilterTypeBfuse16
 )

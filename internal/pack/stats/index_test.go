@@ -12,7 +12,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/pack"
 	"blockwatch.cc/knoxdb/internal/types"
-	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/cast"
 	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/reflect"
@@ -74,7 +73,7 @@ func makeTestPackage(t testing.TB, key int, pk uint64) *pack.Package {
 	for _, v := range makeTestData(TEST_PKG_SIZE, pk) {
 		buf, err := enc.Encode(v, nil)
 		require.NoError(t, err)
-		pkg.AppendWire(buf, &schema.Meta{Rid: v.Id, Xmin: 1})
+		pkg.AppendWire(buf, &types.Meta{Rid: v.Id, Xmin: 1})
 	}
 	// init statistics
 	pstats := pkg.Stats()

@@ -274,19 +274,19 @@ func (b *Builder) AddIndex(name string, typ IndexType, opts ...IndexOption) *Bui
 }
 
 func (b *Builder) PkIndex() *Builder {
-	return b.AddIndex("pk_index", I_PK, IndexField(b.s.Pk().Name))
+	return b.AddIndex("pk_index", IT_PK, IndexField(b.s.Pk().Name))
 }
 
 func (b *Builder) HashIndex(fname string, opts ...IndexOption) *Builder {
 	opts = append([]IndexOption{IndexField(fname)}, opts...)
-	return b.AddIndex(fname+"_index", I_HASH, opts...)
+	return b.AddIndex(fname+"_index", IT_HASH, opts...)
 }
 
 func (b *Builder) IntIndex(fname string, opts ...IndexOption) *Builder {
 	opts = append([]IndexOption{IndexField(fname)}, opts...)
-	return b.AddIndex(fname+"_index", I_INT, opts...)
+	return b.AddIndex(fname+"_index", IT_INT, opts...)
 }
 
 func (b *Builder) CompositeIndex(name string, opts ...IndexOption) *Builder {
-	return b.AddIndex(name, I_COMPOSITE, opts...)
+	return b.AddIndex(name, IT_COMPOSITE, opts...)
 }

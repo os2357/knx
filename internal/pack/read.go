@@ -243,28 +243,28 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 		}
 
 		switch field.Type {
-		case types.FieldTypeInt64:
+		case types.FT_I64:
 			*(*int64)(fptr) = b.Int64().Get(row)
 
-		case types.FieldTypeUint64:
+		case types.FT_U64:
 			*(*uint64)(fptr) = b.Uint64().Get(row)
 
-		case types.FieldTypeFloat64:
+		case types.FT_F64:
 			*(*float64)(fptr) = b.Float64().Get(row)
 
-		case types.FieldTypeInt32:
+		case types.FT_I32:
 			*(*int32)(fptr) = b.Int32().Get(row)
 
-		case types.FieldTypeUint32:
+		case types.FT_U32:
 			*(*uint32)(fptr) = b.Uint32().Get(row)
 
-		case types.FieldTypeFloat32:
+		case types.FT_F32:
 			*(*float32)(fptr) = b.Float32().Get(row)
 
-		case types.FieldTypeInt16:
+		case types.FT_I16:
 			*(*int16)(fptr) = b.Int16().Get(row)
 
-		case types.FieldTypeUint16:
+		case types.FT_U16:
 			if field.IsEnum() {
 				u16 := b.Uint16().Get(row)
 				val, ok := field.Enum.Value(u16)
@@ -276,19 +276,19 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 				*(*uint16)(fptr) = b.Uint16().Get(row)
 			}
 
-		case types.FieldTypeInt8:
+		case types.FT_I8:
 			*(*int8)(fptr) = b.Int8().Get(row)
 
-		case types.FieldTypeUint8:
+		case types.FT_U8:
 			*(*uint8)(fptr) = b.Uint8().Get(row)
 
-		case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
+		case types.FT_TIMESTAMP, types.FT_DATE, types.FT_TIME:
 			(*(*time.Time)(fptr)) = types.TimeScale(field.Scale).FromUnix(b.Int64().Get(row))
 
-		case types.FieldTypeBoolean:
+		case types.FT_BOOL:
 			*(*bool)(fptr) = b.Bool().Get(row)
 
-		case types.FieldTypeBytes:
+		case types.FT_BYTES:
 			if field.Fixed > 0 {
 				copy(unsafe.Slice((*byte)(fptr), field.Fixed), b.Bytes().Get(row))
 			} else {
@@ -304,36 +304,36 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 				*(*[]byte)(fptr) = b.Bytes().Get(row)
 			}
 
-		case types.FieldTypeString:
+		case types.FT_STRING:
 			// safe version with copy
 			// *(*string)(fptr) = string(b.Bytes().Get(row))
 
 			// unsafe zero-copy
 			*(*string)(fptr) = util.UnsafeGetString(b.Bytes().Get(row))
 
-		case types.FieldTypeInt256:
+		case types.FT_I256:
 			*(*num.Int256)(fptr) = b.Int256().Get(row)
 
-		case types.FieldTypeInt128:
+		case types.FT_I128:
 			*(*num.Int128)(fptr) = b.Int128().Get(row)
 
-		case types.FieldTypeDecimal256:
+		case types.FT_D256:
 			(*(*num.Decimal256)(fptr)).Set(b.Int256().Get(row))
 			(*(*num.Decimal256)(fptr)).SetScale(field.Scale)
 
-		case types.FieldTypeDecimal128:
+		case types.FT_D128:
 			(*(*num.Decimal128)(fptr)).Set(b.Int128().Get(row))
 			(*(*num.Decimal128)(fptr)).SetScale(field.Scale)
 
-		case types.FieldTypeDecimal64:
+		case types.FT_D64:
 			(*(*num.Decimal64)(fptr)).Set(b.Int64().Get(row))
 			(*(*num.Decimal64)(fptr)).SetScale(field.Scale)
 
-		case types.FieldTypeDecimal32:
+		case types.FT_D32:
 			(*(*num.Decimal32)(fptr)).Set(b.Int32().Get(row))
 			(*(*num.Decimal32)(fptr)).SetScale(field.Scale)
 
-		case types.FieldTypeBigint:
+		case types.FT_BIGINT:
 			(*(*num.Big)(fptr)).SetBytes(b.Bytes().Get(row))
 
 		default:

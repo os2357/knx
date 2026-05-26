@@ -89,7 +89,7 @@ func TestCompositeIndexEngine[T any, F IF[T]](t *testing.T, driver, eng string, 
 			require.NoError(t, err)
 			indexSchema := &schema.IndexSchema{
 				Name:   "test_index",
-				Type:   types.IndexTypeComposite,
+				Type:   types.IT_COMPOSITE,
 				Base:   ts,
 				Fields: ss.Fields,
 			}
@@ -289,7 +289,7 @@ func QueryCompositeIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngi
 func IsCompositeIndexTest(t *testing.T, e *engine.Engine, te engine.TableEngine, ts *schema.Schema, to engine.Options, ie engine.IndexEngine, is *schema.IndexSchema, io engine.Options) {
 	t.Helper()
 
-	if is.Type != types.IndexTypeComposite {
+	if is.Type != types.IT_COMPOSITE {
 		// create index
 		CreateIndex(t, e, te, ie, is, io)
 		// check is false

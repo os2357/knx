@@ -19,7 +19,7 @@ import (
 
 // AppendWire appends a new row of values from a wire protocol message. The caller must
 // ensure the message matches the currrent package schema.
-func (p *Package) AppendWire(buf []byte, meta *schema.Meta) {
+func (p *Package) AppendWire(buf []byte, meta *types.Meta) {
 	// assert.Always(p.CanGrow(1), "pack: overflow on wire append",
 	// 	"pack", p.key,
 	// 	"len", p.nRows,
@@ -53,9 +53,9 @@ func (p *Package) AppendWire(buf []byte, meta *schema.Meta) {
 				}
 			} else {
 				switch field.Type {
-				case types.FieldTypeUint64:
+				case types.FT_U64:
 					b.Uint64().Append(0)
-				case types.FieldTypeBoolean:
+				case types.FT_BOOL:
 					b.Bool().Append(false)
 				}
 			}

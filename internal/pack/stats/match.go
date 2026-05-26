@@ -126,7 +126,7 @@ func matchFilterVector(f *filter.Filter, pkg *pack.Package, bits, mask *bitset.B
 	}
 
 	ftyp := filterType(f, pkg, minx)
-	if ftyp == types.FilterTypeNone {
+	if ftyp == types.FL_NONE {
 		return 0, bits
 	}
 
@@ -153,26 +153,26 @@ func matchFilterVector(f *filter.Filter, pkg *pack.Package, bits, mask *bitset.B
 
 		// load filter from bucket and check
 		switch ftyp {
-		case types.FilterTypeBloom2b, types.FilterTypeBloom3b,
-			types.FilterTypeBloom4b, types.FilterTypeBloom5b:
+		case types.FL_BLOOM2B, types.FL_BLOOM3B,
+			types.FL_BLOOM4B, types.FL_BLOOM5B:
 			buf, err = b[STATS_FILTER_KEY].Get(bkey)
 			if err == nil {
 				n += len(buf)
 				flt, err = bloom.NewFilterBuffer(buf)
 			}
-		case types.FilterTypeBfuse8:
+		case types.FL_BFUSE8:
 			buf, err = b[STATS_FILTER_KEY].Get(bkey)
 			if err == nil {
 				n += len(buf)
 				flt, err = fuse.NewFromBytes[uint8](buf)
 			}
-		case types.FilterTypeBfuse16:
+		case types.FL_BFUSE16:
 			buf, err = b[STATS_FILTER_KEY].Get(bkey)
 			if err == nil {
 				n += len(buf)
 				flt, err = fuse.NewFromBytes[uint16](buf)
 			}
-		case types.FilterTypeBits:
+		case types.FL_BITS:
 			buf, err = b[STATS_FILTER_KEY].Get(bkey)
 			if err == nil && len(buf) > 0 {
 				n += len(buf)
@@ -203,7 +203,7 @@ func filterType(f *filter.Filter, pkg *pack.Package, idx int) types.FilterType {
 			return field.Filter
 		}
 	}
-	return types.FilterTypeNone
+	return types.FL_NONE
 }
 
 // matchVectorAnd aggregates match bitsets and stops eary when no more match is possible.

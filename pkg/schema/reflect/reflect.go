@@ -32,10 +32,6 @@ var schemaRegistry sync.Map
 
 type Option func(*schema.Schema)
 
-type Options struct {
-	enums *enum.EnumRegistry
-}
-
 func WithEnums(r *enum.EnumRegistry) Option {
 	return func(s *schema.Schema) {
 		s.WithEnums(r)

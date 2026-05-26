@@ -318,70 +318,70 @@ func newField(buf []byte, tfm, dfm string) field {
 func (f field) Type() types.FieldType {
 	switch {
 	case f.isBool():
-		return types.FieldTypeBoolean
+		return types.FT_BOOL
 	case f.isSignedInt():
 		// i256..i8, big
 		switch {
 		case f.len > num.MaxInt256Precision:
-			return types.FieldTypeBigint // fallback to bigint
+			return types.FT_BIGINT // fallback to bigint
 		case f.len > num.MaxInt128Precision:
-			return types.FieldTypeInt256
+			return types.FT_I256
 		case f.len > num.MaxInt64Precision:
-			return types.FieldTypeInt128
+			return types.FT_I128
 		case f.len > num.MaxInt32Precision:
-			return types.FieldTypeInt64
+			return types.FT_I64
 		case f.len > num.MaxInt16Precision:
-			return types.FieldTypeInt32
+			return types.FT_I32
 		case f.len > num.MaxInt8Precision:
-			return types.FieldTypeInt16
+			return types.FT_I16
 		default:
-			return types.FieldTypeInt8
+			return types.FT_I8
 		}
 	case f.isUnsignedInt():
 		// u256..u8
 		switch {
 		case f.len > num.MaxInt256Precision:
-			return types.FieldTypeBigint // fallback to bigint
+			return types.FT_BIGINT // fallback to bigint
 		case f.len > num.MaxInt128Precision:
-			return types.FieldTypeInt256
+			return types.FT_I256
 		case f.len > num.MaxInt64Precision:
-			return types.FieldTypeInt128
+			return types.FT_I128
 		case f.len > num.MaxInt32Precision:
-			return types.FieldTypeUint64
+			return types.FT_U64
 		case f.len > num.MaxInt16Precision:
-			return types.FieldTypeUint32
+			return types.FT_U32
 		case f.len > num.MaxInt8Precision:
-			return types.FieldTypeUint16
+			return types.FT_U16
 		default:
-			return types.FieldTypeUint8
+			return types.FT_U8
 		}
 	case f.isDecimal():
 		// d256..d64
 		switch {
 		case f.len-1 > num.MaxInt256Precision:
-			return types.FieldTypeFloat64 // fallback to float
+			return types.FT_F64 // fallback to float
 		case f.len-1 > num.MaxInt128Precision:
-			return types.FieldTypeDecimal256
+			return types.FT_D256
 		case f.len-1 > num.MaxInt64Precision:
-			return types.FieldTypeDecimal128
+			return types.FT_D128
 		case f.len-1 > num.MaxInt32Precision:
-			return types.FieldTypeDecimal64
+			return types.FT_D64
 		default:
-			return types.FieldTypeDecimal32
+			return types.FT_D32
 		}
 	case f.isFloat():
-		return types.FieldTypeFloat64
+		return types.FT_F64
 	case f.is(fDate):
-		return types.FieldTypeDate
+		return types.FT_DATE
 	case f.is(fTime):
-		return types.FieldTypeTime
+		return types.FT_TIME
 	case f.is(fTimestamp):
-		return types.FieldTypeTimestamp
+		return types.FT_TIMESTAMP
 	case f.isBytes():
-		return types.FieldTypeBytes
+		return types.FT_BYTES
 	default:
 		// use string as fallback
-		return types.FieldTypeString
+		return types.FT_STRING
 	}
 }
 

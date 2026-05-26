@@ -31,79 +31,79 @@ type Bucket interface {
 
 func NewBucket(typ types.FieldType) Bucket {
 	switch typ {
-	case types.FieldTypeTimestamp, types.FieldTypeDate, types.FieldTypeTime:
+	case types.FT_TIMESTAMP, types.FT_DATE, types.FT_TIME:
 		// required for time column
 		return NewTimeBucket()
 
-	case types.FieldTypeBytes: // requires an aggregator type, use WithTypeOf(&MyType{})
+	case types.FT_BYTES: // requires an aggregator type, use WithTypeOf(&MyType{})
 		return NewTypedBucket()
 
-	case types.FieldTypeInt64:
+	case types.FT_I64:
 		b := NewNativeBucket[int64]()
 		b.emit = emitIntegers[int64]
 		return b
-	case types.FieldTypeInt32:
+	case types.FT_I32:
 		b := NewNativeBucket[int32]()
 		b.emit = emitIntegers[int32]
 		return b
-	case types.FieldTypeInt16:
+	case types.FT_I16:
 		b := NewNativeBucket[int16]()
 		b.emit = emitIntegers[int16]
 		return b
-	case types.FieldTypeInt8:
+	case types.FT_I8:
 		b := NewNativeBucket[int8]()
 		b.emit = emitIntegers[int8]
 		return b
-	case types.FieldTypeUint64:
+	case types.FT_U64:
 		b := NewNativeBucket[uint64]()
 		b.emit = emitUnsigneds[uint64]
 		return b
-	case types.FieldTypeUint32:
+	case types.FT_U32:
 		b := NewNativeBucket[uint32]()
 		b.emit = emitUnsigneds[uint32]
 		return b
-	case types.FieldTypeUint16:
+	case types.FT_U16:
 		b := NewNativeBucket[uint16]()
 		b.emit = emitUnsigneds[uint16]
 		return b
-	case types.FieldTypeUint8:
+	case types.FT_U8:
 		b := NewNativeBucket[uint8]()
 		b.emit = emitUnsigneds[uint8]
 		return b
-	case types.FieldTypeFloat64:
+	case types.FT_F64:
 		b := NewNativeBucket[float64]()
 		b.emit = emitFloats[float64]
 		return b
-	case types.FieldTypeFloat32:
+	case types.FT_F32:
 		b := NewNativeBucket[float32]()
 		b.emit = emitFloats[float32]
 		return b
 
 	// TODO: maybe a DecimalBucket makes sense
-	case types.FieldTypeDecimal256:
+	case types.FT_D256:
 		b := NewNativeBucket[float64]()
 		b.emit = emitFloats[float64]
 		return b
-	case types.FieldTypeDecimal128:
+	case types.FT_D128:
 		b := NewNativeBucket[float64]()
 		b.emit = emitFloats[float64]
 		return b
-	case types.FieldTypeDecimal64:
+	case types.FT_D64:
 		b := NewNativeBucket[float64]()
 		b.emit = emitFloats[float64]
 		return b
-	case types.FieldTypeDecimal32:
+	case types.FT_D32:
 		b := NewNativeBucket[float64]()
 		b.emit = emitFloats[float64]
 		return b
 
-	case types.FieldTypeInt256:
+	case types.FT_I256:
 		b := NewTypedBucket()
 		b.WithTypeOf(&Int256Aggregator{})
 		b.read = b.readInt256
 		return b
 
-	case types.FieldTypeInt128:
+	case types.FT_I128:
 		b := NewTypedBucket()
 		b.WithTypeOf(&Int128Aggregator{})
 		b.read = b.readInt128

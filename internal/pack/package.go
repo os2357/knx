@@ -155,7 +155,7 @@ func (p *Package) Alloc() *Package {
 		}
 
 		// skip deleted fields
-		if field.Is(types.FieldFlagDeleted) {
+		if field.Is(types.F_DELETED) {
 			continue
 		}
 
@@ -292,7 +292,7 @@ func (p *Package) MaterializeBlock(i int) *Package {
 func (p *Package) IsMaterialized() bool {
 	for i, b := range p.blocks {
 		if b == nil {
-			if !p.schema.Fields[i].Is(types.FieldFlagDeleted) {
+			if !p.schema.Fields[i].Is(types.F_DELETED) {
 				return false
 			}
 		}
@@ -306,7 +306,7 @@ func (p *Package) IsMaterialized() bool {
 func (p *Package) IsComplete() bool {
 	for i, b := range p.blocks {
 		if b == nil {
-			if !p.schema.Fields[i].Is(types.FieldFlagDeleted) {
+			if !p.schema.Fields[i].Is(types.F_DELETED) {
 				return false
 			}
 		}

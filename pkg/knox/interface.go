@@ -7,9 +7,9 @@ import (
 	"context"
 
 	"blockwatch.cc/knoxdb/internal/engine"
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
 // EXTERNAL user interface implemented by local and remote clients
@@ -53,10 +53,7 @@ var (
 
 const (
 	TableKindPack = engine.TableKindPack
-	TableKindLSM  = engine.TableKindLSM
-
 	IndexKindPack = engine.IndexKindPack
-	IndexKindLSM  = engine.IndexKindLSM
 )
 
 const (

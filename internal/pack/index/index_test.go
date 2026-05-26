@@ -19,8 +19,8 @@ func TestMain(m *testing.M) {
 
 func TestIndex(t *testing.T) {
 	typs := []types.IndexType{
-		types.IndexTypeInt,
-		types.IndexTypeHash,
+		types.IT_INT,
+		types.IT_HASH,
 	}
 	etests.TestIndexEngine[Index](t, "mem", "pack", table.NewTable(), typs)
 	etests.TestIndexEngine[Index](t, "bolt", "pack", table.NewTable(), typs)

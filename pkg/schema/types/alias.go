@@ -46,4 +46,19 @@ const (
 	FL_BLOOM5B = FilterTypeBloom5b
 	FL_BFUSE8  = FilterTypeBfuse8
 	FL_BFUSE16 = FilterTypeBfuse16
+
+	BT_I8    = BlockInt8
+	BT_I16   = BlockInt16
+	BT_I32   = BlockInt32
+	BT_I64   = BlockInt64
+	BT_I128  = BlockInt128
+	BT_I256  = BlockInt256
+	BT_U8    = BlockUint8
+	BT_U16   = BlockUint16
+	BT_U32   = BlockUint32
+	BT_U64   = BlockUint64
+	BT_F32   = BlockFloat32
+	BT_F64   = BlockFloat64
+	BT_BOOL  = BlockBool
+	BT_BYTES = BlockBytes
 )

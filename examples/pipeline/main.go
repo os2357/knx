@@ -14,7 +14,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/num"
-	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
@@ -93,7 +92,7 @@ func (gen *Generator) Next(context.Context) (*pack.Package, operator.Result) {
 			return nil, operator.ResultError
 		}
 		gen.buf.Reset()
-		gen.pkg.AppendWire(buf, &schema.Meta{Rid: uint64(gen.next), Ref: uint64(gen.next), Xmin: 1})
+		gen.pkg.AppendWire(buf, &types.Meta{Rid: uint64(gen.next), Ref: uint64(gen.next), Xmin: 1})
 		gen.limit--
 		gen.next++
 	}

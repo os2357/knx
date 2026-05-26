@@ -16,6 +16,7 @@ import (
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
+// type aliases
 type (
 	FieldType        = types.FieldType
 	FieldFlags       = types.FieldFlags
@@ -24,7 +25,9 @@ type (
 	BlockCompression = types.BlockCompression
 )
 
+// const aliases
 const (
+	FT_TIMESTAMP = types.FieldTypeTimestamp
 	FT_I8        = types.FieldTypeInt8
 	FT_I16       = types.FieldTypeInt16
 	FT_I32       = types.FieldTypeInt32
@@ -47,7 +50,6 @@ const (
 	FT_BIGINT    = types.FieldTypeBigint
 	FT_TIME      = types.FieldTypeTime
 	FT_DATE      = types.FieldTypeDate
-	FT_TIMESTAMP = types.FieldTypeTimestamp
 
 	F_PRIMARY  = types.FieldFlagPrimary
 	F_FIXED    = types.FieldFlagFixed
@@ -58,10 +60,10 @@ const (
 	F_TIMEBASE = types.FieldFlagTimebase
 	F_ACTION   = types.FieldFlagAction
 
-	I_HASH      = types.IndexTypeHash
-	I_INT       = types.IndexTypeInt
-	I_PK        = types.IndexTypePk
-	I_COMPOSITE = types.IndexTypeComposite
+	IT_HASH      = types.IndexTypeHash
+	IT_INT       = types.IndexTypeInt
+	IT_PK        = types.IndexTypePk
+	IT_COMPOSITE = types.IndexTypeComposite
 
 	FL_BITS    = types.FilterTypeBits
 	FL_BLOOM2B = types.FilterTypeBloom2b
@@ -74,20 +76,20 @@ const (
 
 type Field struct {
 	// schema values for CREATE TABLE
-	Name     string           // field name from struct tag or variable name
-	Id       uint16           // unique lifetime id of the field
-	Type     FieldType        // schema field type from struct tag or Go type
-	Flags    FieldFlags       // schema flags from struct tag
-	Compress BlockCompression // data compression from struct tag
+	Name     string           // field name
+	Id       uint16           // unique lifetime id
+	Type     FieldType        // schema field type
+	Flags    FieldFlags       // schema flags
+	Compress BlockCompression // data compression
 	Filter   FilterType       // metadata filter type
-	Fixed    uint16           // 0..65535 fixed size array/bytes/string length
+	Fixed    uint16           // 0..65535 fixed size byte/string array length
 	Scale    uint8            // 0..255 fixed point scale, time scale
 
 	// encoder values for INSERT, UPDATE, QUERY
 	Path   []int                // reflect struct nested positions
 	Offset uintptr              // struct field offset from reflect
-	Size   uint16               // wire encoding field size in bytes, min size for []byte & string
-	Enum   *enum.EnumDictionary // ptr to enum dictionary when field is an enum
+	Size   uint16               // wire size in bytes, min size for []byte & string
+	Enum   *enum.EnumDictionary // enum dictionary when field is an enum
 }
 
 func NewField(typ FieldType) *Field {

@@ -6,7 +6,6 @@ package encode
 import (
 	"encoding/binary"
 	"io"
-	"math"
 	"reflect"
 )
 
@@ -68,28 +67,6 @@ func writeInt(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err e
 		err = ErrOverflow
 	} else {
 		_, err = w.Write(buf[:width])
-	}
-	return
-}
-
-// writeFloat writes a floating point valye in wire format.
-// Accepts all float types as interface an converts to the
-// wire format selected by code.
-func writeFloat(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err error) {
-	var f64 float64
-	switch v := val.(type) {
-	case float64:
-		f64 = v
-	case float32:
-		f64 = float64(v)
-	default:
-		return ErrInvalidValueType
-	}
-	switch code {
-	case OC_F32:
-		err = writeU32(w, math.Float32bits(float32(f64)), layout)
-	case OC_F64:
-		err = writeU64(w, math.Float64bits(f64), layout)
 	}
 	return
 }

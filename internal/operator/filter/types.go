@@ -33,7 +33,6 @@ const (
 )
 
 const (
-	BlockInvalid = types.BlockInvalid
 	BlockInt64   = types.BlockInt64
 	BlockInt32   = types.BlockInt32
 	BlockInt16   = types.BlockInt16

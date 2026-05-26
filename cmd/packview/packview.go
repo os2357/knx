@@ -27,11 +27,11 @@ import (
 	pi "blockwatch.cc/knoxdb/internal/pack/index"
 	"blockwatch.cc/knoxdb/internal/pack/stats"
 	pt "blockwatch.cc/knoxdb/internal/pack/table"
-	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/encode"
 	"blockwatch.cc/knoxdb/pkg/knox"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/jedib0t/go-pretty/v6/table"
 )

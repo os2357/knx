@@ -848,12 +848,12 @@ func (idx *Index) Query(ctx context.Context, flt *filter.Node, dir types.OrderTy
 
 			// check if this field has any filters enabled
 			switch field.Filter {
-			case types.FilterTypeBloom2b, types.FilterTypeBloom3b,
-				types.FilterTypeBloom4b, types.FilterTypeBloom5b:
+			case types.FL_BLOOM2B, types.FL_BLOOM3B,
+				types.FL_BLOOM4B, types.FL_BLOOM5B:
 				use |= FeatBloomFilter
-			case types.FilterTypeBfuse8, types.FilterTypeBfuse16:
+			case types.FL_BFUSE8, types.FL_BFUSE16:
 				use |= FeatFuseFilter
-			case types.FilterTypeBits:
+			case types.FL_BITS:
 				use |= FeatBitsFilter
 			}
 			return nil
@@ -1120,7 +1120,7 @@ func (idx *Index) rebuildInodeTree(ver uint32) {
 func (idx *Index) makeRidFilter(mode types.FilterMode, rid uint64) *filter.Node {
 	// when schema has no metadata (px == rx) fall back to pk field
 	field := idx.schema.Fields[minColIndex(idx.rx)]
-	m := filter.NewFactory(types.FieldTypeUint64).New(mode)
+	m := filter.NewFactory(types.FT_U64).New(mode)
 	m.WithValue(rid)
 	id := schema.MetaRid
 	if idx.rx == idx.px {

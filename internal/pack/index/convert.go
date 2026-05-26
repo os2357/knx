@@ -26,7 +26,7 @@ func convertSchema(is *schema.IndexSchema) (*schema.Schema, Converter, error) {
 	}
 
 	switch is.Type {
-	case types.IndexTypeHash:
+	case types.IT_HASH:
 		hx, _ := is.Base.IndexId(is.Fields[0].Id)
 		c := &SimpleHashConverter{
 			sout: s,
@@ -34,7 +34,7 @@ func convertSchema(is *schema.IndexSchema) (*schema.Schema, Converter, error) {
 			link: append([]int{is.Base.RowIdIndex()}, is.ExtraIndices()...),
 		}
 		return s, c, nil
-	case types.IndexTypeInt, types.IndexTypePk:
+	case types.IT_INT, types.IT_PK:
 		ix, _ := is.Base.IndexId(is.Fields[0].Id)
 		c := &RelinkConverter{
 			sout: s,
@@ -43,7 +43,7 @@ func convertSchema(is *schema.IndexSchema) (*schema.Schema, Converter, error) {
 		}
 		return s, c, nil
 
-	case types.IndexTypeComposite:
+	case types.IT_COMPOSITE:
 		c := &CompositeHashConverter{
 			sout: s,
 			sidx: is,
@@ -80,7 +80,7 @@ func (c *RelinkConverter) QueryNode(node *filter.Node) *filter.Node {
 	// Note: index storage is u64
 	f0 := c.sout.Fields[0]
 	flt := node.Filter
-	if f0.Type == types.FieldTypeUint64 {
+	if f0.Type == types.FT_U64 {
 		return &filter.Node{
 			Filter: &filter.Filter{
 				Name:    "int",
@@ -92,7 +92,7 @@ func (c *RelinkConverter) QueryNode(node *filter.Node) *filter.Node {
 			},
 		}
 	} else {
-		val, err := cast.NewCaster(types.FieldTypeUint64, 0, nil).CastValue(flt.Value)
+		val, err := cast.NewCaster(types.FT_U64, 0, nil).CastValue(flt.Value)
 		if err != nil {
 			panic(fmt.Errorf("cast index query value %T to u64: %v", flt.Value, err))
 		}

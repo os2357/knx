@@ -196,7 +196,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 		}
 		ptr := unsafe.Add(base, e.ofs[i])
 		switch f.Type {
-		case types.FieldTypeTimestamp:
+		case types.FT_TIMESTAMP:
 			s := types.TimeScale(f.Scale)
 			tm := s.FromUnix(*(*int64)(ptr))
 			if e.timeAs == "" {
@@ -205,7 +205,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 				e.buf = tm.AppendFormat(e.buf, e.timeAs)
 			}
 
-		case types.FieldTypeDate:
+		case types.FT_DATE:
 			s := types.TimeScale(f.Scale)
 			tm := s.FromUnix(*(*int64)(ptr))
 			if e.dateAs == "" {
@@ -214,7 +214,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 				e.buf = tm.AppendFormat(e.buf, e.dateAs)
 			}
 
-		case types.FieldTypeTime:
+		case types.FT_TIME:
 			s := types.TimeScale(f.Scale)
 			tm := s.FromUnix(*(*int64)(ptr))
 			if e.timeAs == "" {
@@ -223,40 +223,40 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 				e.buf = tm.AppendFormat(e.buf, e.timeAs)
 			}
 
-		case types.FieldTypeInt64:
+		case types.FT_I64:
 			e.buf = strconv.AppendInt(e.buf, *(*int64)(ptr), 10)
 
-		case types.FieldTypeInt32:
+		case types.FT_I32:
 			e.buf = strconv.AppendInt(e.buf, int64(*(*int32)(ptr)), 10)
 
-		case types.FieldTypeInt16:
+		case types.FT_I16:
 			e.buf = strconv.AppendInt(e.buf, int64(*(*int16)(ptr)), 10)
 
-		case types.FieldTypeInt8:
+		case types.FT_I8:
 			e.buf = strconv.AppendInt(e.buf, int64(*(*int8)(ptr)), 10)
 
-		case types.FieldTypeUint64:
+		case types.FT_U64:
 			e.buf = strconv.AppendUint(e.buf, *(*uint64)(ptr), 10)
 
-		case types.FieldTypeUint32:
+		case types.FT_U32:
 			e.buf = strconv.AppendUint(e.buf, uint64(*(*uint32)(ptr)), 10)
 
-		case types.FieldTypeUint16:
+		case types.FT_U16:
 			e.buf = strconv.AppendUint(e.buf, uint64(*(*uint16)(ptr)), 10)
 
-		case types.FieldTypeUint8:
+		case types.FT_U8:
 			e.buf = strconv.AppendUint(e.buf, uint64(*(*uint8)(ptr)), 10)
 
-		case types.FieldTypeFloat64:
+		case types.FT_F64:
 			e.buf = strconv.AppendFloat(e.buf, *(*float64)(ptr), 'f', -1, 64)
 
-		case types.FieldTypeFloat32:
+		case types.FT_F32:
 			e.buf = strconv.AppendFloat(e.buf, float64(*(*float32)(ptr)), 'f', -1, 32)
 
-		case types.FieldTypeBoolean:
+		case types.FT_BOOL:
 			e.buf = strconv.AppendBool(e.buf, *(*bool)(ptr))
 
-		case types.FieldTypeString:
+		case types.FT_STRING:
 			// quote strings that contain (a) a separator character or (b)
 			// start with a quote character. Escape quotes inside quoted strings.
 			s := *(*string)(ptr)
@@ -269,7 +269,7 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 				e.buf = append(e.buf, util.UnsafeGetBytes(s)...)
 			}
 
-		case types.FieldTypeBytes:
+		case types.FT_BYTES:
 			// encode hex
 			if f.Fixed > 0 {
 				e.buf = hex.AppendEncode(e.buf, unsafe.Slice((*byte)(ptr), f.Fixed))
@@ -277,29 +277,29 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 				e.buf = hex.AppendEncode(e.buf, *(*[]byte)(ptr))
 			}
 
-		case types.FieldTypeInt256:
+		case types.FT_I256:
 			e.buf = num.Int256FromBytes(unsafe.Slice((*byte)(ptr), 32)).Append(e.buf)
 
-		case types.FieldTypeInt128:
+		case types.FT_I128:
 			e.buf = num.Int128FromBytes(unsafe.Slice((*byte)(ptr), 16)).Append(e.buf)
 
-		case types.FieldTypeDecimal256:
+		case types.FT_D256:
 			s := num.NewDecimal256(num.Int256FromBytes(unsafe.Slice((*byte)(ptr), 32)), f.Scale).String()
 			e.buf = append(e.buf, util.UnsafeGetBytes(s)...)
 
-		case types.FieldTypeDecimal128:
+		case types.FT_D128:
 			s := num.NewDecimal128(num.Int128FromBytes(unsafe.Slice((*byte)(ptr), 16)), f.Scale).String()
 			e.buf = append(e.buf, util.UnsafeGetBytes(s)...)
 
-		case types.FieldTypeDecimal64:
+		case types.FT_D64:
 			s := num.NewDecimal64(*(*int64)(ptr), f.Scale).String()
 			e.buf = append(e.buf, util.UnsafeGetBytes(s)...)
 
-		case types.FieldTypeDecimal32:
+		case types.FT_D32:
 			s := num.NewDecimal32(*(*int32)(ptr), f.Scale).String()
 			e.buf = append(e.buf, util.UnsafeGetBytes(s)...)
 
-		case types.FieldTypeBigint:
+		case types.FT_BIGINT:
 			e.buf = num.NewBigFromBytes(*(*[]byte)(ptr)).Big().Append(e.buf, 10)
 
 		default:

@@ -296,11 +296,11 @@ func (idx *Index) Table() engine.TableEngine {
 }
 
 func (idx *Index) IsComposite() bool {
-	return idx.sindex.Type == types.IndexTypeComposite
+	return idx.sindex.Type == types.IT_COMPOSITE
 }
 
 func (idx *Index) IsPk() bool {
-	return idx.sindex.Type == types.IndexTypePk
+	return idx.sindex.Type == types.IT_PK
 }
 
 func (idx *Index) Sync(ctx context.Context) error {
