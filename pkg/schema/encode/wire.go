@@ -72,7 +72,7 @@ func writeInt(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err e
 }
 
 // writeBytes writes a fixed or variable length byte slice in wire format.
-func writeBytes(w io.Writer, val any, fixed uint16, layout binary.ByteOrder) (err error) {
+func writeBytes(w io.Writer, val any, fixed uint8, layout binary.ByteOrder) (err error) {
 	var b []byte
 	// type cast values
 	switch v := val.(type) {

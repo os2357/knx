@@ -62,8 +62,9 @@ func TestFieldWithMethods(t *testing.T) {
 	})
 
 	t.Run("WithFixed", func(t *testing.T) {
-		field := NewField(FT_STRING).WithFixed(10)
-		assert.Equal(t, uint16(10), field.Fixed)
+		field := NewField(FT_STRING).WithArray(10)
+		assert.Equal(t, uint8(10), field.Scale)
+		assert.Equal(t, F_ARRAY, field.Flags)
 	})
 
 	t.Run("WithScale", func(t *testing.T) {
@@ -76,33 +77,6 @@ func TestFieldWithMethods(t *testing.T) {
 		assert.Equal(t, types.FilterTypeBits, field.Filter)
 	})
 }
-
-// // TestFieldReflectField verifies that Field correctly handles Go types and sets appropriate properties.
-// func TestFieldReflectField(t *testing.T) {
-// 	type TestStruct struct {
-// 		IntField    int32
-// 		StringField string
-// 	}
-
-// 	structType := reflect.TypeFor[TestStruct]()
-
-// 	t.Run("Int32Field", func(t *testing.T) {
-// 		// field := NewField(FT_I32)
-// 		field, err := reflectStructField(structType.Field(0), TAG_NAME)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, uint16(4), field.Size)
-// 		assert.Equal(t, []int{0}, field.Path)
-// 		assert.Equal(t, uintptr(0), field.Offset)
-// 	})
-
-// 	t.Run("StringField", func(t *testing.T) {
-// 		// field := NewField(FT_STRING)
-// 		field, err := reflectStructField(structType.Field(1), TAG_NAME)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, []int{1}, field.Path)
-// 		assert.Equal(t, uint16(4), field.Size)
-// 	})
-// }
 
 // TestFieldValidation checks if Field properly validates its configuration for various field types and settings.
 func TestFieldValidation(t *testing.T) {
@@ -127,13 +101,13 @@ func TestFieldValidation(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "Invalid fixed on non-string/bytes field",
-			field:     NewField(FT_I32).WithName("test_field").WithFixed(10),
+			name:      "Invalid array on non-string/bytes field",
+			field:     NewField(FT_I32).WithName("test_field").WithArray(10),
 			expectErr: true,
 		},
 		{
-			name:      "Valid string field with fixed",
-			field:     NewField(FT_STRING).WithName("test_field").WithFixed(10),
+			name:      "Valid string array",
+			field:     NewField(FT_STRING).WithName("test_field").WithArray(10),
 			expectErr: false,
 		},
 		{
@@ -195,7 +169,7 @@ func TestFieldSerializationRoundTrip(t *testing.T) {
 	original := NewField(FT_STRING).
 		WithName("test_field").
 		WithFilter(types.FilterTypeBloom2b).
-		WithFixed(10)
+		WithArray(10)
 
 	var buf bytes.Buffer
 	err := original.WriteTo(&buf)
@@ -211,6 +185,5 @@ func TestFieldSerializationRoundTrip(t *testing.T) {
 	assert.Equal(t, original.Flags, readField.Flags)
 	assert.Equal(t, original.Compress, readField.Compress)
 	assert.Equal(t, original.Filter, readField.Filter)
-	assert.Equal(t, original.Fixed, readField.Fixed)
 	assert.Equal(t, original.Scale, readField.Scale)
 }

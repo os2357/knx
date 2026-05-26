@@ -181,11 +181,11 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Size))
 
 	case OC_FIXBYTES:
-		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Fixed))
+		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Scale))
 
 	case OC_FIXSTRING:
 		s := *(*string)(ptr)
-		_, err = buf.Write(unsafe.Slice(unsafe.StringData(s), field.Fixed))
+		_, err = buf.Write(unsafe.Slice(unsafe.StringData(s), field.Scale))
 
 	case OC_STRING:
 		s := *(*string)(ptr)

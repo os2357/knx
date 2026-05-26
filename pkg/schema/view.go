@@ -64,10 +64,10 @@ func (v *View) buildFromSchema() *View {
 			continue
 		}
 		sz := f.Type.Size()
-		if f.Fixed > 0 {
-			sz = int(f.Fixed)
+		if f.IsArray() {
+			sz = int(f.Scale)
 		}
-		if v.pki < 0 && f.Flags.Is(types.FieldFlagPrimary) && f.Type == FT_U64 {
+		if v.pki < 0 && f.IsPrimary() && f.Type == FT_U64 {
 			// remember the first uint64 primary key field
 			v.pki = i
 		}
@@ -127,49 +127,52 @@ func (v View) Get(i int) (val any, ok bool) {
 	if x == -2 {
 		return nil, false
 	}
+	ok = true
 	switch field.Type {
 	case FT_TIMESTAMP, FT_TIME, FT_DATE:
-		val, ok = types.TimeScale(field.Scale).FromUnix(int64(LE.Uint64(v.buf[x:y]))), true
+		val = types.TimeScale(field.Scale).FromUnix(int64(LE.Uint64(v.buf[x:y])))
 	case FT_I64:
-		val, ok = int64(LE.Uint64(v.buf[x:y])), true
+		val = int64(LE.Uint64(v.buf[x:y]))
 	case FT_U64:
-		val, ok = LE.Uint64(v.buf[x:y]), true
+		val = LE.Uint64(v.buf[x:y])
 	case FT_F64:
-		val, ok = math.Float64frombits(LE.Uint64(v.buf[x:y])), true
+		val = math.Float64frombits(LE.Uint64(v.buf[x:y]))
 	case FT_BOOL:
-		val, ok = v.buf[x] > 0, true
+		val = v.buf[x] > 0
 	case FT_STRING:
-		val, ok = util.UnsafeGetString(v.buf[x:y]), true
+		val = util.UnsafeGetString(v.buf[x:y])
 	case FT_BYTES:
-		val, ok = v.buf[x:y], true
+		val = v.buf[x:y]
 	case FT_I32:
-		val, ok = int32(LE.Uint32(v.buf[x:y])), true
+		val = int32(LE.Uint32(v.buf[x:y]))
 	case FT_I16:
-		val, ok = int16(LE.Uint16(v.buf[x:y])), true
+		val = int16(LE.Uint16(v.buf[x:y]))
 	case FT_I8:
-		val, ok = int8(v.buf[x]), true
+		val = int8(v.buf[x])
 	case FT_U32:
-		val, ok = LE.Uint32(v.buf[x:y]), true
+		val = LE.Uint32(v.buf[x:y])
 	case FT_U16:
-		val, ok = LE.Uint16(v.buf[x:y]), true
+		val = LE.Uint16(v.buf[x:y])
 	case FT_U8:
-		val, ok = v.buf[x], true
+		val = v.buf[x]
 	case FT_F32:
-		val, ok = math.Float32frombits(LE.Uint32(v.buf[x:y])), true
+		val = math.Float32frombits(LE.Uint32(v.buf[x:y]))
 	case FT_I256:
-		val, ok = num.Int256FromBytes(v.buf[x:y]), true
+		val = num.Int256FromBytes(v.buf[x:y])
 	case FT_I128:
-		val, ok = num.Int128FromBytes(v.buf[x:y]), true
+		val = num.Int128FromBytes(v.buf[x:y])
 	case FT_D256:
-		val, ok = num.NewDecimal256(num.Int256FromBytes(v.buf[x:y]), field.Scale), true
+		val = num.NewDecimal256(num.Int256FromBytes(v.buf[x:y]), field.Scale)
 	case FT_D128:
-		val, ok = num.NewDecimal128(num.Int128FromBytes(v.buf[x:y]), field.Scale), true
+		val = num.NewDecimal128(num.Int128FromBytes(v.buf[x:y]), field.Scale)
 	case FT_D64:
-		val, ok = num.NewDecimal64(int64(LE.Uint64(v.buf[x:y])), field.Scale), true
+		val = num.NewDecimal64(int64(LE.Uint64(v.buf[x:y])), field.Scale)
 	case FT_D32:
-		val, ok = num.NewDecimal32(int32(LE.Uint32(v.buf[x:y])), field.Scale), true
+		val = num.NewDecimal32(int32(LE.Uint32(v.buf[x:y])), field.Scale)
 	case FT_BIGINT:
-		val, ok = num.NewBigFromBytes(v.buf[x:y]), true
+		val = num.NewBigFromBytes(v.buf[x:y])
+	default:
+		ok = false
 	}
 	return
 }
@@ -183,39 +186,42 @@ func (v View) GetPhy(i int) (val any, ok bool) {
 	if x == -2 {
 		return nil, false
 	}
+	ok = true
 	switch field.Type {
 	case FT_TIMESTAMP, FT_TIME, FT_DATE, FT_I64, FT_D64:
-		val, ok = int64(LE.Uint64(v.buf[x:y])), true
+		val = int64(LE.Uint64(v.buf[x:y]))
 	case FT_U64:
-		val, ok = LE.Uint64(v.buf[x:y]), true
+		val = LE.Uint64(v.buf[x:y])
 	case FT_F64:
-		val, ok = math.Float64frombits(LE.Uint64(v.buf[x:y])), true
+		val = math.Float64frombits(LE.Uint64(v.buf[x:y]))
 	case FT_BOOL:
-		val, ok = v.buf[x] > 0, true
+		val = v.buf[x] > 0
 	case FT_STRING, FT_BYTES, FT_BIGINT:
-		val, ok = v.buf[x:y], true
+		val = v.buf[x:y]
 	case FT_I32, FT_D32:
-		val, ok = int32(LE.Uint32(v.buf[x:y])), true
+		val = int32(LE.Uint32(v.buf[x:y]))
 	case FT_I16:
-		val, ok = int16(LE.Uint16(v.buf[x:y])), true
+		val = int16(LE.Uint16(v.buf[x:y]))
 	case FT_I8:
-		val, ok = int8(v.buf[x]), true
+		val = int8(v.buf[x])
 	case FT_U32:
-		val, ok = LE.Uint32(v.buf[x:y]), true
+		val = LE.Uint32(v.buf[x:y])
 	case FT_U16:
-		val, ok = LE.Uint16(v.buf[x:y]), true
+		val = LE.Uint16(v.buf[x:y])
 	case FT_U8:
-		val, ok = v.buf[x], true
+		val = v.buf[x]
 	case FT_F32:
-		val, ok = math.Float32frombits(LE.Uint32(v.buf[x:y])), true
+		val = math.Float32frombits(LE.Uint32(v.buf[x:y]))
 	case FT_I256:
-		val, ok = num.Int256FromBytes(v.buf[x:y]), true
+		val = num.Int256FromBytes(v.buf[x:y])
 	case FT_I128:
-		val, ok = num.Int128FromBytes(v.buf[x:y]), true
+		val = num.Int128FromBytes(v.buf[x:y])
 	case FT_D256:
-		val, ok = num.Int256FromBytes(v.buf[x:y]), true
+		val = num.Int256FromBytes(v.buf[x:y])
 	case FT_D128:
-		val, ok = num.Int128FromBytes(v.buf[x:y]), true
+		val = num.Int128FromBytes(v.buf[x:y])
+	default:
+		ok = false
 	}
 	return
 }
@@ -468,10 +474,10 @@ func (v *View) Reset(buf []byte) *View {
 			skip = false
 			switch f.Type {
 			case FT_STRING, FT_BYTES, FT_BIGINT:
-				if f.Fixed > 0 {
+				if f.IsArray() {
 					v.ofs[i] = ofs
-					v.len[i] = int(f.Fixed)
-					ofs += int(f.Fixed)
+					v.len[i] = int(f.Scale)
+					ofs += int(f.Scale)
 				} else {
 					u32 := LE.Uint32(buf[ofs:])
 					ofs += 4

@@ -271,8 +271,8 @@ func (e *Encoder) encode(base unsafe.Pointer) error {
 
 		case types.FT_BYTES:
 			// encode hex
-			if f.Fixed > 0 {
-				e.buf = hex.AppendEncode(e.buf, unsafe.Slice((*byte)(ptr), f.Fixed))
+			if f.IsArray() {
+				e.buf = hex.AppendEncode(e.buf, unsafe.Slice((*byte)(ptr), f.Scale))
 			} else {
 				e.buf = hex.AppendEncode(e.buf, *(*[]byte)(ptr))
 			}

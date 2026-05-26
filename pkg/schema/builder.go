@@ -8,55 +8,57 @@ import (
 )
 
 type (
-	BuilderOption func(*Builder)
+	BuilderOption func(*Field)
 	IndexOption   func(*IndexSchema)
 )
 
-func Fixed[T int | uint16](n T) BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Fixed = uint16(n)
+func Array[T int | uint8](n T) BuilderOption {
+	return func(f *Field) {
+		f.Flags |= F_ARRAY
+		f.Scale = uint8(n)
 	}
 }
 
 func Scale[T int | uint8](n T) BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Scale = uint8(n)
+	return func(f *Field) {
+		f.Flags &^= F_ARRAY
+		f.Scale = uint8(n)
 	}
 }
 
-func Filter(f FilterType) BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Filter = f
+func Filter(t FilterType) BuilderOption {
+	return func(f *Field) {
+		f.Filter = t
 	}
 }
 
 func Compression(c BlockCompression) BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Compress = c
+	return func(f *Field) {
+		f.Compress = c
 	}
 }
 
 func Primary() BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Flags |= F_PRIMARY
+	return func(f *Field) {
+		f.Flags |= F_PRIMARY
 	}
 }
 
 func Timebase() BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Flags |= F_TIMEBASE
+	return func(f *Field) {
+		f.Flags |= F_TIMEBASE
 	}
 }
 
 func Nullable() BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Flags |= F_NULLABLE
+	return func(f *Field) {
+		f.Flags |= F_NULLABLE
 	}
 }
 
 func Id(id uint16) BuilderOption {
-	return func(b *Builder) {
-		b.currentField().Id = id
+	return func(f *Field) {
+		f.Id = id
 	}
 }
 
@@ -137,10 +139,11 @@ func (b *Builder) addField(typ FieldType, name string, opts ...BuilderOption) *B
 	if name == "" {
 		name = "F" + strconv.Itoa(len(b.s.Fields))
 	}
-	b.s.WithField(NewField(typ).WithName(name))
+	f := NewField(typ).WithName(name)
 	for _, o := range opts {
-		o(b)
+		o(f)
 	}
+	b.s.WithField(f)
 	b.final = false
 	return b
 }
@@ -155,13 +158,6 @@ func (b *Builder) Field(fields ...*Field) *Builder {
 
 func (b *Builder) Add(name string, typ FieldType, opts ...BuilderOption) *Builder {
 	return b.addField(typ, name, opts...)
-}
-
-func (b *Builder) SetFieldOpts(opts ...BuilderOption) *Builder {
-	for _, o := range opts {
-		o(b)
-	}
-	return b
 }
 
 func (b *Builder) Int64(name string, opts ...BuilderOption) *Builder {

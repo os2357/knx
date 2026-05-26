@@ -20,7 +20,7 @@ package schema
 // extra={a+b}   list of extra include fields for index
 // filter={type} use db column filter (bits, bloom, bfuse)
 // zip={type}    use extra compression (snappy, lz4, zstd, none, (empty))
-// fixed={num}   treat as fixed length field (only byte array, byte slice, string)
+// array={num}   treat as fixed length array (string only)
 // scale={num}   scale factor (for decimal and time types only)
 // id={num}      override id value
 // enum          mark as enum

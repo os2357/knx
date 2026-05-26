@@ -47,7 +47,7 @@ const (
 	FieldTypeAny
 )
 
-const MAX_FIXED = uint16(1<<16 - 1)
+const MAX_ARRAY = 1<<8 - 1 // 255
 
 var (
 	fieldTypeString  = "__timestamp_int64_uint64_float64_boolean_string_bytes_int32_int16_int8_uint32_uint16_uint8_float32_int256_int128_decimal256_decimal128_decimal64_decimal32_bigint_date_time"
@@ -165,7 +165,7 @@ type FieldFlags byte
 
 const (
 	FieldFlagPrimary  FieldFlags = 1 << iota // primary key
-	FieldFlagFixed                           // fixed length string/byte
+	FieldFlagArray                           // fixed length string/byte array
 	FieldFlagEnum                            // enumeration
 	FieldFlagDeleted                         // is deleted, hide
 	FieldFlagMetadata                        // field is metadata
@@ -175,7 +175,7 @@ const (
 )
 
 var (
-	fieldFlagNames   = "primary_fixed_enum_deleted_metadata_nullable_timebase_action"
+	fieldFlagNames   = "primary_array_enum_deleted_metadata_nullable_timebase_action"
 	fieldFlagIdx     = [...]int{0, 8, 14, 19, 27, 36, 45, 54, 61}
 	fieldFlagReverse = map[string]FieldFlags{}
 )

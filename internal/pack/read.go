@@ -70,8 +70,8 @@ func (p *Package) ReadWireFields(buf *bytes.Buffer, row int, cols []int) error {
 			v := b.Bool().Get(row)
 			err = buf.WriteByte(*(*byte)(unsafe.Pointer(&v)))
 		case types.BlockBytes:
-			if f.Fixed > 0 {
-				_, err = buf.Write(b.Bytes().Get(row)[:f.Fixed])
+			if f.IsArray() {
+				_, err = buf.Write(b.Bytes().Get(row)[:f.Scale])
 			} else {
 				v := b.Bytes().Get(row)
 				LE.PutUint32(x[:], uint32(len(v)))
@@ -169,8 +169,8 @@ func (p *Package) ReadWireBuffer(buf *bytes.Buffer, row int) error {
 			v := b.Bool().Get(row)
 			err = buf.WriteByte(*(*byte)(unsafe.Pointer(&v)))
 		case types.BlockBytes:
-			if fixed := field.Fixed; fixed > 0 {
-				_, err = buf.Write(b.Bytes().Get(row)[:fixed])
+			if field.IsArray() {
+				_, err = buf.Write(b.Bytes().Get(row)[:field.Scale])
 			} else {
 				v := b.Bytes().Get(row)
 				LE.PutUint32(x[:], uint32(len(v)))
@@ -289,8 +289,8 @@ func (p *Package) ReadStruct(row int, dst any, dstSchema *schema.Schema, maps []
 			*(*bool)(fptr) = b.Bool().Get(row)
 
 		case types.FT_BYTES:
-			if field.Fixed > 0 {
-				copy(unsafe.Slice((*byte)(fptr), field.Fixed), b.Bytes().Get(row))
+			if field.IsArray() {
+				copy(unsafe.Slice((*byte)(fptr), field.Scale), b.Bytes().Get(row))
 			} else {
 				// safe version with copy (check length of struct in slice or alloc
 				// then copy)

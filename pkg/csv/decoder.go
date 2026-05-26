@@ -514,12 +514,12 @@ func (d *Decoder) decodePhysical(base unsafe.Pointer, line []string) error {
 		case types.FT_BYTES:
 			// decode hex to binary
 			s := strings.TrimPrefix(line[i], "0x")
-			if f.Fixed > 0 {
-				if len(s) != int(f.Fixed)*2 {
+			if f.IsArray() {
+				if len(s) != int(f.Scale)*2 {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i],
-						fmt.Errorf("binary array [%d]byte mismatched hex len %d", f.Fixed, len(s))}
+						fmt.Errorf("binary array [%d]byte mismatched hex len %d", f.Scale, len(s))}
 				}
-				_, err := hex.Decode(unsafe.Slice((*byte)(ptr), f.Fixed), util.UnsafeGetBytes(s))
+				_, err := hex.Decode(unsafe.Slice((*byte)(ptr), f.Scale), util.UnsafeGetBytes(s))
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -727,12 +727,12 @@ func (d *Decoder) decodeLogical(base unsafe.Pointer, line []string) error {
 		case types.FT_BYTES:
 			// decode hex to binary
 			s := strings.TrimPrefix(line[i], "0x")
-			if f.Fixed > 0 {
-				if len(s) != int(f.Fixed)*2 {
+			if f.IsArray() {
+				if len(s) != int(f.Scale)*2 {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i],
-						fmt.Errorf("binary array [%d]byte mismatched hex len %d", f.Fixed, len(s))}
+						fmt.Errorf("binary array [%d]byte mismatched hex len %d", f.Scale, len(s))}
 				}
-				_, err := hex.Decode(unsafe.Slice((*byte)(ptr), f.Fixed), util.UnsafeGetBytes(s))
+				_, err := hex.Decode(unsafe.Slice((*byte)(ptr), f.Scale), util.UnsafeGetBytes(s))
 				if err != nil {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i], err}
 				}
@@ -838,11 +838,11 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 			case types.BT_BOOL:
 				b.Bool().Append(false)
 			case types.BT_BYTES:
-				if fixed := f.Fixed; fixed > 0 {
-					if fixed <= 32 {
-						b.Bytes().Append(zeros[:fixed])
+				if f.IsArray() {
+					if f.Scale <= 32 {
+						b.Bytes().Append(zeros[:f.Scale])
 					} else {
-						b.Bytes().Append(bytes.Repeat([]byte{0}, int(fixed)))
+						b.Bytes().Append(bytes.Repeat([]byte{0}, int(f.Scale)))
 					}
 				} else {
 					b.Bytes().Append(nil)
@@ -990,10 +990,10 @@ func (d *Decoder) decodePack(pkg *pack.Package, line []string) error {
 				buf []byte
 				err error
 			)
-			if f.Fixed > 0 {
-				if len(s) != int(f.Fixed)*2 {
+			if f.IsArray() {
+				if len(s) != int(f.Scale)*2 {
 					return &DecodeError{d.r.lineNo, i, f.Name, line[i],
-						fmt.Errorf("binary array [%d]byte mismatched hex len %d", f.Fixed, len(s))}
+						fmt.Errorf("binary array [%d]byte mismatched hex len %d", f.Scale, len(s))}
 				}
 				buf, err = hex.DecodeString(s)
 			} else {

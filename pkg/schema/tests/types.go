@@ -68,7 +68,7 @@ const (
 	FT_DATE      = types.FieldTypeDate
 
 	F_PRIMARY  = types.FieldFlagPrimary
-	F_FIXED    = types.FieldFlagFixed
+	F_ARRAY    = types.FieldFlagArray
 	F_ENUM     = types.FieldFlagEnum
 	F_DELETED  = types.FieldFlagDeleted
 	F_METADATA = types.FieldFlagMetadata
@@ -246,21 +246,21 @@ func NewAllTypes(i int64) AllTypes {
 	}
 }
 
-type FixedTypes struct {
+type ArrayTypes struct {
 	BaseModel
-	FixedBytes  [20]byte `knox:"fixed_bytes"`
-	FixedString string   `knox:"fixed_string,fixed=20"`
+	ByteArray   [20]byte `knox:"byte_array"`
+	StringArray string   `knox:"string_array,array=20"`
 }
 
-func NewFixedTypes(i int64) FixedTypes {
+func NewArrayTypes(i int64) ArrayTypes {
 	b := binary.LittleEndian.AppendUint64(nil, uint64(i))
 	buf := bytes.Repeat(b, 3)[:20]
-	return FixedTypes{
+	return ArrayTypes{
 		BaseModel: BaseModel{
 			Id: uint64(i),
 		},
-		FixedBytes:  [20]byte(buf),
-		FixedString: hex.EncodeToString(buf[:10]),
+		ByteArray:   [20]byte(buf),
+		StringArray: hex.EncodeToString(buf[:10]),
 	}
 }
 
@@ -353,34 +353,39 @@ type DuplicateField struct {
 	B int64 `knox:"x"`
 }
 
-type InvalidFixedType struct {
+type InvalidArrayType struct {
 	BaseModel
-	F int64 `knox:",fixed=1"`
+	F int64 `knox:",array=1"`
 }
 
-type InvalidFixedMissing struct {
+type InvalidArrayMissing struct {
 	BaseModel
-	F []byte `knox:",fixed"`
+	F []byte `knox:",array"`
 }
 
-type InvalidFixedNaN struct {
+type InvalidArrayNaN struct {
 	BaseModel
-	F []byte `knox:",fixed=x"`
+	F []byte `knox:",array=x"`
 }
 
-type InvalidFixedZero struct {
+type InvalidArrayZero struct {
 	BaseModel
-	F []byte `knox:",fixed=0"`
+	F []byte `knox:",array=0"`
 }
 
-type InvalidFixedNeg struct {
+type InvalidArrayNeg struct {
 	BaseModel
-	F []byte `knox:",fixed=-1"`
+	F []byte `knox:",array=-1"`
 }
 
-type InvalidFixedTooLarge struct {
+type InvalidArraySizeMismatch struct {
 	BaseModel
-	F [20]byte `knox:",fixed=21"`
+	F [20]byte `knox:",array=21"`
+}
+
+type InvalidArrayTooLarge struct {
+	BaseModel
+	F [256]byte
 }
 
 type InvalidScaleType struct {

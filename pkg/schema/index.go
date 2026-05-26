@@ -61,8 +61,6 @@ func (s *IndexSchema) Hash() uint64 {
 		h.Write(b[:2])
 		h.Write([]byte{byte(f.Type)})
 		h.Write([]byte{byte(f.Flags)})
-		LE.PutUint16(b[:], f.Fixed)
-		h.Write(b[:2])
 		h.Write([]byte{f.Scale})
 	}
 

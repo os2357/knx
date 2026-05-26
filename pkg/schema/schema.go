@@ -515,16 +515,28 @@ func (s *Schema) MapSchema(dst *Schema) ([]int, error) {
 
 		if pos > -1 {
 			if srcField.Type != dstField.Type {
-				return nil, fmt.Errorf("%w on %s: field %q type %s mismatch with source type %s",
-					ErrSchemaMismatch, dst.Name, dstField.Name, dstField.Type, srcField.Type)
+				return nil, fmt.Errorf("%w: map [%s/%s] => [%s/%s]: type mismatch %s/%s",
+					ErrSchemaMismatch,
+					s.Name, srcField.Name,
+					dst.Name, dstField.Name,
+					srcField.Type, dstField.Type,
+				)
 			}
-			if srcField.Fixed != dstField.Fixed {
-				return nil, fmt.Errorf("%w on %s: field %q fixed type mismatch",
-					ErrSchemaMismatch, dst.Name, dstField.Name)
+			if a, b := srcField.IsArray(), dstField.IsArray(); a != b {
+				return nil, fmt.Errorf("%w: map [%s/%s] => [%s/%s]: array mismatch %t/%t",
+					ErrSchemaMismatch,
+					s.Name, srcField.Name,
+					dst.Name, dstField.Name,
+					a, b,
+				)
 			}
 			if srcField.Scale != dstField.Scale {
-				return nil, fmt.Errorf("%w on %s: field %q scale mismatch",
-					ErrSchemaMismatch, dst.Name, dstField.Name)
+				return nil, fmt.Errorf("%w: map [%s/%s] => [%s/%s]: scale mismatch %d/%d",
+					ErrSchemaMismatch,
+					s.Name, srcField.Name,
+					dst.Name, dstField.Name,
+					srcField.Scale, dstField.Scale,
+				)
 			}
 		}
 		maps = append(maps, pos)
@@ -687,13 +699,11 @@ func (s *Schema) Finalize() *Schema {
 				s.MaxWireSize += defaultVarFieldSize
 			}
 
-			// hash: id, type, flags, fixed, scale (not: filter, compress, name)
+			// hash: id, type, flags, scale (not: filter, compress, name)
 			LE.PutUint16(b[:], f.Id)
 			h.Write(b[:2])
 			h.Write([]byte{byte(f.Type)})
 			h.Write([]byte{byte(f.Flags)})
-			LE.PutUint16(b[:], f.Fixed)
-			h.Write(b[:2])
 			h.Write([]byte{f.Scale})
 		}
 	}
@@ -724,20 +734,7 @@ func (s *Schema) String() string {
 	}
 	fmt.Fprintf(&b, "\n#  ID   %[1]*[2]s %-15s Flags", -maxNameLen-1, "Name", "Type")
 	for i, f := range s.Fields {
-		var typ string
-		switch f.Type {
-		case FT_TIME, FT_TIMESTAMP:
-			typ = f.Type.String() + "(" + types.TimeScale(f.Scale).ShortName() + ")"
-		case FT_D32, FT_D64, FT_D128, FT_D256:
-			typ = f.Type.String() + "(" + strconv.Itoa(int(f.Scale)) + ")"
-		case FT_STRING, FT_BYTES:
-			if f.Fixed > 0 {
-				typ = "[" + strconv.Itoa(int(f.Fixed)) + "]" + f.Type.String()
-			}
-		}
-		if typ == "" {
-			typ = f.Type.String()
-		}
+		typ := f.TypeName()
 		flags := f.Flags.String()
 		if f.Filter > 0 {
 			if flags != "" {

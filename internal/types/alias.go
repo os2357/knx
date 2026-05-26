@@ -64,7 +64,7 @@ type FieldFlags = types.FieldFlags
 
 const (
 	F_PRIMARY  = types.FieldFlagPrimary
-	F_FIXED    = types.FieldFlagFixed
+	F_ARRAY    = types.FieldFlagArray
 	F_ENUM     = types.FieldFlagEnum
 	F_DELETED  = types.FieldFlagDeleted
 	F_METADATA = types.FieldFlagMetadata

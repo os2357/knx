@@ -111,9 +111,9 @@ func (w *Writer) Write(i int, val any) error {
 		default:
 			err = ErrInvalidValueType
 		}
-		if field.IsFixedSize() {
+		if field.IsArray() {
 			// fixed size
-			if len(buf) == int(field.Fixed) {
+			if len(buf) == int(field.Scale) {
 				copy(w.buf[x:y], buf)
 			} else {
 				err = ErrShortValue

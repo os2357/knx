@@ -299,7 +299,6 @@ func (p *JoinPlan) Compile(ctx context.Context) error {
 		p.schema.WithField(
 			schema.NewField(field.Type).
 				WithName(alias).
-				WithFixed(field.Fixed).
 				WithScale(field.Scale).
 				WithFlags(field.Flags),
 		)
@@ -313,7 +312,6 @@ func (p *JoinPlan) Compile(ctx context.Context) error {
 		p.schema.WithField(
 			schema.NewField(field.Type).
 				WithName(alias).
-				WithFixed(field.Fixed).
 				WithScale(field.Scale).
 				WithFlags(field.Flags),
 		)

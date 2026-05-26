@@ -40,7 +40,7 @@ type schemaTest struct {
 	flags     []FieldFlags
 	filters   []FilterType
 	scales    []uint8
-	fixed     []uint16
+	fixed     []uint8
 	isFixed   bool
 	iserr     bool
 }
@@ -61,7 +61,7 @@ var (
 //	    typs:    []FieldType{},
 //	    flags:   []FieldFlags{},
 //	    scales:  []uint8{},
-//	    fixed:   []uint16{},
+//	    fixed:   []uint8{},
 //	    isFixed: true,
 //	    err:     false,
 //	},
@@ -78,7 +78,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
-		fixed:   []uint16{0},
+		fixed:   []uint8{0},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64},
 		// decode:  []OpCode{OC_U64},
@@ -92,7 +92,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
-		fixed:   []uint16{0},
+		fixed:   []uint8{0},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64},
 		// decode:  []OpCode{OC_U64},
@@ -117,7 +117,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
-		fixed:   []uint16{0},
+		fixed:   []uint8{0},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64},
 		// decode:  []OpCode{OC_U64},
@@ -131,7 +131,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_U64},
 		flags:   []FieldFlags{F_PRIMARY},
 		scales:  []uint8{0},
-		fixed:   []uint16{0},
+		fixed:   []uint8{0},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64},
 		// decode:  []OpCode{OC_U64},
@@ -145,7 +145,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_U64, FT_U64},
 		flags:   []FieldFlags{F_PRIMARY, 0},
 		scales:  []uint8{0, 0},
-		fixed:   []uint16{0, 0},
+		fixed:   []uint8{0, 0},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64, OC_U64},
 		// decode:  []OpCode{OC_U64, OC_U64},
@@ -175,23 +175,23 @@ var schemaTestCases = []schemaTest{
 		build:   reflect.SchemaFor[AllTypes],
 		fields:  "id,i64,i32,i16,i8,u64,u32,u16,u8,f64,f32,d32,d64,d128,d256,i128,i256,bool,time,bytes,array[2],string,my_enum,big",
 		typs:    []FieldType{FT_U64, FT_I64, FT_I32, FT_I16, FT_I8, FT_U64, FT_U32, FT_U16, FT_U8, FT_F64, FT_F32, FT_D32, FT_D64, FT_D128, FT_D256, FT_I128, FT_I256, FT_BOOL, FT_TIMESTAMP, FT_BYTES, FT_BYTES, FT_STRING, FT_U16, FT_BIGINT},
-		flags:   []FieldFlags{F_PRIMARY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, types.FieldFlagEnum, 0},
+		flags:   []FieldFlags{F_PRIMARY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, F_ARRAY, 0, F_ENUM, 0},
 		scales:  []uint8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 15, 18, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		fixed:   []uint16{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
+		fixed:   []uint8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
 		isFixed: false,
 		// encode:  []OpCode{OC_U64, OC_I64, OC_I32, OC_I16, OC_I8, OC_U64, OC_U32, OC_U16, OC_U8, OC_F64, OC_F32, OC_D32, OC_D64, OC_D128, OC_D256, OC_I128, OC_I256, OC_BOOL, OC_TIMESTAMP, OC_BYTES, OC_FIXBYTES, OC_STRING, OC_ENUM, OC_BIGINT},
 		// decode:  []OpCode{OC_U64, OC_I64, OC_I32, OC_I16, OC_I8, OC_U64, OC_U32, OC_U16, OC_U8, OC_F64, OC_F32, OC_D32, OC_D64, OC_D128, OC_D256, OC_I128, OC_I256, OC_BOOL, OC_TIMESTAMP, OC_BYTES, OC_FIXBYTES, OC_STRING, OC_ENUM, OC_BIGINT},
 	},
 
-	// fixed bytes and string
+	// fixed size array bytes and string
 	{
-		name:    "fixed_types",
-		build:   reflect.SchemaFor[FixedTypes],
-		fields:  "id,fixed_bytes,fixed_string",
+		name:    "array_types",
+		build:   reflect.SchemaFor[ArrayTypes],
+		fields:  "id,byte_array,string_array",
 		typs:    []FieldType{FT_U64, FT_BYTES, FT_STRING},
-		flags:   []FieldFlags{F_PRIMARY, 0, 0},
+		flags:   []FieldFlags{F_PRIMARY, F_ARRAY, F_ARRAY},
 		scales:  []uint8{0, 0, 0},
-		fixed:   []uint16{0, 20, 20},
+		fixed:   []uint8{0, 20, 20},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64, OC_FIXBYTES, OC_FIXSTRING},
 		// decode:  []OpCode{OC_U64, OC_FIXBYTES, OC_FIXSTRING},
@@ -206,7 +206,7 @@ var schemaTestCases = []schemaTest{
 	// 	typs:    []FieldType{FT_U64, FT_STRING, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY, 0, 0},
 	// 	scales:  []uint8{0, 0, 0},
-	// 	fixed:   []uint16{0, 0, 0},
+	// 	fixed:   []uint8{0, 0, 0},
 	// 	isFixed: false,
 	// 	encode:  []OpCode{OC_U64, OC_MSHTXT, OC_MSHBIN},
 	// 	decode:  []OpCode{OC_U64, OC_USHTXT, OC_USHBIN},
@@ -220,7 +220,7 @@ var schemaTestCases = []schemaTest{
 	// 	typs:    []FieldType{FT_U64, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY, 0},
 	// 	scales:  []uint8{0, 0},
-	// 	fixed:   []uint16{0, 0},
+	// 	fixed:   []uint8{0, 0},
 	// 	isFixed: false,
 	// 	encode:  []OpCode{OC_U64, OC_MSHBIN},
 	// 	decode:  []OpCode{OC_U64, OC_USHBIN},
@@ -234,7 +234,7 @@ var schemaTestCases = []schemaTest{
 	// 	typs:    []FieldType{FT_U64, FT_STRING, FT_BYTES},
 	// 	flags:   []FieldFlags{F_PRIMARY | F_INDEXED, 0, 0},
 	// 	scales:  []uint8{0, 0, 0},
-	// 	fixed:   []uint16{0, 0, 0},
+	// 	fixed:   []uint8{0, 0, 0},
 	// 	isFixed: false,
 	// 	encode:  []OpCode{OC_U64, OC_MSHTXT, OC_MSHBIN},
 	// 	decode:  []OpCode{OC_U64, OC_USHTXT, OC_USHBIN},
@@ -248,7 +248,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_U64, FT_INT, FT_UINT},
 		flags:   []FieldFlags{F_PRIMARY, 0, 0},
 		scales:  []uint8{0, 0, 0},
-		fixed:   []uint16{0, 0, 0},
+		fixed:   []uint8{0, 0, 0},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64, OC_INT, OC_UINT},
 		// decode:  []OpCode{OC_U64, OC_INT, OC_UINT},
@@ -262,7 +262,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_TIMESTAMP, FT_TIMESTAMP, FT_TIMESTAMP, FT_TIMESTAMP, FT_TIME, FT_TIME, FT_TIME, FT_TIME, FT_DATE},
 		flags:   []FieldFlags{0, 0, 0, 0, 0, 0, 0, 0, 0},
 		scales:  []uint8{0, 1, 2, 3, 0, 1, 2, 3, 4},
-		fixed:   []uint16{0, 0, 0, 0, 0, 0, 0, 0, 0},
+		fixed:   []uint8{0, 0, 0, 0, 0, 0, 0, 0, 0},
 		isFixed: true,
 		// encode:  []OpCode{OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIME, OC_TIME, OC_TIME, OC_TIME, OC_DATE},
 		// decode:  []OpCode{OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIMESTAMP, OC_TIME, OC_TIME, OC_TIME, OC_TIME, OC_DATE},
@@ -317,45 +317,52 @@ var schemaTestCases = []schemaTest{
 		iserr: true,
 	},
 
-	// error: using fixed on illegal type
+	// error: using array on illegal type
 	{
-		name:  "invalid fixed type",
-		build: reflect.SchemaFor[InvalidFixedType],
+		name:  "invalid array type",
+		build: reflect.SchemaFor[InvalidArrayType],
 		iserr: true,
 	},
 
-	// error: fixed value missing
+	// error: array value missing
 	{
-		name:  "invalid fixed missing",
-		build: reflect.SchemaFor[InvalidFixedMissing],
+		name:  "invalid array missing",
+		build: reflect.SchemaFor[InvalidArrayMissing],
 		iserr: true,
 	},
 
-	// error: fixed NaN
+	// error: array NaN
 	{
-		name:  "invalid fixed NaN",
-		build: reflect.SchemaFor[InvalidFixedNaN],
+		name:  "invalid array NaN",
+		build: reflect.SchemaFor[InvalidArrayNaN],
 		iserr: true,
 	},
 
-	// error: fixed = 0
+	// error: array = 0
 	{
-		name:  "invalid fixed=0",
-		build: reflect.SchemaFor[InvalidFixedZero],
+		name:  "invalid array=0",
+		build: reflect.SchemaFor[InvalidArrayZero],
 		iserr: true,
 	},
 
-	// error: fixed < 0
+	// error: array < 0
 	{
-		name:  "invalid fixed<0",
-		build: reflect.SchemaFor[InvalidFixedNeg],
+		name:  "invalid array<0",
+		build: reflect.SchemaFor[InvalidArrayNeg],
 		iserr: true,
 	},
 
-	// error: fixed > array bounds
+	// error: array size mismatch
 	{
-		name:  "invalid fixed too large",
-		build: reflect.SchemaFor[InvalidFixedTooLarge],
+		name:  "invalid array size mismatch",
+		build: reflect.SchemaFor[InvalidArraySizeMismatch],
+		iserr: true,
+	},
+
+	// error: array > max array szie
+	{
+		name:  "invalid array too large",
+		build: reflect.SchemaFor[InvalidArrayTooLarge],
 		iserr: true,
 	},
 
@@ -445,11 +452,11 @@ var schemaTestCases = []schemaTest{
 		build:     reflect.SchemaFor[HashIndex],
 		fields:    "id,hash",
 		typs:      []FieldType{FT_U64, FT_BYTES},
-		flags:     []FieldFlags{F_PRIMARY, 0},
+		flags:     []FieldFlags{F_PRIMARY, F_ARRAY},
 		idxfields: "id,hash",
 		idxtyps:   []types.IndexType{I_PK, I_HASH},
 		scales:    []uint8{0, 0},
-		fixed:     []uint16{0, 32},
+		fixed:     []uint8{0, 32},
 		isFixed:   true,
 		// encode:    []OpCode{OC_U64, OC_FIXBYTES},
 		// decode:    []OpCode{OC_U64, OC_FIXBYTES},
@@ -465,7 +472,7 @@ var schemaTestCases = []schemaTest{
 		idxfields: "id,i64",
 		idxtyps:   []types.IndexType{I_PK, I_INT},
 		scales:    []uint8{0, 0},
-		fixed:     []uint16{0, 0},
+		fixed:     []uint8{0, 0},
 		isFixed:   true,
 		// encode:    []OpCode{OC_U64, OC_I64},
 		// decode:    []OpCode{OC_U64, OC_I64},
@@ -482,7 +489,7 @@ var schemaTestCases = []schemaTest{
 		idxfields: "id,i64",
 		idxtyps:   []types.IndexType{I_PK, 0},
 		scales:    []uint8{0, 0},
-		fixed:     []uint16{0, 0},
+		fixed:     []uint8{0, 0},
 		isFixed:   true,
 		// encode:    []OpCode{OC_U64, OC_I64},
 		// decode:    []OpCode{OC_U64, OC_I64},
@@ -519,7 +526,7 @@ var schemaTestCases = []schemaTest{
 		typs:    []FieldType{FT_U64, FT_I64, FT_U64},
 		flags:   []FieldFlags{F_PRIMARY, F_METADATA, 0},
 		scales:  []uint8{0, 0, 0},
-		fixed:   []uint16{0, 0, 0},
+		fixed:   []uint8{0, 0, 0},
 		isFixed: true,
 		// encode:  []OpCode{OC_U64, OC_SKIP, OC_U64},
 		// decode:  []OpCode{OC_U64, OC_SKIP, OC_U64},
@@ -590,19 +597,19 @@ func TestSchemaDetect(t *testing.T) {
 			}
 			// scale values
 			for i, f := range s.Fields {
-				require.Equal(t, c.scales[i], f.Scale, "scale for "+f.Name)
+				if !f.IsArray() {
+					require.Equal(t, c.scales[i], f.Scale, "scale for "+f.Name)
+				}
 			}
 
 			// fixed values
 			for i, f := range s.Fields {
-				require.Equal(t, c.fixed[i], f.Fixed, "fixed for "+f.Name)
+				if f.IsArray() {
+					require.Equal(t, c.fixed[i], f.Scale, "fixed for "+f.Name)
+				}
 			}
 			// is fixed
 			require.Equal(t, c.isFixed, s.IsFixedSize, "is_fixed")
-			// encoder opcodes
-			// require.ElementsMatch(t, c.encode, s.Encode, "encoders")
-			// decoder opcodes
-			// require.ElementsMatch(t, c.decode, s.Decode, "decoders")
 		})
 	}
 }

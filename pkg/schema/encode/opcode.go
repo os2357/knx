@@ -126,14 +126,14 @@ func CodecFor(f *Field) OpCode {
 		return OC_BOOL
 
 	case FT_STRING:
-		if f.Fixed > 0 {
+		if f.IsArray() {
 			return OC_FIXSTRING
 		} else {
 			return OC_STRING
 		}
 
 	case FT_BYTES:
-		if f.Fixed > 0 {
+		if f.IsArray() {
 			return OC_FIXBYTES
 		} else {
 			return OC_BYTES

@@ -27,18 +27,17 @@ func (d *Describer) Process(_ context.Context, src *pack.Package) (*pack.Package
 	t := table.NewWriter()
 	t.SetOutputMirror(d.w)
 	t.SetTitle("Schema %s [0x%x] - %d fields", s.Name, s.Hash, s.NumFields())
-	t.AppendHeader(table.Row{"#", "Name", "Type", "Flags", "Filter", "Visible", "Scale", "Size", "Fixed", "Compress"})
+	t.AppendHeader(table.Row{"#", "Name", "Type", "Flags", "Filter", "Visible", "Scale", "Size", "Compress"})
 	for _, field := range s.Fields {
 		t.AppendRow([]any{
 			field.Id,
 			field.Name,
-			field.Type,
+			field.TypeName(),
 			field.Flags,
 			field.Filter,
 			field.IsVisible(),
 			field.Scale,
 			field.Type.Size(),
-			field.Fixed,
 			field.Compress,
 		})
 	}

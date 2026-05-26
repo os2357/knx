@@ -52,7 +52,7 @@ const (
 	FT_DATE      = types.FieldTypeDate
 
 	F_PRIMARY  = types.FieldFlagPrimary
-	F_FIXED    = types.FieldFlagFixed
+	F_ARRAY    = types.FieldFlagArray
 	F_ENUM     = types.FieldFlagEnum
 	F_DELETED  = types.FieldFlagDeleted
 	F_METADATA = types.FieldFlagMetadata
@@ -79,11 +79,11 @@ type Field struct {
 	Name     string           // field name
 	Id       uint16           // unique lifetime id
 	Type     FieldType        // schema field type
+	SubType  FieldType        // list/map value type (TODO)
 	Flags    FieldFlags       // schema flags
 	Compress BlockCompression // data compression
 	Filter   FilterType       // metadata filter type
-	Fixed    uint16           // 0..65535 fixed size byte/string array length
-	Scale    uint8            // 0..255 fixed point scale, time scale
+	Scale    uint8            // 0..255 fixed point scale, time scale, array len
 
 	// encoder values for INSERT, UPDATE, QUERY
 	Path   []int                // reflect struct nested positions
@@ -105,11 +105,8 @@ func (f *Field) Clone() *Field {
 }
 
 func (f *Field) WireSize() int {
-	switch f.Type {
-	case FT_STRING, FT_BYTES:
-		if f.Fixed > 0 {
-			return int(f.Fixed)
-		}
+	if f.IsArray() {
+		return int(f.Scale)
 	}
 	return int(f.Size)
 }
@@ -150,10 +147,16 @@ func (f *Field) IsEnum() bool {
 	return f.Flags.Is(F_ENUM)
 }
 
+func (f *Field) IsArray() bool {
+	return f.Flags.Is(F_ARRAY)
+}
+
 func (f *Field) IsFixedSize() bool {
 	switch f.Type {
 	case FT_STRING, FT_BYTES:
-		return f.Fixed > 0
+		return f.IsArray()
+	case FT_BIGINT:
+		return false
 	default:
 		return true
 	}
@@ -182,8 +185,8 @@ func (f *Field) TypeName() (typ string) {
 	case FT_D32, FT_D64, FT_D128, FT_D256:
 		typ += "(" + strconv.Itoa(int(f.Scale)) + ")"
 	case FT_STRING, FT_BYTES:
-		if f.Fixed > 0 {
-			typ = "[" + strconv.Itoa(int(f.Fixed)) + "]" + typ
+		if f.IsArray() {
+			typ = "[" + strconv.Itoa(int(f.Scale)) + "]" + typ
 		}
 	}
 	return
@@ -195,8 +198,8 @@ func ParseFieldFromTypename(typ string) (*Field, error) {
 	}
 	var (
 		f     *Field
-		fixed uint16
 		scale uint8
+		flags FieldFlags
 	)
 	if typ[0] == '[' {
 		num, typstr, ok := strings.Cut(typ[1:], "]")
@@ -207,8 +210,9 @@ func ParseFieldFromTypename(typ string) (*Field, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid array len: %v", err)
 		}
-		fixed = uint16(n)
+		scale = uint8(n)
 		typ = typstr
+		flags |= F_ARRAY
 	} else {
 		typstr, scalestr, ok := strings.Cut(typ, "(")
 		if ok {
@@ -235,8 +239,8 @@ func ParseFieldFromTypename(typ string) (*Field, error) {
 	}
 	f = &Field{
 		Type:  ty,
-		Fixed: fixed,
 		Scale: scale,
+		Flags: flags,
 	}
 	return f, f.Validate()
 }
@@ -273,12 +277,18 @@ func (f *Field) WithCompression(c BlockCompression) *Field {
 	return f
 }
 
-func (f *Field) WithFixed(n uint16) *Field {
-	f.Fixed = n
+func (f *Field) WithArray(n uint8) *Field {
+	if n > 0 {
+		f.Flags |= F_ARRAY
+	} else {
+		f.Flags &^= F_ARRAY
+	}
+	f.Scale = n
 	return f
 }
 
 func (f *Field) WithScale(n uint8) *Field {
+	f.Flags &^= F_ARRAY
 	f.Scale = n
 	return f
 }
@@ -289,6 +299,13 @@ func (f *Field) WithFilter(typ FilterType) *Field {
 }
 
 func (f *Field) Validate() error {
+	// require name between 1..255 bytes length
+	if l := len(f.Name); l > 255 {
+		return fmt.Errorf("field[%d:%s]: name too long, max 255 chars", f.Id, f.Type)
+	} else if l < 1 {
+		return fmt.Errorf("field[%d:%s]: missing name", f.Id, f.Type)
+	}
+
 	// require scale on decimal fields only
 	if f.Scale != 0 {
 		var minScale, maxScale uint8
@@ -308,6 +325,9 @@ func (f *Field) Validate() error {
 		case FT_DATE:
 			minScale = uint8(types.TIME_SCALE_DAY)
 			maxScale = uint8(types.TIME_SCALE_DAY)
+		case FT_STRING, FT_BYTES:
+			minScale = 1
+			maxScale = types.MAX_ARRAY
 		default:
 			return fmt.Errorf("field[%s]: scale unsupported on type %s", f.Name, f.Type)
 		}
@@ -323,16 +343,16 @@ func (f *Field) Validate() error {
 		}
 	}
 
-	// require fixed on string/byte fields only
-	if f.Fixed != 0 {
-		if _, err := types.ValidateInt("fixed", int(f.Fixed), 1, int(types.MAX_FIXED)); err != nil {
+	// require array on string/byte fields only
+	if f.IsArray() {
+		if _, err := types.ValidateInt("array", int(f.Scale), 1, types.MAX_ARRAY); err != nil {
 			return fmt.Errorf("field[%s]: %v", f.Name, err)
 		}
 		switch f.Type {
 		case FT_BYTES, FT_STRING:
 			// ok
 		default:
-			return fmt.Errorf("field[%s]: fixed unsupported on type %s", f.Name, f.Type)
+			return fmt.Errorf("field[%s]: array unsupported on type %s", f.Name, f.Type)
 		}
 	}
 
@@ -356,29 +376,24 @@ func (f *Field) WriteTo(w *bytes.Buffer) error {
 	// id: u16
 	binary.Write(w, LE, f.Id)
 
-	// name: string
-	binary.Write(w, LE, uint16(len(f.Name)))
+	// name: 1 byte len, string
+	w.Write([]byte{byte(len(f.Name))})
 	w.WriteString(f.Name)
 
-	// typ, flags, compression: byte
-	binary.Write(w, LE, []byte{
+	// typ, flags, compression, scale: byte
+	w.Write([]byte{
 		byte(f.Type),
 		byte(f.Flags),
 		byte(f.Compress),
 		byte(f.Filter),
+		byte(f.Scale),
 	})
-
-	// fixed: u16
-	binary.Write(w, LE, f.Fixed)
-
-	// scale: u8
-	binary.Write(w, LE, f.Scale)
 
 	return nil
 }
 
 func (f *Field) ReadFrom(buf *bytes.Buffer) (err error) {
-	if buf.Len() < 11 {
+	if buf.Len() < 8 {
 		return io.ErrShortBuffer
 	}
 
@@ -389,30 +404,21 @@ func (f *Field) ReadFrom(buf *bytes.Buffer) (err error) {
 	}
 
 	// name: string
-	var l uint16
-	err = binary.Read(buf, LE, &l)
-	if err != nil {
-		return
-	}
-	f.Name = string(buf.Next(int(l)))
-	if len(f.Name) != int(l) {
+	l := int(buf.Next(1)[0])
+	f.Name = string(buf.Next(l))
+	if len(f.Name) != l {
 		return io.ErrShortBuffer
 	}
 
-	// typ, flags, compression, filter: byte
-	if buf.Len() < 7 {
+	// typ, flags, compression, filter, scale: byte
+	if buf.Len() < 5 {
 		return io.ErrShortBuffer
 	}
 	f.Type = FieldType(buf.Next(1)[0])
 	f.Flags = FieldFlags(buf.Next(1)[0])
 	f.Compress = BlockCompression(buf.Next(1)[0])
 	f.Filter = FilterType(buf.Next(1)[0])
-
-	// fixed: u16
-	binary.Read(buf, LE, &f.Fixed)
-
-	// scale: u8
-	binary.Read(buf, LE, &f.Scale)
+	f.Scale = buf.Next(1)[0]
 
 	// init related properties
 	f.Size = uint16(f.Type.Size())

@@ -29,7 +29,7 @@ func EncodeField(w io.Writer, f *Field, val any, layout binary.ByteOrder) (err e
 		OC_STRING,
 		OC_BYTES:
 
-		err = writeBytes(w, val, f.Fixed, layout)
+		err = writeBytes(w, val, f.Scale, layout)
 
 	case OC_BOOL:
 		b, ok := val.(bool)
@@ -168,10 +168,10 @@ func DecodeField(r io.Reader, f *Field, layout binary.ByteOrder) (val any, err e
 		val = buf[0] > 0
 
 	case FT_STRING:
-		if f.Fixed > 0 {
-			b := make([]byte, f.Fixed)
+		if f.IsArray() {
+			b := make([]byte, f.Scale)
 			n, err = r.Read(b)
-			if n < int(f.Fixed) {
+			if n < int(f.Scale) {
 				return nil, ErrShortBuffer
 			}
 			val = string(b[:n])
@@ -187,10 +187,10 @@ func DecodeField(r io.Reader, f *Field, layout binary.ByteOrder) (val any, err e
 		}
 
 	case FT_BYTES:
-		if f.Fixed > 0 {
-			b := make([]byte, f.Fixed)
+		if f.IsArray() {
+			b := make([]byte, f.Scale)
 			n, err = r.Read(b)
-			if n < int(f.Fixed) {
+			if n < int(f.Scale) {
 				return nil, ErrShortBuffer
 			}
 			val = string(b[:n])

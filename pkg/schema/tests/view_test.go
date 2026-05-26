@@ -14,8 +14,8 @@ import (
 )
 
 func TestViewFixed(t *testing.T) {
-	base := NewFixedTypes(int64(0x0faf0faf0faf0faf))
-	baseSchema := reflect.MustSchemaFor[FixedTypes]()
+	base := NewArrayTypes(int64(0x0faf0faf0faf0faf))
+	baseSchema := reflect.MustSchemaFor[ArrayTypes]()
 	baseEnc := NewEncoder(baseSchema)
 	buf, err := baseEnc.Encode(&base, nil)
 	require.NoError(t, err)

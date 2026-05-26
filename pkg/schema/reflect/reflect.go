@@ -179,8 +179,8 @@ func SchemaOfTag(m any, tag string, opts ...Option) (*schema.Schema, error) {
 	return s, nil
 }
 
-// Produces a dynamic struct type only using native types like int64 for Decimal64
-// [16]byte for Int128, etc.
+// Produces a dynamic struct type only using native types like
+// int64 for Decimal64 [16]byte for Int128, etc.
 func NativeStructType(s *Schema) reflect.Type {
 	sfields := make([]reflect.StructField, 0, len(s.Fields))
 	for _, f := range s.Fields {
@@ -200,8 +200,8 @@ func NativeStructType(s *Schema) reflect.Type {
 		case FT_STRING:
 			rtyp = reflect.TypeFor[string]()
 		case FT_BYTES, FT_BIGINT:
-			if f.Fixed > 0 {
-				rtyp = reflect.ArrayOf(int(f.Fixed), reflect.TypeFor[byte]())
+			if f.IsArray() {
+				rtyp = reflect.ArrayOf(int(f.Scale), reflect.TypeFor[byte]())
 			} else {
 				rtyp = reflect.TypeFor[[]byte]()
 			}
@@ -236,7 +236,7 @@ func NativeStructType(s *Schema) reflect.Type {
 
 // Produces a dynamic struct type compatible with SchemaOf which uses
 // custom types for large numeric values (num.Int128) and decimals
-// (num.Decimal64).
+// (num.Decimal64). Does add struct tags, but excludes index tags.
 func StructType(s *Schema) reflect.Type {
 	sfields := make([]reflect.StructField, 0, len(s.Fields))
 	for _, f := range s.Fields {
@@ -250,13 +250,10 @@ func StructType(s *Schema) reflect.Type {
 		if f.IsEnum() {
 			tag += ",enum"
 		}
-		if f.IsFixedSize() && f.Fixed > 0 {
-			tag += fmt.Sprintf(",fixed=%d", f.Fixed)
+		if f.IsArray() && f.Type == FT_STRING {
+			tag += fmt.Sprintf(",fixed=%d", f.Scale)
 		}
-		// if f.IsIndexed() {
-		// 	tag += fmt.Sprintf(",index=%s", f.Index.Type)
-		// }
-		if f.Scale > 0 {
+		if !f.IsArray() && f.Scale > 0 {
 			tag += fmt.Sprintf(",scale=%d", f.Scale)
 		}
 		if f.IsCompressed() {
@@ -273,8 +270,8 @@ func StructType(s *Schema) reflect.Type {
 }
 
 func GoType(f *Field) reflect.Type {
-	if f.Type == FT_BYTES && f.Fixed > 0 {
-		return reflect.ArrayOf(int(f.Fixed), reflect.TypeFor[byte]())
+	if f.Type == FT_BYTES && f.IsArray() {
+		return reflect.ArrayOf(int(f.Scale), reflect.TypeFor[byte]())
 	}
 	if f.Type == FT_U16 && f.IsEnum() {
 		return reflect.TypeFor[string]()
@@ -431,7 +428,6 @@ func parseFieldType(f *Field, r reflect.StructField) error {
 	var (
 		typ   types.FieldType
 		flags types.FieldFlags
-		fixed uint16
 		scale uint8
 	)
 
@@ -521,12 +517,15 @@ func parseFieldType(f *Field, r reflect.StructField) error {
 		case "num.Int256":
 			typ = FT_I256
 		default:
-			if r.Type.Elem() == uint8Type {
-				typ = FT_BYTES
-				fixed = uint16(r.Type.Len())
-			} else {
+			if r.Type.Elem() != uint8Type {
 				return fmt.Errorf("unsupported array type %s", r.Type)
 			}
+			if r.Type.Len() > types.MAX_ARRAY {
+				return fmt.Errorf("unsupported array length %s > 255", r.Type)
+			}
+			typ = FT_BYTES
+			scale = uint8(r.Type.Len())
+			flags |= F_ARRAY
 		}
 	default:
 		return fmt.Errorf("unsupported type %s (%v)", r.Type, r.Type.Kind())
@@ -534,7 +533,6 @@ func parseFieldType(f *Field, r reflect.StructField) error {
 
 	f.Type = typ
 	f.Flags = flags
-	f.Fixed = fixed
 	f.Scale = scale
 
 	return nil
@@ -548,11 +546,9 @@ func parseFieldTag(f *Field, tag string) error {
 	}
 
 	var (
-		scale    uint8
-		fixed    = f.Fixed
-		maxFixed = types.MAX_FIXED
-		maxScale = f.Scale
-		flags    types.FieldFlags
+		scale    = f.Scale // time scale, decimal scale, fixed array length
+		maxScale = f.Scale // max decimal/time scale
+		flags    = f.Flags
 		compress types.BlockCompression
 		filter   types.FilterType
 	)
@@ -598,19 +594,20 @@ func parseFieldTag(f *Field, tag string) error {
 			default:
 				return fmt.Errorf("unsupported compression type %q", val)
 			}
-		case "fixed":
+		case "array":
 			// only compatible with strings, bytes must use [n]byte arrays):
 			if f.Type != FT_STRING {
-				return fmt.Errorf("fixed tag unsupported on type %s", f.Type)
+				return fmt.Errorf("array tag unsupported on type %s", f.Type)
 			}
 			if ok {
-				fx, err := parseInt(val, "fixed", 1, int(maxFixed))
+				fx, err := parseInt(val, "array", 1, types.MAX_ARRAY)
 				if err != nil {
 					return err
 				}
-				fixed = uint16(fx)
+				scale = uint8(fx)
+				flags |= F_ARRAY
 			} else {
-				return fmt.Errorf("missing value for fixed tag")
+				return fmt.Errorf("missing value for array tag")
 			}
 		case "scale":
 			// only compatible with:
@@ -673,7 +670,6 @@ func parseFieldTag(f *Field, tag string) error {
 	}
 
 	f.Scale = scale
-	f.Fixed = fixed
 	f.Flags = flags
 	f.Compress = compress
 	f.Filter = filter

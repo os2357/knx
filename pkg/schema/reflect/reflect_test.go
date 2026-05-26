@@ -140,7 +140,7 @@ func TestFieldUtilityMethods(t *testing.T) {
 		},
 		{
 			name:            "Array field with fixed size",
-			field:           arrayField.WithFixed(10),
+			field:           arrayField.WithArray(10),
 			expectedValid:   true,
 			expectedVisible: true,
 			expectedFixed:   true,
@@ -161,7 +161,7 @@ func TestFieldUtilityMethods(t *testing.T) {
 		},
 		{
 			name:            "FixedBytes",
-			field:           NewField(FT_BYTES).WithName("fixed_bytes").WithFixed(10),
+			field:           NewField(FT_BYTES).WithName("fixed_bytes").WithArray(10),
 			expectedValid:   true,
 			expectedVisible: true,
 			expectedFixed:   true,
@@ -175,7 +175,7 @@ func TestFieldUtilityMethods(t *testing.T) {
 		},
 		{
 			name:            "FixedBytesArray",
-			field:           arrayField.WithName("fixed_bytes_array").WithFixed(5),
+			field:           arrayField.WithName("fixed_bytes_array").WithArray(5),
 			expectedValid:   true,
 			expectedVisible: true,
 			expectedFixed:   true,

@@ -45,8 +45,8 @@ type Hash [32]byte
 type encodeTestStruct struct {
 	Id        uint64         `knox:"id,pk"`
 	Time      time.Time      `knox:"time"`
-	HashArray [20]byte       `knox:"hash,filter=bloom3b"`
-	HashFixed Hash           `knox:"hash_fixed,filter=bloom5b,zip=snappy"`
+	HashArray [20]byte       `knox:"hash_array,filter=bloom3b"`
+	HashHash  Hash           `knox:"hash_hash,filter=bloom5b,zip=snappy"`
 	String    string         `knox:"str"`
 	Bool      bool           `knox:"bool"`
 	Enum      MyEnum         `knox:"my_enum,enum"`
@@ -75,7 +75,7 @@ func makeTestData(sz int) (res []encodeTestStruct) {
 			Id:        0,
 			Time:      time.Now().UTC(),
 			HashArray: [20]byte(testutil.RandBytes(20)),
-			HashFixed: Hash(testutil.RandBytes(32)),
+			HashHash:  Hash(testutil.RandBytes(32)),
 			String:    hex.EncodeToString(testutil.RandBytes(4)),
 			Bool:      true,
 			Enum:      MyEnum(myEnum.MustValue(uint16(i%4 + 1))),
@@ -106,7 +106,7 @@ type visibilityTestStruct struct {
 	FDeleted     uint64 `knox:"f_deleted"`
 	FMeta        uint64 `knox:"f_meta,metadata"`
 	FMetaDeleted uint64 `knox:"f_meta_deleted,metadata"`
-	HashFixed    Hash   `knox:"hash_fixed"`
+	Hash         Hash   `knox:"hash"`
 }
 
 func makeVisibilityTestData(sz int) (res []visibilityTestStruct) {
@@ -116,7 +116,7 @@ func makeVisibilityTestData(sz int) (res []visibilityTestStruct) {
 			FDeleted:     0xfafafafafafafafa,
 			FMeta:        0xfbfbfbfbfbfbfbfb,
 			FMetaDeleted: 0xfcfcfcfcfcfcfcfc,
-			HashFixed:    Hash(testutil.RandBytes(32)),
+			Hash:         Hash(testutil.RandBytes(32)),
 		})
 	}
 	return
@@ -185,7 +185,7 @@ func TestEncodeRoundtripWithVisibility(t *testing.T) {
 	err = dec.Decode(buf, &val2)
 	require.NoError(t, err)
 	require.Equal(t, val.Id, val2.Id)
-	require.Equal(t, val.HashFixed, val2.HashFixed, "hash_fixed")
+	require.Equal(t, val.Hash, val2.Hash, "hash")
 	require.Equal(t, uint64(0), val2.FMeta, "meta")
 	require.Equal(t, uint64(0), val2.FDeleted, "deleted")
 	require.Equal(t, uint64(0), val2.FMetaDeleted, "meta_deleted")

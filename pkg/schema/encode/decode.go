@@ -144,11 +144,11 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 			// noop
 
 		case OC_FIXBYTES:
-			_, err = d.buf.Read(unsafe.Slice((*byte)(ptr), field.Fixed))
+			_, err = d.buf.Read(unsafe.Slice((*byte)(ptr), field.Scale))
 
 		case OC_FIXSTRING:
 			// explicit copy
-			*(*string)(ptr) = string(d.buf.Next(int(field.Fixed)))
+			*(*string)(ptr) = string(d.buf.Next(int(field.Scale)))
 
 		case OC_STRING:
 			l := d.layout.Uint32(d.buf.Next(4))
@@ -302,14 +302,14 @@ func (d *Decoder) readField(code OpCode, field *Field, ptr unsafe.Pointer, buf [
 		buf = buf[1:]
 
 	case OC_FIXBYTES:
-		_ = buf[field.Fixed-1]
-		copy(unsafe.Slice((*byte)(ptr), field.Fixed), buf[:field.Fixed])
-		buf = buf[field.Fixed:]
+		_ = buf[field.Scale-1]
+		copy(unsafe.Slice((*byte)(ptr), field.Scale), buf[:field.Scale])
+		buf = buf[field.Scale:]
 
 	case OC_FIXSTRING:
-		_ = buf[field.Fixed-1]
-		*(*string)(ptr) = unsafe.String(unsafe.SliceData(buf), field.Fixed)
-		buf = buf[field.Fixed:]
+		_ = buf[field.Scale-1]
+		*(*string)(ptr) = unsafe.String(unsafe.SliceData(buf), field.Scale)
+		buf = buf[field.Scale:]
 
 	case OC_STRING:
 		l := d.layout.Uint32(buf)

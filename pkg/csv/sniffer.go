@@ -116,21 +116,23 @@ func (s *Sniffer) Result() SnifferResult {
 func (s *Sniffer) Schema() *schema.Schema {
 	// construct a schema from discovered fields
 	b := schema.NewBuilder()
+	fopts := make([]schema.BuilderOption, 0, 4)
 	for i, f := range s.fields {
-		b.Add(s.head[i], f.Type())
-		if f.is(fFixed) && (f.Type() == types.FieldTypeBytes || f.Type() == types.FieldTypeString) {
-			l := uint16(f.len)
+		fopts = fopts[:0]
+		if f.is(fFixed) && (f.Type() == types.FT_BYTES || f.Type() == types.FT_STRING) && f.len <= types.MAX_ARRAY {
+			l := f.len
 			if f.is(fHex) {
 				l /= 2
 			}
-			b.SetFieldOpts(schema.Fixed(l))
+			fopts = append(fopts, schema.Array(l))
 		}
 		if f.isDateTime() {
-			b.SetFieldOpts(schema.Scale(f.scale))
+			fopts = append(fopts, schema.Scale(f.scale))
 		}
 		if f.isDecimal() {
-			b.SetFieldOpts(schema.Scale(f.dot - 1))
+			fopts = append(fopts, schema.Scale(f.dot-1))
 		}
+		b.Add(s.head[i], f.Type(), fopts...)
 	}
 	return b.Finalize().Schema()
 }

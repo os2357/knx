@@ -26,7 +26,7 @@ const (
 	FT_DATE      = FieldTypeDate
 
 	F_PRIMARY  = FieldFlagPrimary
-	F_FIXED    = FieldFlagFixed
+	F_ARRAY    = FieldFlagArray
 	F_ENUM     = FieldFlagEnum
 	F_DELETED  = FieldFlagDeleted
 	F_METADATA = FieldFlagMetadata

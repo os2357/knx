@@ -90,9 +90,9 @@ func (p *Package) AppendWire(buf []byte, meta *types.Meta) {
 			buf = buf[1:]
 
 		case types.BlockBytes:
-			if fixed := field.Fixed; fixed > 0 {
-				b.Bytes().Append(buf[:fixed])
-				buf = buf[fixed:]
+			if field.IsArray() {
+				b.Bytes().Append(buf[:field.Scale])
+				buf = buf[field.Scale:]
 			} else {
 				l := LE.Uint32(buf)
 				buf = buf[4:]
@@ -311,9 +311,9 @@ func (p *Package) SetWire(row int, buf []byte) {
 			buf = buf[1:]
 
 		case types.BlockBytes:
-			if fixed := field.Fixed; fixed > 0 {
-				b.Bytes().Set(row, buf[:fixed])
-				buf = buf[fixed:]
+			if field.IsArray() {
+				b.Bytes().Set(row, buf[:field.Scale])
+				buf = buf[field.Scale:]
 			} else {
 				l := LE.Uint32(buf)
 				buf = buf[4:]

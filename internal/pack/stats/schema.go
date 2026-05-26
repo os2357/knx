@@ -43,10 +43,12 @@ func MakeSchema(s *schema.Schema) *schema.Schema {
 		// generate clean field from source
 		f := schema.NewField(src.Type).
 			WithName("min_" + src.Name).
+			// add scale or fixed array len
 			WithScale(src.Scale).
-			WithFixed(src.Fixed).
-			WithFlags(src.Flags & types.F_DELETED). // only keep deleted flag
-			WithFilter(src.Filter)                  // keep filter (in case its bloom)
+			// only keep fixed and deleted flags
+			WithFlags(src.Flags & (types.F_DELETED | types.F_ARRAY)).
+			// keep filter (in case its bloom)
+			WithFilter(src.Filter)
 
 		statsSchema.WithField(f)
 		statsSchema.WithField(f.Clone().WithName("max_" + src.Name))
