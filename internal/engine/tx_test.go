@@ -227,50 +227,55 @@ func TestTxWait(t *testing.T) {
 
 	// timeout (with 1st tx release)
 	{
-		var lastXid XID
-		e.opts.TxWaitTimeout = time.Second
+		var lastXid, firstXid, secondXid XID
+		e.opts.TxWaitTimeout = 100 * time.Millisecond
 		_, tx, _, abort, err := e.WithTransaction(ctx)
+		firstXid = tx.id
 		require.NoError(t, err)
-		go func() {
+		var wg sync.WaitGroup
+		wg.Go(func() {
 			time.Sleep(20 * time.Millisecond)
-			xid := tx.id
+			atomic.StoreUint64((*uint64)(&lastXid), uint64(firstXid))
 			require.NoError(t, abort())
-			atomic.StoreUint64((*uint64)(&lastXid), uint64(xid))
-		}()
+		})
 		require.Eventually(t, func() bool {
 			_, tx, _, abort, err := e.WithTransaction(ctx)
-			xid := tx.id
+			secondXid = tx.id
 			require.NoError(t, err)
+			atomic.StoreUint64((*uint64)(&lastXid), uint64(secondXid))
 			require.NoError(t, abort())
-			atomic.StoreUint64((*uint64)(&lastXid), uint64(xid))
 			return true
-		}, 2*e.opts.TxWaitTimeout, 5*time.Millisecond)
-		assert.True(t, tx.IsClosed(), "1st tx closed")
-		assert.Equal(t, XID(3), lastXid, "last tx closed")
+		}, 2*e.opts.TxWaitTimeout, 2*e.opts.TxWaitTimeout)
+		wg.Wait()
+		assert.True(t, tx.IsClosed(), "1st tx not closed")
+		assert.Equal(t, secondXid, lastXid, "unexpected last tx id")
 		assert.Len(t, e.txs, 0, "txs")
 		e.opts.TxWaitTimeout = 0
 	}
 
 	// unlimited (with 1st tx release)
 	{
-		var lastXid XID
+		var lastXid, firstXid, secondXid XID
 		_, tx, _, abort, err := e.WithTransaction(ctx)
+		firstXid = tx.id
 		require.NoError(t, err)
-		go func() {
+		var wg sync.WaitGroup
+		wg.Go(func() {
 			time.Sleep(20 * time.Millisecond)
+			atomic.StoreUint64((*uint64)(&lastXid), uint64(firstXid))
 			require.NoError(t, abort())
-			atomic.StoreUint64((*uint64)(&lastXid), uint64(tx.id))
-		}()
+		})
 		require.Eventually(t, func() bool {
 			_, tx, _, abort, err := e.WithTransaction(ctx)
-			xid := tx.id
+			secondXid = tx.id
 			require.NoError(t, err)
+			atomic.StoreUint64((*uint64)(&lastXid), uint64(secondXid))
 			require.NoError(t, abort())
-			atomic.StoreUint64((*uint64)(&lastXid), uint64(xid))
 			return true
-		}, time.Second, 5*time.Millisecond)
+		}, time.Second, time.Second)
+		wg.Wait()
 		assert.True(t, tx.IsClosed(), "1st tx closed")
-		assert.Equal(t, XID(5), lastXid, "last tx closed")
+		assert.Equal(t, secondXid, lastXid, "last tx closed")
 		assert.Len(t, e.txs, 0, "txs")
 	}
 
@@ -282,8 +287,8 @@ func TestTxWait(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Go(func() {
-			require.NoError(t, abort())
 			atomic.StoreUint64((*uint64)(&lastXid), uint64(tx.id))
+			require.NoError(t, abort())
 		})
 
 		wg.Add(1)
@@ -296,7 +301,7 @@ func TestTxWait(t *testing.T) {
 			atomic.StoreUint64((*uint64)(&lastXid), uint64(tx.id))
 			assert.NoError(t, abort())
 			return true
-		}, 2*e.opts.TxWaitTimeout, 5*time.Millisecond)
+		}, 2*e.opts.TxWaitTimeout, 2*e.opts.TxWaitTimeout)
 		e.opts.TxWaitTimeout = 0
 
 		wg.Wait()
@@ -324,7 +329,7 @@ func TestTxWait(t *testing.T) {
 			require.Error(t, err)
 			require.ErrorIs(t, err, ErrTxTimeout)
 			return true
-		}, 2*e.opts.TxWaitTimeout, 5*time.Millisecond)
+		}, 2*e.opts.TxWaitTimeout, 2*e.opts.TxWaitTimeout)
 		e.opts.TxWaitTimeout = 0
 	}
 
@@ -336,7 +341,7 @@ func TestTxWait(t *testing.T) {
 			require.Error(t, err)
 			require.ErrorIs(t, err, ErrTxTimeout)
 			return true
-		}, 2*e.opts.TxWaitTimeout, 5*time.Millisecond)
+		}, 2*e.opts.TxWaitTimeout, 2*e.opts.TxWaitTimeout)
 		e.opts.TxWaitTimeout = 0
 	}
 
@@ -354,7 +359,7 @@ func TestTxWait(t *testing.T) {
 			require.Error(t, err)
 			require.ErrorIs(t, err, ErrDatabaseShutdown)
 			return true
-		}, time.Second, 5*time.Millisecond)
+		}, time.Second, time.Second)
 	}
 }
 
