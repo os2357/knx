@@ -34,6 +34,7 @@ import (
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 )
 
 var (
@@ -42,7 +43,7 @@ var (
 	debug      bool
 	trace      bool
 	headRepeat int
-	cmd        string = "table"
+	cmd        string
 )
 
 var cmdinfo = `
@@ -117,6 +118,8 @@ func run() (err error) {
 			cmd = flags.Arg(n)
 		}
 		n++
+	} else {
+		cmd = "schema"
 	}
 	desc := separateTarget(flags.Arg(n))
 
@@ -270,7 +273,7 @@ func PrintSchema(s *schema.Schema, w io.Writer) {
 			f.TypeName(),
 			f.Flags.String(),
 			filter,
-			f.Type.Size(),
+			f.WireSize(),
 			f.Compress,
 		})
 	}
@@ -327,7 +330,7 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 	t := table.NewWriter()
 	fields := s.Fields
 	t.SetOutputMirror(w)
-	t.AppendHeader(table.Row{"#", "Name", "Type", "Min", "Max", "Size", "Info"})
+	t.AppendHeader(table.Row{"#", "Name", "Type", "Min", "Max", "Size", "Byte/Val", "Encoder Info"})
 	var (
 		i         int
 		stopAfter bool
@@ -352,6 +355,9 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 			util.PrettyInt(int(md.NValues)),
 			util.ByteSize(md.DiskSize),
 		)
+		t.SetColumnConfigs([]table.ColumnConfig{
+			{Name: "Byte/Val", Align: text.AlignRight},
+		})
 		for i := range s.NumFields() {
 			var (
 				sz   int
@@ -365,7 +371,6 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 				sz = v.Size()
 				info = v.Info()
 			}
-
 			t.AppendRow([]any{
 				fields[i].Id,
 				fields[i].Name,
@@ -373,6 +378,7 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 				printValue(fields[i], md.Min(i)),
 				printValue(fields[i], md.Max(i)),
 				sz,
+				strconv.FormatFloat(float64(sz)/float64(md.NValues), 'f', 4, 64),
 				info,
 			})
 		}
@@ -388,7 +394,7 @@ func PrintDetail(view Viewer, desc TableDescriptor, w io.Writer) {
 func printValue(f *schema.Field, val any) any {
 	switch f.Type {
 	case types.FieldTypeBytes:
-		return LimitStringEllipsis(fmt.Sprintf("%v", val), 33)
+		return LimitStringEllipsis(fmt.Sprintf("%x", val), 33)
 	case types.FieldTypeUint16:
 		if f.IsEnum() && f.Enum != nil {
 			enum, ok := f.Enum.Value(val.(uint16))

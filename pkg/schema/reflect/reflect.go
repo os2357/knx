@@ -393,7 +393,6 @@ func reflectStructField(structField reflect.StructField, tagName string) (*Field
 	// fill en/decoder info
 	field.Path = structField.Index
 	field.Offset = structField.Offset
-	field.Size = uint16(field.Type.Size())
 
 	return field, nil
 }

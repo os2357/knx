@@ -44,12 +44,10 @@ type Types struct {
 	Int32     int32          `knox:"int32"`
 	Int16     int16          `knox:"int16"`
 	Int8      int8           `knox:"int8"`
-	Int_64    int            `knox:"int_as_int64"`
 	Uint64    uint64         `knox:"uint64,filter=bloom3b"`
 	Uint32    uint32         `knox:"uint32"`
 	Uint16    uint16         `knox:"uint16"`
 	Uint8     uint8          `knox:"uint8"`
-	Uint_64   uint           `knox:"uint_as_uint64"`
 	Float64   float64        `knox:"float64"`
 	Float32   float32        `knox:"float32"`
 	D32       num.Decimal32  `knox:"decimal32,scale=5"`
@@ -362,15 +360,11 @@ func NewRandomTypes(i int) *Types {
 		Int32: int32(i),
 		Int16: int16(i % (1<<16 - 1)),
 		Int8:  int8(i % (1<<8 - 1)),
-		// int to typed int
-		Int_64: i,
 		// typed uints
-		Uint64: uint64(i),
-		Uint32: uint32(i),
-		Uint16: uint16(i),
-		Uint8:  uint8(i),
-		// uint to typed uint
-		Uint_64: uint(i),
+		Uint64:  uint64(i),
+		Uint32:  uint32(i),
+		Uint16:  uint16(i),
+		Uint8:   uint8(i),
 		Float32: float32(i),
 		Float64: float64(i),
 		// decimals

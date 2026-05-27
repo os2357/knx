@@ -138,7 +138,7 @@ func (d *Decoder) Read(r io.Reader, val any) error {
 		switch code {
 		default:
 			// int, uint, float, bool
-			_, err = d.buf.Read(unsafe.Slice((*byte)(ptr), field.Size))
+			_, err = d.buf.Read(unsafe.Slice((*byte)(ptr), field.Type.Size()))
 
 		case OC_SKIP:
 			// noop

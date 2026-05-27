@@ -178,7 +178,7 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 	switch code {
 	default:
 		// int, uint, float, bool
-		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Size))
+		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Type.Size()))
 
 	case OC_FIXBYTES:
 		_, err = buf.Write(unsafe.Slice((*byte)(ptr), field.Scale))

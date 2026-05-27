@@ -90,15 +90,57 @@ type Field struct {
 	// encoder values for INSERT, UPDATE, QUERY
 	Path   []int                // reflect struct nested positions
 	Offset uintptr              // struct field offset from reflect
-	Size   uint16               // wire size in bytes, min size for []byte & string
 	Enum   *enum.EnumDictionary // enum dictionary when field is an enum
 }
 
 func NewField(typ FieldType) *Field {
-	return &Field{
-		Type: typ,
-		Size: uint16(typ.Size()),
+	return &Field{Type: typ}
+}
+
+func (f *Field) WithName(n string) *Field {
+	f.Name = n
+	return f
+}
+
+func (f *Field) WithFlags(v FieldFlags) *Field {
+	f.Flags = v
+	return f
+}
+
+func (f *Field) WithEnum(d *enum.EnumDictionary) *Field {
+	f.Enum = d
+	if d != nil {
+		f.Flags |= F_ENUM
+	} else {
+		f.Flags &^= F_ENUM
 	}
+	return f
+}
+
+func (f *Field) WithCompression(c BlockCompression) *Field {
+	f.Compress = c
+	return f
+}
+
+func (f *Field) WithArray(n uint8) *Field {
+	if n > 0 {
+		f.Flags |= F_ARRAY
+	} else {
+		f.Flags &^= F_ARRAY
+	}
+	f.Scale = n
+	return f
+}
+
+func (f *Field) WithScale(n uint8) *Field {
+	f.Flags &^= F_ARRAY
+	f.Scale = n
+	return f
+}
+
+func (f *Field) WithFilter(typ FilterType) *Field {
+	f.Filter = typ
+	return f
 }
 
 func (f *Field) Clone() *Field {
@@ -110,7 +152,7 @@ func (f *Field) WireSize() int {
 	if f.IsArray() {
 		return int(f.Scale)
 	}
-	return int(f.Size)
+	return f.Type.Size()
 }
 
 func (f *Field) IsValid() bool {
@@ -259,52 +301,6 @@ func ParseFieldFlags(s string) (FieldFlags, error) {
 	return flags, nil
 }
 
-func (f *Field) WithName(n string) *Field {
-	f.Name = n
-	return f
-}
-
-func (f *Field) WithFlags(v FieldFlags) *Field {
-	f.Flags = v
-	return f
-}
-
-func (f *Field) WithEnum(d *enum.EnumDictionary) *Field {
-	f.Enum = d
-	if d != nil {
-		f.Flags |= F_ENUM
-	} else {
-		f.Flags &^= F_ENUM
-	}
-	return f
-}
-
-func (f *Field) WithCompression(c BlockCompression) *Field {
-	f.Compress = c
-	return f
-}
-
-func (f *Field) WithArray(n uint8) *Field {
-	if n > 0 {
-		f.Flags |= F_ARRAY
-	} else {
-		f.Flags &^= F_ARRAY
-	}
-	f.Scale = n
-	return f
-}
-
-func (f *Field) WithScale(n uint8) *Field {
-	f.Flags &^= F_ARRAY
-	f.Scale = n
-	return f
-}
-
-func (f *Field) WithFilter(typ FilterType) *Field {
-	f.Filter = typ
-	return f
-}
-
 func (f *Field) Validate() error {
 	// require name between 1..255 bytes length
 	if l := len(f.Name); l > 255 {
@@ -431,9 +427,6 @@ func (f *Field) ReadFrom(buf *bytes.Buffer) (err error) {
 	f.Compress = BlockCompression(buf.Next(1)[0])
 	f.Filter = FilterType(buf.Next(1)[0])
 	f.Scale = buf.Next(1)[0]
-
-	// init related properties
-	f.Size = uint16(f.Type.Size())
 
 	// alloc empty enum dict to satisfy field validity
 	if f.IsEnum() {

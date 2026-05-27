@@ -56,9 +56,10 @@ var (
 		BlockFloat64: 8,
 		BlockFloat32: 4,
 		BlockBool:    1,
-		BlockBytes:   0, // fixed or variable
+		BlockBytes:   0,
 		BlockInt128:  16,
 		BlockInt256:  32,
+		15:           0, // fill to 16 entries
 	}
 
 	BlockTypes = [...]BlockType{
@@ -88,6 +89,7 @@ var (
 		FieldTypeTime:       BlockInt64,
 		FieldTypeText:       BlockBytes,
 		FieldTypeBlob:       BlockBytes,
+		31:                  0, // fill to 32 entries
 	}
 )
 

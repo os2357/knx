@@ -33,10 +33,10 @@ func TestFieldNew(t *testing.T) {
 		fieldType types.FieldType
 		expected  *Field
 	}{
-		{"Int32", FT_I32, &Field{Type: FT_I32, Size: 4}},
-		{"String", FT_STRING, &Field{Type: FT_STRING, Size: 1}},
-		{"DateTime", FT_TIMESTAMP, &Field{Type: FT_TIMESTAMP, Size: 8}},
-		{"Boolean", FT_BOOL, &Field{Type: FT_BOOL, Size: 1}},
+		{"Int32", FT_I32, &Field{Type: FT_I32}},
+		{"String", FT_STRING, &Field{Type: FT_STRING}},
+		{"DateTime", FT_TIMESTAMP, &Field{Type: FT_TIMESTAMP}},
+		{"Boolean", FT_BOOL, &Field{Type: FT_BOOL}},
 	}
 
 	for _, tc := range testCases {
