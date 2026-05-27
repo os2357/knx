@@ -32,7 +32,7 @@ func encodeFilterKey(pkey, ver uint32, fx uint16) []byte {
 	return buf
 }
 
-func (idx Index) buildFilters(pkg *pack.Package, node *SNode) error {
+func (idx *Index) buildFilters(pkg *pack.Package, node *SNode) error {
 	// access statistics
 	n, ok := node.FindKey(pkg.Key())
 	if !ok {
@@ -187,7 +187,7 @@ func (idx Index) buildFilters(pkg *pack.Package, node *SNode) error {
 
 }
 
-func (idx Index) dropFilters(pkg *pack.Package) error {
+func (idx *Index) dropFilters(pkg *pack.Package) error {
 	// delete bloom and range filters using pkg key as prefix
 	return idx.db.Update(func(tx store.Tx) error {
 		for _, k := range []int{

@@ -171,7 +171,7 @@ func (t *Table) doQueryAsc(ctx context.Context, plan *query.QueryPlan, res Query
 	defer jres.Close()
 	nRowsScanned += t.journal.NumTuples()
 	plan.Stats.Tick(JOURNAL_TIME_KEY)
-	plan.Log.Debugf("%d journal results in %s", jres.Len(), plan.Stats.GetRuntime(JOURNAL_TIME_KEY))
+	plan.Log.Debugf("%d/%d journal results in %s", jres.Len(), nRowsScanned, plan.Stats.GetRuntime(JOURNAL_TIME_KEY))
 
 	// l := operator.NewLogger(plan.Log.Logger().Writer(), 10)
 	// l.Process(ctx, t.journal.Tip().Data())

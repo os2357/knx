@@ -51,7 +51,7 @@ func (t *Table) NewWriter(epoch uint32) engine.TableWriter {
 	if epoch == 0 {
 		epoch = uint32(t.state.Epoch)
 	}
-	// its safe to call Get here because we will be the onlt thread executing
+	// its safe to call Get here because we will be the only thread executing
 	// merge on this table
 	s := t.stats.Get().Clone().WithEpoch(epoch)
 	return &Writer{

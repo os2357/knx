@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"blockwatch.cc/knoxdb/internal/arena"
@@ -204,6 +205,7 @@ type Index struct {
 	epoch        uint32                // epoch sequence number
 	schema       *schema.Schema        // statistics schema (meta + min + max)
 	view         *schema.View          // helper to extract tree node data from wire format
+	viewlock     sync.Mutex            // protects view from concurrent access
 	wr           *encode.Writer        // wire format builder (writer only)
 	table        engine.TableEngine    // table back-reference used for index GC
 	rx           int                   // index of the data pack's rowid column
@@ -440,11 +442,15 @@ func (idx *Index) Epoch() uint32 {
 
 // num data packs
 func (idx *Index) Len() int {
+	idx.viewlock.Lock()
+	defer idx.viewlock.Unlock()
 	return idx.root().NPacks(idx.view)
 }
 
 // num data rows
 func (idx *Index) Count() int {
+	idx.viewlock.Lock()
+	defer idx.viewlock.Unlock()
 	return int(idx.root().NValues(idx.view))
 }
 
@@ -477,6 +483,8 @@ func (idx *Index) HeapSize() int {
 
 // total on-disk table size in bytes (sum of data pack sizes)
 func (idx *Index) TableSize() int {
+	idx.viewlock.Lock()
+	defer idx.viewlock.Unlock()
 	return int(idx.root().Size(idx.view))
 }
 
@@ -603,6 +611,8 @@ func (idx *Index) NextKey() uint32 {
 }
 
 func (idx *Index) GlobalMinRid() uint64 {
+	idx.viewlock.Lock()
+	defer idx.viewlock.Unlock()
 	val, ok := idx.root().Get(idx.view, minColIndex(idx.rx))
 	if !ok {
 		return 0
@@ -611,6 +621,8 @@ func (idx *Index) GlobalMinRid() uint64 {
 }
 
 func (idx *Index) GlobalMaxRid() uint64 {
+	idx.viewlock.Lock()
+	defer idx.viewlock.Unlock()
 	val, ok := idx.root().Get(idx.view, maxColIndex(idx.rx))
 	if !ok {
 		return 0
@@ -619,6 +631,8 @@ func (idx *Index) GlobalMaxRid() uint64 {
 }
 
 func (idx *Index) GlobalMinPk() uint64 {
+	idx.viewlock.Lock()
+	defer idx.viewlock.Unlock()
 	val, ok := idx.root().Get(idx.view, minColIndex(idx.px))
 	if !ok {
 		return 0
@@ -627,6 +641,8 @@ func (idx *Index) GlobalMinPk() uint64 {
 }
 
 func (idx *Index) GlobalMaxPk() uint64 {
+	idx.viewlock.Lock()
+	defer idx.viewlock.Unlock()
 	val, ok := idx.root().Get(idx.view, maxColIndex(idx.px))
 	if !ok {
 		return 0
