@@ -52,41 +52,41 @@ GLOBL MAGIC_I_ALL<>(SB), RODATA, $8
 //   Y2: digit -> tmp_int -> tmp_dbl -> tmp_dbl_mlt
 //
 TEXT ·alp_f32_decode(SB), NOSPLIT, $0
-    MOVQ src+0(FP), SI        // SI = *src
-    MOVQ dst+8(FP), DI        // DI = *dst
-    MOVQ len+16(FP), BX       // BX = len
-    MOVBQZX fx+24(FP), AX     // AX = fac_idx
-    MOVBQZX ex+25(FP), DX     // DX = exp_idx
+	MOVQ    src+0(FP), SI  // SI = *src
+	MOVQ    dst+8(FP), DI  // DI = *dst
+	MOVQ    len+16(FP), BX // BX = len
+	MOVBQZX fx+24(FP), AX  // AX = fac_idx
+	MOVBQZX ex+25(FP), DX  // DX = exp_idx
 
-    TESTQ   BX, BX
-    JLE     done
+	TESTQ BX, BX
+	JLE   done
 
-    MOVQ $F10<>(SB), CX       // CX = *F10
-    MOVL (CX)(AX*4), AX       // AX = F10[fx]
-    VMOVD AX, X0              // X0 = factor
-    VPBROADCASTD X0, Y0       // Y0 = factor
+	MOVQ         $F10<>(SB), CX // CX = *F10
+	MOVL         (CX)(AX*4), AX // AX = F10[fx]
+	VMOVD        AX, X0         // X0 = factor
+	VPBROADCASTD X0, Y0         // Y0 = factor
 
-    MOVQ $IF10<>(SB), CX      // CX = *IF10
-    MOVL (CX)(DX*4), DX       // DX = IF10[ex]
-    VMOVD DX, X1              // X1 = inverse_factor
-    VPBROADCASTD X1, Y1       // Y1 = inverse_factor
+	MOVQ         $IF10<>(SB), CX // CX = *IF10
+	MOVL         (CX)(DX*4), DX  // DX = IF10[ex]
+	VMOVD        DX, X1          // X1 = inverse_factor
+	VPBROADCASTD X1, Y1          // Y1 = inverse_factor
 
 loop:
-    VMOVDQU (SI), Y2          // Y2 = src[i]
-    VCVTDQ2PS Y2, Y2          // convert int32 -> float32
+	VMOVDQU   (SI), Y2 // Y2 = src[i]
+	VCVTDQ2PS Y2, Y2   // convert int32 -> float32
 
-    // ALP scaling
-    VMULPS Y2, Y0, Y2         // Y5 *= factor
-    VMULPS Y2, Y1, Y2         // Y5 *= inverse_factor
-    VMOVUPS Y2, (DI)          // store
+	// ALP scaling
+	VMULPS  Y2, Y0, Y2 // Y5 *= factor
+	VMULPS  Y2, Y1, Y2 // Y5 *= inverse_factor
+	VMOVUPS Y2, (DI)   // store
 
-    ADDQ $32, SI
-    ADDQ $32, DI
-    SUBQ $8, BX               // i -= 8
-    CMPQ BX, $7               // i > 7
-    JG loop
+	ADDQ $32, SI
+	ADDQ $32, DI
+	SUBQ $8, BX  // i -= 8
+	CMPQ BX, $7  // i > 7
+	JG   loop
 
 done:
-    VZEROUPPER
-    RET
+	VZEROUPPER
+	RET
 

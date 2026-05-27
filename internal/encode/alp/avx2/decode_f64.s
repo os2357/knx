@@ -73,53 +73,53 @@ GLOBL MAGIC_I_ALL<>(SB), RODATA, $8
 //   Y7: v_hi (int64 -> float64 conversion)
 //
 TEXT ·alp_f64_decode(SB), NOSPLIT, $0
-    MOVQ src+0(FP), SI        // SI = *src
-    MOVQ dst+8(FP), DI        // DI = *dst
-    MOVQ len+16(FP), BX       // BX = len
-    MOVBQZX fx+24(FP), AX     // AX = fac_idx
-    MOVBQZX ex+25(FP), DX     // DX = exp_idx
+	MOVQ    src+0(FP), SI  // SI = *src
+	MOVQ    dst+8(FP), DI  // DI = *dst
+	MOVQ    len+16(FP), BX // BX = len
+	MOVBQZX fx+24(FP), AX  // AX = fac_idx
+	MOVBQZX ex+25(FP), DX  // DX = exp_idx
 
-    TESTQ   BX, BX
-    JLE     done
+	TESTQ BX, BX
+	JLE   done
 
-    MOVQ $F10<>(SB), CX       // CX = *F10
-    MOVQ (CX)(AX*8), AX       // AX = F10[fx]
-    VMOVQ AX, X0              // X0 = factor
-    VPBROADCASTQ X0, Y0       // Y0 = factor
+	MOVQ         $F10<>(SB), CX // CX = *F10
+	MOVQ         (CX)(AX*8), AX // AX = F10[fx]
+	VMOVQ        AX, X0         // X0 = factor
+	VPBROADCASTQ X0, Y0         // Y0 = factor
 
-    MOVQ $IF10<>(SB), CX      // CX = *IF10
-    MOVQ (CX)(DX*8), DX       // DX = IF10[ex]
-    VMOVQ DX, X1              // X1 = inverse_factor
-    VPBROADCASTQ X1, Y1       // Y1 = inverse_factor
+	MOVQ         $IF10<>(SB), CX // CX = *IF10
+	MOVQ         (CX)(DX*8), DX  // DX = IF10[ex]
+	VMOVQ        DX, X1          // X1 = inverse_factor
+	VPBROADCASTQ X1, Y1          // Y1 = inverse_factor
 
-    // Load magic constants
-    VPBROADCASTQ MAGIC_I_LO<>(SB), Y2   // Y2 = magic_i_lo
-    VPBROADCASTQ MAGIC_I_HI32<>(SB), Y3 // Y3 = magic_i_hi32
-    VPBROADCASTQ MAGIC_I_ALL<>(SB), Y4  // Y4 = magic_i_all
+	// Load magic constants
+	VPBROADCASTQ MAGIC_I_LO<>(SB), Y2   // Y2 = magic_i_lo
+	VPBROADCASTQ MAGIC_I_HI32<>(SB), Y3 // Y3 = magic_i_hi32
+	VPBROADCASTQ MAGIC_I_ALL<>(SB), Y4  // Y4 = magic_i_all
 
 loop:
-    VMOVDQU (SI), Y5    // Y5 = src[i]
+	VMOVDQU (SI), Y5 // Y5 = src[i]
 
-    // int64_to_double_fast_precise
-    VPBLENDD $0x55, Y5, Y2, Y6 // Y6 = v_lo 0b01010101
-    VPSRLQ $32, Y5, Y7         // Y7 = v_hi
-    VPXOR Y7, Y3, Y7           // Y7 = v_hi ^ magic_i_hi32
-    VSUBPD Y4, Y7, Y7          // Y7 = v_hi_dbl = v_hi - magic_i_all
-    VADDPD Y7, Y6, Y5          // Y5 = tmp_dbl = v_hi_dbl + v_lo
+	// int64_to_double_fast_precise
+	VPBLENDD $0x55, Y5, Y2, Y6 // Y6 = v_lo 0b01010101
+	VPSRLQ   $32, Y5, Y7       // Y7 = v_hi
+	VPXOR    Y7, Y3, Y7        // Y7 = v_hi ^ magic_i_hi32
+	VSUBPD   Y4, Y7, Y7        // Y7 = v_hi_dbl = v_hi - magic_i_all
+	VADDPD   Y7, Y6, Y5        // Y5 = tmp_dbl = v_hi_dbl + v_lo
 
-    // ALP scaling
-    VMULPD Y5, Y0, Y5         // Y5 *= factor
-    VMULPD Y5, Y1, Y5         // Y5 *= inverse_factor
-    VMOVUPD Y5, (DI)          // store
-    ADDQ $32, SI
-    ADDQ $32, DI
-    SUBQ $4, BX               // i -= 4
-    CMPQ BX, $3               // i > 3
-    JG loop
+	// ALP scaling
+	VMULPD  Y5, Y0, Y5 // Y5 *= factor
+	VMULPD  Y5, Y1, Y5 // Y5 *= inverse_factor
+	VMOVUPD Y5, (DI)   // store
+	ADDQ    $32, SI
+	ADDQ    $32, DI
+	SUBQ    $4, BX     // i -= 4
+	CMPQ    BX, $3     // i > 3
+	JG      loop
 
 done:
-    VZEROUPPER
-    RET
+	VZEROUPPER
+	RET
 
 // Magic constants for int64_to_double
 DATA MAGIC_D<>+0(SB)/8, $0x4338000000000000
@@ -148,46 +148,46 @@ GLOBL MAGIC_I<>(SB), RODATA, $8
 //   Y7: v_hi (int64 -> float64 conversion)
 //
 TEXT ·alp_f64_decode_safe(SB), NOSPLIT, $0
-    MOVQ src+0(FP), SI        // SI = *src
-    MOVQ dst+8(FP), DI        // DI = *dst
-    MOVQ len+16(FP), BX       // BX = len
-    MOVBQZX fx+24(FP), AX     // AX = fac_idx
-    MOVBQZX ex+25(FP), DX     // DX = exp_idx
+	MOVQ    src+0(FP), SI  // SI = *src
+	MOVQ    dst+8(FP), DI  // DI = *dst
+	MOVQ    len+16(FP), BX // BX = len
+	MOVBQZX fx+24(FP), AX  // AX = fac_idx
+	MOVBQZX ex+25(FP), DX  // DX = exp_idx
 
-    TESTQ   BX, BX
-    JLE     done
+	TESTQ BX, BX
+	JLE   done
 
-    MOVQ $F10<>(SB), CX       // CX = *F10
-    MOVQ (CX)(AX*8), AX       // AX = F10[fx]
-    VMOVQ AX, X0              // X0 = factor_sse
-    VPBROADCASTQ X0, Y0       // Y0 = factor_sse
+	MOVQ         $F10<>(SB), CX // CX = *F10
+	MOVQ         (CX)(AX*8), AX // AX = F10[fx]
+	VMOVQ        AX, X0         // X0 = factor_sse
+	VPBROADCASTQ X0, Y0         // Y0 = factor_sse
 
-    MOVQ $IF10<>(SB), CX      // CX = *IF10
-    MOVQ (CX)(DX*8), DX       // DX = IF10[ex]
-    VMOVQ DX, X1              // X1 = inverse_factor
-    VPBROADCASTQ X1, Y1       // Y1 = inverse_factor
+	MOVQ         $IF10<>(SB), CX // CX = *IF10
+	MOVQ         (CX)(DX*8), DX  // DX = IF10[ex]
+	VMOVQ        DX, X1          // X1 = inverse_factor
+	VPBROADCASTQ X1, Y1          // Y1 = inverse_factor
 
-    VPBROADCASTQ MAGIC_I<>(SB), Y2 // Y2 = magic_i
-    VPBROADCASTQ MAGIC_D<>(SB), Y3 // Y3 = magic_d
+	VPBROADCASTQ MAGIC_I<>(SB), Y2 // Y2 = magic_i
+	VPBROADCASTQ MAGIC_D<>(SB), Y3 // Y3 = magic_d
 
 loop:
-    VMOVDQU (SI), Y5          // Y5 = src[i]
+	VMOVDQU (SI), Y5 // Y5 = src[i]
 
-    // int64_to_double
-    VPADDQ Y5, Y3, Y5 // x = x + magic (integer math)
-    VSUBPD Y3, Y5, Y5 // x = x - magic (float math)
+	// int64_to_double
+	VPADDQ Y5, Y3, Y5 // x = x + magic (integer math)
+	VSUBPD Y3, Y5, Y5 // x = x - magic (float math)
 
-    // ALP scaling
-    VMULPD Y5, Y0, Y5         // Y5 *= factor
-    VMULPD Y5, Y1, Y5         // Y5 *= inverse_factor
-    VMOVUPD Y5, (DI)          // store
+	// ALP scaling
+	VMULPD  Y5, Y0, Y5 // Y5 *= factor
+	VMULPD  Y5, Y1, Y5 // Y5 *= inverse_factor
+	VMOVUPD Y5, (DI)   // store
 
-    ADDQ $32, SI
-    ADDQ $32, DI
-    SUBQ $4, BX               // i -= 4
-    CMPQ BX, $3               // i > 3
-    JG loop
+	ADDQ $32, SI
+	ADDQ $32, DI
+	SUBQ $4, BX  // i -= 4
+	CMPQ BX, $3  // i > 3
+	JG   loop
 
 done:
-    VZEROUPPER
-    RET
+	VZEROUPPER
+	RET

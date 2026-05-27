@@ -6,118 +6,117 @@
 #include "textflag.h"
 #include "constants_AVX2.h"
 
-
 #define BITSET_AVX2(_FUNC) \
-	VMOVDQU		0(DI), Y0; \
-	_FUNC		0(SI), Y0, Y0; \
-	VMOVDQU		32(DI), Y1; \
-	_FUNC		32(SI), Y1, Y1; \
-	VMOVDQU		64(DI), Y2; \
-	_FUNC		64(SI), Y2, Y2; \
-	VMOVDQU		96(DI), Y3; \
-	_FUNC		96(SI), Y3, Y3; \
-	VMOVDQU		Y0, 0(SI); \
-	VMOVDQU		Y1, 32(SI); \
-	VMOVDQU		Y2, 64(SI); \
-	VMOVDQU		Y3, 96(SI); \
-	VMOVDQU		128(DI), Y4; \
-	_FUNC		128(SI), Y4, Y4; \
-	VMOVDQU		160(DI), Y5; \
-	_FUNC		160(SI), Y5, Y5; \
-	VMOVDQU		192(DI), Y6; \
-	_FUNC		192(SI), Y6, Y6; \
-	VMOVDQU		224(DI), Y7; \
-	_FUNC		224(SI), Y7, Y7; \
-	VMOVDQU		Y4, 128(SI); \
-	VMOVDQU		Y5, 160(SI); \
-	VMOVDQU		Y6, 192(SI); \
-	VMOVDQU		Y7, 224(SI);
+	VMOVDQU 0(DI), Y0;      \
+	_FUNC  0(SI), Y0, Y0;   \
+	VMOVDQU 32(DI), Y1;     \
+	_FUNC  32(SI), Y1, Y1;  \
+	VMOVDQU 64(DI), Y2;     \
+	_FUNC  64(SI), Y2, Y2;  \
+	VMOVDQU 96(DI), Y3;     \
+	_FUNC  96(SI), Y3, Y3;  \
+	VMOVDQU Y0, 0(SI);      \
+	VMOVDQU Y1, 32(SI);     \
+	VMOVDQU Y2, 64(SI);     \
+	VMOVDQU Y3, 96(SI);     \
+	VMOVDQU 128(DI), Y4;    \
+	_FUNC  128(SI), Y4, Y4; \
+	VMOVDQU 160(DI), Y5;    \
+	_FUNC  160(SI), Y5, Y5; \
+	VMOVDQU 192(DI), Y6;    \
+	_FUNC  192(SI), Y6, Y6; \
+	VMOVDQU 224(DI), Y7;    \
+	_FUNC  224(SI), Y7, Y7; \
+	VMOVDQU Y4, 128(SI);    \
+	VMOVDQU Y5, 160(SI);    \
+	VMOVDQU Y6, 192(SI);    \
+	VMOVDQU Y7, 224(SI)
 
 #define BITSET_AVX(_FUNC) \
-	VMOVDQU		0(DI), Y0; \
-	_FUNC		0(SI), Y0, Y0; \
-	VMOVDQU		Y0, 0(SI);
+	VMOVDQU 0(DI), Y0;    \
+	_FUNC  0(SI), Y0, Y0; \
+	VMOVDQU Y0, 0(SI)
 
 #define BITSET_I32(_FUNC) \
-	MOVL	0(DI), AX; \
-	_FUNC	0(SI), AX; \
-	MOVL	AX, 0(SI);
+	MOVL 0(DI), AX;  \
+	_FUNC 0(SI), AX; \
+	MOVL AX, 0(SI)
 
 #define BITSET_I8(_FUNC) \
-	MOVB	0(DI), AX; \
-	_FUNC	0(SI), AX; \
-	MOVB	AX, 0(SI);
+	MOVB 0(DI), AX;  \
+	_FUNC 0(SI), AX; \
+	MOVB AX, 0(SI)
 
 // func bit_and(dst, src []byte)
 //
 TEXT ·bit_and(SB), NOSPLIT, $0-48
-	MOVQ	dst_base+0(FP), SI
-	MOVQ	dst_len+8(FP), BX
-	MOVQ	src_base+24(FP), DI
+	MOVQ dst_base+0(FP), SI
+	MOVQ dst_len+8(FP), BX
+	MOVQ src_base+24(FP), DI
 
-	TESTQ	BX, BX
-	JLE		done
-	CMPQ	BX, $256     // slices smaller than 256 byte are handled separately
-	JB		prep_avx
+	TESTQ BX, BX
+	JLE   done
+	CMPQ  BX, $256 // slices smaller than 256 byte are handled separately
+	JB    prep_avx
 
 	// works for data size 256 byte
 loop_avx2:
 	BITSET_AVX2(VPAND)
-	LEAQ		256(DI), DI
-	LEAQ		256(SI), SI
-	SUBQ		$256, BX
-	CMPQ		BX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	LEAQ 256(DI), DI
+	LEAQ 256(SI), SI
+	SUBQ $256, BX
+	CMPQ BX, $256
+	JB   exit_avx2
+	JMP  loop_avx2
 
 exit_avx2:
 	VZEROUPPER
-	TESTQ	BX, BX
-	JLE		done
+	TESTQ BX, BX
+	JLE   done
 
 prep_avx:
-	CMPQ	BX, $32
-	JB		prep_i32
+	CMPQ BX, $32
+	JB   prep_i32
 
 	// works for data size 16 byte
 loop_avx:
 	BITSET_AVX(VPAND)
-	LEAQ		32(SI), SI
-	LEAQ		32(DI), DI
-	SUBL		$32, BX
-	CMPL		BX, $32
-	JB			prep_i32
-	JMP			loop_avx
+	LEAQ 32(SI), SI
+	LEAQ 32(DI), DI
+	SUBL $32, BX
+	CMPL BX, $32
+	JB   prep_i32
+	JMP  loop_avx
 
-	// works for data size 15 down to single byte
+// works for data size 15 down to single byte
 prep_i32:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ	AX, AX
-	CMPL	BX, $4
-	JB		prep_i8
+	TESTQ BX, BX
+	JLE   done
+	XORQ  AX, AX
+	CMPL  BX, $4
+	JB    prep_i8
 
 loop_i32:
 	BITSET_I32(ANDL)
-	LEAQ	4(SI), SI
-	LEAQ	4(DI), DI
-	SUBL	$4, BX
-	CMPL	BX, $4
-	JB		prep_i8
-	JMP		loop_i32
+	LEAQ 4(SI), SI
+	LEAQ 4(DI), DI
+	SUBL $4, BX
+	CMPL BX, $4
+	JB   prep_i8
+	JMP  loop_i32
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORL	AX, AX
+	TESTQ BX, BX
+	JLE   done
+	XORL  AX, AX
 
 loop_i8:
 	BITSET_I8(ANDB)
-	ADDQ	$1, DI
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ		done
-	JMP		loop_i8
+	ADDQ $1, DI
+	ADDQ $1, SI
+	SUBQ $1, BX
+	JZ   done
+	JMP  loop_i8
 
 done:
 	RET
@@ -125,79 +124,79 @@ done:
 // func bit_and_not(dst, src []byte)
 //
 TEXT ·bit_and_not(SB), NOSPLIT, $0-48
-	MOVQ	dst_base+0(FP), SI
-	MOVQ	dst_len+8(FP), BX
-	MOVQ	src_base+24(FP), DI
+	MOVQ dst_base+0(FP), SI
+	MOVQ dst_len+8(FP), BX
+	MOVQ src_base+24(FP), DI
 
-	TESTQ	BX, BX
-	JLE		done
-	CMPQ	BX, $256     // slices smaller than 256 byte are handled separately
-	JB		prep_avx
+	TESTQ BX, BX
+	JLE   done
+	CMPQ  BX, $256 // slices smaller than 256 byte are handled separately
+	JB    prep_avx
 
 	// works for data size 256 byte
 loop_avx2:
 	BITSET_AVX2(VPANDN)
-	LEAQ		256(DI), DI
-	LEAQ		256(SI), SI
-	SUBQ		$256, BX
-	CMPQ		BX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	LEAQ 256(DI), DI
+	LEAQ 256(SI), SI
+	SUBQ $256, BX
+	CMPQ BX, $256
+	JB   exit_avx2
+	JMP  loop_avx2
 
 exit_avx2:
 	VZEROUPPER
-	TESTQ	BX, BX
-	JLE		done
+	TESTQ BX, BX
+	JLE   done
 
 prep_avx:
-	CMPQ	BX, $32
-	JB		prep_i32
+	CMPQ BX, $32
+	JB   prep_i32
 
 	// works for data size 16 byte
 loop_avx:
 	BITSET_AVX(VPANDN)
-	LEAQ		32(SI), SI
-	LEAQ		32(DI), DI
-	SUBL		$32, BX
-	CMPL		BX, $32
-	JB			prep_i32
-	JMP			loop_avx
+	LEAQ 32(SI), SI
+	LEAQ 32(DI), DI
+	SUBL $32, BX
+	CMPL BX, $32
+	JB   prep_i32
+	JMP  loop_avx
 
-	// works for data size 15 down to single byte
+// works for data size 15 down to single byte
 prep_i32:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ	AX, AX
-	CMPL	BX, $4
-	JB		prep_i8
+	TESTQ BX, BX
+	JLE   done
+	XORQ  AX, AX
+	CMPL  BX, $4
+	JB    prep_i8
 
 loop_i32:
-	MOVL	0(DI), AX
-	NOTL 	AX
-	ANDL	0(SI), AX
-	MOVL	AX, 0(SI)
-	LEAQ	4(SI), SI
-	LEAQ	4(DI), DI
-	SUBL	$4, BX
-	CMPL	BX, $4
-	JB		prep_i8
-	JMP		loop_i32
+	MOVL 0(DI), AX
+	NOTL AX
+	ANDL 0(SI), AX
+	MOVL AX, 0(SI)
+	LEAQ 4(SI), SI
+	LEAQ 4(DI), DI
+	SUBL $4, BX
+	CMPL BX, $4
+	JB   prep_i8
+	JMP  loop_i32
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORL	AX, AX
+	TESTQ BX, BX
+	JLE   done
+	XORL  AX, AX
 
 loop_i8:
-	MOVB	0(DI), AX
-	NOTB	AX
-	ANDB	0(SI), AX
-	MOVB	AX, 0(SI)
-	ADDQ	$1, DI
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ		done
-	JMP		loop_i8
+	MOVB 0(DI), AX
+	NOTB AX
+	ANDB 0(SI), AX
+	MOVB AX, 0(SI)
+	ADDQ $1, DI
+	ADDQ $1, SI
+	SUBQ $1, BX
+	JZ   done
+	JMP  loop_i8
 
 done:
 	RET
@@ -205,73 +204,73 @@ done:
 // func bit_or(dst, src []byte)
 //
 TEXT ·bit_or(SB), NOSPLIT, $0-48
-	MOVQ	dst_base+0(FP), SI
-	MOVQ	dst_len+8(FP), BX
-	MOVQ	src_base+24(FP), DI
+	MOVQ dst_base+0(FP), SI
+	MOVQ dst_len+8(FP), BX
+	MOVQ src_base+24(FP), DI
 
-	TESTQ	BX, BX
-	JLE		done
-	CMPQ	BX, $256     // slices smaller than 256 byte are handled separately
-	JB		prep_avx
+	TESTQ BX, BX
+	JLE   done
+	CMPQ  BX, $256 // slices smaller than 256 byte are handled separately
+	JB    prep_avx
 
 	// works for data size 256 byte
 loop_avx2:
 	BITSET_AVX2(VPOR)
-	LEAQ		256(DI), DI
-	LEAQ		256(SI), SI
-	SUBQ		$256, BX
-	CMPQ		BX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	LEAQ 256(DI), DI
+	LEAQ 256(SI), SI
+	SUBQ $256, BX
+	CMPQ BX, $256
+	JB   exit_avx2
+	JMP  loop_avx2
 
 exit_avx2:
 	VZEROUPPER
-	TESTQ	BX, BX
-	JLE		done
+	TESTQ BX, BX
+	JLE   done
 
 prep_avx:
-	CMPQ	BX, $32
-	JB		prep_i32
+	CMPQ BX, $32
+	JB   prep_i32
 
 	// works for data size 16 byte
 loop_avx:
 	BITSET_AVX(VPOR)
-	LEAQ		32(DI), DI
-	LEAQ		32(SI), SI
-	SUBL		$32, BX
-	CMPL		BX, $32
-	JB			prep_i32
-	JMP			loop_avx
+	LEAQ 32(DI), DI
+	LEAQ 32(SI), SI
+	SUBL $32, BX
+	CMPL BX, $32
+	JB   prep_i32
+	JMP  loop_avx
 
-	// works for data size 15 down to single byte
+// works for data size 15 down to single byte
 prep_i32:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ	AX, AX
-	CMPL	BX, $4
-	JB		prep_i8
+	TESTQ BX, BX
+	JLE   done
+	XORQ  AX, AX
+	CMPL  BX, $4
+	JB    prep_i8
 
 loop_i32:
 	BITSET_I32(ORL)
-	LEAQ	4(DI), DI
-	LEAQ	4(SI), SI
-	SUBL	$4, BX
-	CMPL	BX, $4
-	JB		prep_i8
-	JMP		loop_i32
+	LEAQ 4(DI), DI
+	LEAQ 4(SI), SI
+	SUBL $4, BX
+	CMPL BX, $4
+	JB   prep_i8
+	JMP  loop_i32
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORL	AX, AX
+	TESTQ BX, BX
+	JLE   done
+	XORL  AX, AX
 
 loop_i8:
 	BITSET_I8(ORB)
-	ADDQ	$1, DI
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ		done
-	JMP		loop_i8
+	ADDQ $1, DI
+	ADDQ $1, SI
+	SUBQ $1, BX
+	JZ   done
+	JMP  loop_i8
 
 done:
 	RET
@@ -279,409 +278,413 @@ done:
 // func bit_xor(dst, src []byte)
 //
 TEXT ·bit_xor(SB), NOSPLIT, $0-48
-	MOVQ	dst_base+0(FP), SI
-	MOVQ	dst_len+8(FP), BX
-	MOVQ	src_base+24(FP), DI
+	MOVQ dst_base+0(FP), SI
+	MOVQ dst_len+8(FP), BX
+	MOVQ src_base+24(FP), DI
 
-	TESTQ	BX, BX
-	JLE		done
-	CMPQ	BX, $256     // slices smaller than 256 byte are handled separately
-	JB		prep_avx
+	TESTQ BX, BX
+	JLE   done
+	CMPQ  BX, $256 // slices smaller than 256 byte are handled separately
+	JB    prep_avx
 
 	// works for data size 256 byte
 loop_avx2:
 	BITSET_AVX2(VPXOR)
-	LEAQ		256(DI), DI
-	LEAQ		256(SI), SI
-	SUBQ		$256, BX
-	CMPQ		BX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	LEAQ 256(DI), DI
+	LEAQ 256(SI), SI
+	SUBQ $256, BX
+	CMPQ BX, $256
+	JB   exit_avx2
+	JMP  loop_avx2
 
 exit_avx2:
 	VZEROUPPER
-	TESTQ	BX, BX
-	JLE		done
+	TESTQ BX, BX
+	JLE   done
 
 prep_avx:
-	CMPQ	BX, $32
-	JB		prep_i32
+	CMPQ BX, $32
+	JB   prep_i32
 
 	// works for data size 16 byte
 loop_avx:
 	BITSET_AVX(VPXOR)
-	LEAQ		32(DI), DI
-	LEAQ		32(SI), SI
-	SUBL		$32, BX
-	CMPL		BX, $32
-	JB			prep_i32
-	JMP			loop_avx
+	LEAQ 32(DI), DI
+	LEAQ 32(SI), SI
+	SUBL $32, BX
+	CMPL BX, $32
+	JB   prep_i32
+	JMP  loop_avx
 
-	// works for data size 15 down to single byte
+// works for data size 15 down to single byte
 prep_i32:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ	AX, AX
-	CMPL	BX, $4
-	JB		prep_i8
+	TESTQ BX, BX
+	JLE   done
+	XORQ  AX, AX
+	CMPL  BX, $4
+	JB    prep_i8
 
 loop_i32:
 	BITSET_I32(XORL)
-	LEAQ	4(DI), DI
-	LEAQ	4(SI), SI
-	SUBL	$4, BX
-	CMPL	BX, $4
-	JB		prep_i8
-	JMP		loop_i32
+	LEAQ 4(DI), DI
+	LEAQ 4(SI), SI
+	SUBL $4, BX
+	CMPL BX, $4
+	JB   prep_i8
+	JMP  loop_i32
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORL	AX, AX
+	TESTQ BX, BX
+	JLE   done
+	XORL  AX, AX
 
 loop_i8:
 	BITSET_I8(XORB)
-	ADDQ	$1, DI
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ		done
-	JMP		loop_i8
+	ADDQ $1, DI
+	ADDQ $1, SI
+	SUBQ $1, BX
+	JZ   done
+	JMP  loop_i8
 
 done:
 	RET
 
 #define BITSET_AVX2048_FLAG(_FUNC) \
-	VMOVDQU		0(DI), Y0; \
-	_FUNC		0(SI), Y0, Y0; \
-    VPOR        Y0, Y10, Y10 \
-    VPAND       Y0, Y11, Y11 \
-	VMOVDQU		32(DI), Y1; \
-	_FUNC		32(SI), Y1, Y1; \
-    VPOR        Y1, Y10, Y10 \
-    VPAND       Y1, Y11, Y11 \
-	VMOVDQU		64(DI), Y2; \
-	_FUNC		64(SI), Y2, Y2; \
-    VPOR        Y2, Y10, Y10 \
-    VPAND       Y2, Y11, Y11 \
-	VMOVDQU		96(DI), Y3; \
-	_FUNC		96(SI), Y3, Y3; \
-    VPOR        Y3, Y10, Y10 \
-    VPAND       Y3, Y11, Y11 \
-	VMOVDQU		Y0, 0(SI); \
-	VMOVDQU		Y1, 32(SI); \
-	VMOVDQU		Y2, 64(SI); \
-	VMOVDQU		Y3, 96(SI); \
-	VMOVDQU		128(DI), Y4; \
-	_FUNC		128(SI), Y4, Y4; \
-    VPOR        Y4, Y10, Y10 \
-    VPAND       Y4, Y11, Y11 \
-	VMOVDQU		160(DI), Y5; \
-	_FUNC		160(SI), Y5, Y5; \
-    VPOR        Y5, Y10, Y10 \
-    VPAND       Y5, Y11, Y11 \
-	VMOVDQU		192(DI), Y6; \
-	_FUNC		192(SI), Y6, Y6; \
-    VPOR        Y6, Y10, Y10 \
-    VPAND       Y6, Y11, Y11 \
-	VMOVDQU		224(DI), Y7; \
-	_FUNC		224(SI), Y7, Y7; \
-    VPOR        Y7, Y10, Y10 \
-    VPAND       Y7, Y11, Y11 \
-	VMOVDQU		Y4, 128(SI); \
-	VMOVDQU		Y5, 160(SI); \
-	VMOVDQU		Y6, 192(SI); \
-	VMOVDQU		Y7, 224(SI);
+	VMOVDQU 0(DI), Y0;      \
+	_FUNC  0(SI), Y0, Y0;   \
+	VPOR    Y0, Y10, Y10    \
+	VPAND   Y0, Y11, Y11    \
+	VMOVDQU 32(DI), Y1;     \
+	_FUNC  32(SI), Y1, Y1;  \
+	VPOR    Y1, Y10, Y10    \
+	VPAND   Y1, Y11, Y11    \
+	VMOVDQU 64(DI), Y2;     \
+	_FUNC  64(SI), Y2, Y2;  \
+	VPOR    Y2, Y10, Y10    \
+	VPAND   Y2, Y11, Y11    \
+	VMOVDQU 96(DI), Y3;     \
+	_FUNC  96(SI), Y3, Y3;  \
+	VPOR    Y3, Y10, Y10    \
+	VPAND   Y3, Y11, Y11    \
+	VMOVDQU Y0, 0(SI);      \
+	VMOVDQU Y1, 32(SI);     \
+	VMOVDQU Y2, 64(SI);     \
+	VMOVDQU Y3, 96(SI);     \
+	VMOVDQU 128(DI), Y4;    \
+	_FUNC  128(SI), Y4, Y4; \
+	VPOR    Y4, Y10, Y10    \
+	VPAND   Y4, Y11, Y11    \
+	VMOVDQU 160(DI), Y5;    \
+	_FUNC  160(SI), Y5, Y5; \
+	VPOR    Y5, Y10, Y10    \
+	VPAND   Y5, Y11, Y11    \
+	VMOVDQU 192(DI), Y6;    \
+	_FUNC  192(SI), Y6, Y6; \
+	VPOR    Y6, Y10, Y10    \
+	VPAND   Y6, Y11, Y11    \
+	VMOVDQU 224(DI), Y7;    \
+	_FUNC  224(SI), Y7, Y7; \
+	VPOR    Y7, Y10, Y10    \
+	VPAND   Y7, Y11, Y11    \
+	VMOVDQU Y4, 128(SI);    \
+	VMOVDQU Y5, 160(SI);    \
+	VMOVDQU Y6, 192(SI);    \
+	VMOVDQU Y7, 224(SI)
 
 #define BITSET_AVX256_FLAG(_FUNC) \
-	VMOVDQU		0(DI), Y0; \
-	_FUNC		0(SI), Y0, Y0; \
-    VPOR        Y0, Y10, Y10 \
-    VPAND       Y0, Y11, Y11 \
-	VMOVDQU		Y0, 0(SI);
+	VMOVDQU 0(DI), Y0;    \
+	_FUNC  0(SI), Y0, Y0; \
+	VPOR    Y0, Y10, Y10  \
+	VPAND   Y0, Y11, Y11  \
+	VMOVDQU Y0, 0(SI)
 
 #define BITSET_I32_FLAG(_FUNC) \
-	MOVL	0(DI), AX; \
-	_FUNC	0(SI), AX; \
-    ORL     AX, R10 \
-    ANDL    AX, R11 \
-	MOVL	AX, 0(SI);
+	MOVL 0(DI), AX;  \
+	_FUNC 0(SI), AX; \
+	ORL  AX, R10     \
+	ANDL AX, R11     \
+	MOVL AX, 0(SI)
 
 #define BITSET_I8_FLAG(_FUNC) \
-	MOVB	0(DI), AX; \
-	_FUNC	0(SI), AX; \
-    ORB     AX, R10 \
-    ANDB    AX, R11 \
-	MOVB	AX, 0(SI);
+	MOVB 0(DI), AX;  \
+	_FUNC 0(SI), AX; \
+	ORB  AX, R10     \
+	ANDB AX, R11     \
+	MOVB AX, 0(SI)
 
 // func bit_and_flag(dst, src []byte) (bool, bool)
 //
 TEXT ·bit_and_flag(SB), NOSPLIT, $0-50
-	MOVQ	dst_base+0(FP), SI
-	MOVQ	dst_len+8(FP), BX
-	MOVQ	src_base+24(FP), DI
-    VPXOR   Y10, Y10, Y10       // vector register for collecting ones
-    VPCMPEQB	Y11, Y11, Y11   // vector register for collecting zeros
-    MOVL    $0, R10             // x86 register for collecting zeros
-    MOVL    $0xffffffff, R11    // x86 register for collecting ones
-        
-	TESTQ	BX, BX
-	JLE		done
-	CMPQ	BX, $256     // slices smaller than 256 byte are handled separately
-	JB		prep_avx
+	MOVQ     dst_base+0(FP), SI
+	MOVQ     dst_len+8(FP), BX
+	MOVQ     src_base+24(FP), DI
+	VPXOR    Y10, Y10, Y10       // vector register for collecting ones
+	VPCMPEQB Y11, Y11, Y11       // vector register for collecting zeros
+	MOVL     $0, R10             // x86 register for collecting zeros
+	MOVL     $0xffffffff, R11    // x86 register for collecting ones
+
+	TESTQ BX, BX
+	JLE   done
+	CMPQ  BX, $256 // slices smaller than 256 byte are handled separately
+	JB    prep_avx
 
 	// works for data size 256 byte
 loop_avx2:
 	BITSET_AVX2048_FLAG(VPAND)
-	LEAQ		256(DI), DI
-	LEAQ		256(SI), SI
-	SUBQ		$256, BX
-	CMPQ		BX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	LEAQ 256(DI), DI
+	LEAQ 256(SI), SI
+	SUBQ $256, BX
+	CMPQ BX, $256
+	JB   exit_avx2
+	JMP  loop_avx2
 
 exit_avx2:
 
 prep_avx:
-	CMPQ	BX, $32
-	JB		prep_i32
+	CMPQ BX, $32
+	JB   prep_i32
 
-// works for data size 16 byte
+	// works for data size 16 byte
 loop_avx:
 	BITSET_AVX256_FLAG(VPAND)
-	LEAQ		32(SI), SI
-	LEAQ		32(DI), DI
-	SUBL		$32, BX
-	CMPL		BX, $32
-	JB			prep_i32
-	JMP			loop_avx
+	LEAQ 32(SI), SI
+	LEAQ 32(DI), DI
+	SUBL $32, BX
+	CMPL BX, $32
+	JB   prep_i32
+	JMP  loop_avx
 
 exit_avx:
 	VZEROUPPER
 
-// works for data size 15 down to single byte
+	// works for data size 15 down to single byte
 prep_i32:
-    // move collected ones from AVX2 to x86 register
-    VPXOR       Y12, Y12, Y12       // Y12 = 0
-    VPCMPEQB	Y12, Y10, Y10       // for each byte of Y10: zero -> 0xff, not zero -> 0x00
-	VPMOVMSKB	Y10, R10            // move per byte MSBs into packed bitmask to r32
-    NOTL        R10
-    // move collected zeros from AVX2 to x86 register
-    VPCMPEQB    Y12, Y12, Y12       // Y12 = 0xff
-    VPCMPEQB	Y12, Y11, Y11       // for each byte of Y10: 0xff -> 0xff, not 0xff -> 0x00
-	VPMOVMSKB	Y11, R11            // move per byte MSBs into packed bitmask to r32
+	// move collected ones from AVX2 to x86 register
+	VPXOR     Y12, Y12, Y12 // Y12 = 0
+	VPCMPEQB  Y12, Y10, Y10 // for each byte of Y10: zero -> 0xff, not zero -> 0x00
+	VPMOVMSKB Y10, R10      // move per byte MSBs into packed bitmask to r32
+	NOTL      R10
 
-	CMPL	BX, $4
-	JB		prep_i8
+	// move collected zeros from AVX2 to x86 register
+	VPCMPEQB  Y12, Y12, Y12 // Y12 = 0xff
+	VPCMPEQB  Y12, Y11, Y11 // for each byte of Y10: 0xff -> 0xff, not 0xff -> 0x00
+	VPMOVMSKB Y11, R11      // move per byte MSBs into packed bitmask to r32
+
+	CMPL BX, $4
+	JB   prep_i8
 
 loop_i32:
 	BITSET_I32_FLAG(ANDL)
-	LEAQ	4(SI), SI
-	LEAQ	4(DI), DI
-	SUBL	$4, BX
-	CMPL	BX, $4
-	JB		prep_i8
-	JMP		loop_i32
+	LEAQ 4(SI), SI
+	LEAQ 4(DI), DI
+	SUBL $4, BX
+	CMPL BX, $4
+	JB   prep_i8
+	JMP  loop_i32
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ	AX, AX
+	TESTQ BX, BX
+	JLE   done
+	XORQ  AX, AX
 
 loop_i8:
 	BITSET_I8_FLAG(ANDB)
-	ADDQ	$1, DI
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ		done
-	JMP		loop_i8
+	ADDQ $1, DI
+	ADDQ $1, SI
+	SUBQ $1, BX
+	JZ   done
+	JMP  loop_i8
 
 done:
-    // collected ones are in R10
-    CMPL    R10, $0                     // all zero?
-	SETNE	ret+48(FP)
-    // collected zeros are in R11
-    CMPL    R11, $0xffffffff            // all ones?
-	SETEQ   ret1+49(FP)
+	// collected ones are in R10
+	CMPL  R10, $0    // all zero?
+	SETNE ret+48(FP)
+
+	// collected zeros are in R11
+	CMPL  R11, $0xffffffff // all ones?
+	SETEQ ret1+49(FP)
 	RET
 
 // func bit_or_flag(dst, src []byte) (bool, bool)
 //
 TEXT ·bit_or_flag(SB), NOSPLIT, $0-50
-	MOVQ	dst_base+0(FP), SI
-	MOVQ	dst_len+8(FP), BX
-	MOVQ	src_base+24(FP), DI
-    VPXOR   Y10, Y10, Y10       // vector register for collecting ones
-    VPCMPEQB	Y11, Y11, Y11   // vector register for collecting zeros
-    MOVL    $0, R10             // x86 register for collecting zeros
-    MOVL    $0xffffffff, R11    // x86 register for collecting ones
+	MOVQ     dst_base+0(FP), SI
+	MOVQ     dst_len+8(FP), BX
+	MOVQ     src_base+24(FP), DI
+	VPXOR    Y10, Y10, Y10       // vector register for collecting ones
+	VPCMPEQB Y11, Y11, Y11       // vector register for collecting zeros
+	MOVL     $0, R10             // x86 register for collecting zeros
+	MOVL     $0xffffffff, R11    // x86 register for collecting ones
 
-	TESTQ	BX, BX
-	JLE		done
-	CMPQ	BX, $256     // slices smaller than 256 byte are handled separately
-	JB		prep_avx
+	TESTQ BX, BX
+	JLE   done
+	CMPQ  BX, $256 // slices smaller than 256 byte are handled separately
+	JB    prep_avx
 
 	// works for data size 256 byte
 loop_avx2:
 	BITSET_AVX2048_FLAG(VPOR)
-	LEAQ		256(DI), DI
-	LEAQ		256(SI), SI
-	SUBQ		$256, BX
-	CMPQ		BX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	LEAQ 256(DI), DI
+	LEAQ 256(SI), SI
+	SUBQ $256, BX
+	CMPQ BX, $256
+	JB   exit_avx2
+	JMP  loop_avx2
 
 exit_avx2:
 
 prep_avx:
-	CMPQ	BX, $32
-	JB		prep_i32
+	CMPQ BX, $32
+	JB   prep_i32
 
-// works for data size 16 byte
+	// works for data size 16 byte
 loop_avx:
 	BITSET_AVX256_FLAG(VPOR)
-	LEAQ		32(SI), SI
-	LEAQ		32(DI), DI
-	SUBL		$32, BX
-	CMPL		BX, $32
-	JB			prep_i32
-	JMP			loop_avx
+	LEAQ 32(SI), SI
+	LEAQ 32(DI), DI
+	SUBL $32, BX
+	CMPL BX, $32
+	JB   prep_i32
+	JMP  loop_avx
 
 exit_avx:
 	VZEROUPPER
 
-// works for data size 15 down to single byte
+	// works for data size 15 down to single byte
 prep_i32:
-    // move collected ones from AVX2 to x86 register
-    VPXOR       Y12, Y12, Y12       // Y12 = 0
-    VPCMPEQB	Y12, Y10, Y10       // for each byte of Y10: zero -> 0xff, not zero -> 0x00
-	VPMOVMSKB	Y10, R10            // move per byte MSBs into packed bitmask to r32
-    NOTL        R10
-    // move collected zeros from AVX2 to x86 register
-    VPCMPEQB    Y12, Y12, Y12       // Y12 = 0xff
-    VPCMPEQB	Y12, Y11, Y11       // for each byte of Y10: 0xff -> 0xff, not 0xff -> 0x00
-	VPMOVMSKB	Y11, R11            // move per byte MSBs into packed bitmask to r32
+	// move collected ones from AVX2 to x86 register
+	VPXOR     Y12, Y12, Y12 // Y12 = 0
+	VPCMPEQB  Y12, Y10, Y10 // for each byte of Y10: zero -> 0xff, not zero -> 0x00
+	VPMOVMSKB Y10, R10      // move per byte MSBs into packed bitmask to r32
+	NOTL      R10
 
-	CMPL	BX, $4
-	JB		prep_i8
+	// move collected zeros from AVX2 to x86 register
+	VPCMPEQB  Y12, Y12, Y12 // Y12 = 0xff
+	VPCMPEQB  Y12, Y11, Y11 // for each byte of Y10: 0xff -> 0xff, not 0xff -> 0x00
+	VPMOVMSKB Y11, R11      // move per byte MSBs into packed bitmask to r32
+
+	CMPL BX, $4
+	JB   prep_i8
 
 loop_i32:
 	BITSET_I32_FLAG(ORL)
-	LEAQ	4(SI), SI
-	LEAQ	4(DI), DI
-	SUBL	$4, BX
-	CMPL	BX, $4
-	JB		prep_i8
-	JMP		loop_i32
+	LEAQ 4(SI), SI
+	LEAQ 4(DI), DI
+	SUBL $4, BX
+	CMPL BX, $4
+	JB   prep_i8
+	JMP  loop_i32
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ	AX, AX
+	TESTQ BX, BX
+	JLE   done
+	XORQ  AX, AX
 
 loop_i8:
 	BITSET_I8_FLAG(ORB)
-	ADDQ	$1, DI
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ		done
-	JMP		loop_i8
+	ADDQ $1, DI
+	ADDQ $1, SI
+	SUBQ $1, BX
+	JZ   done
+	JMP  loop_i8
 
 done:
-    // collected ones are in R10
-    CMPL    R10, $0                     // all zero?
-	SETNE	ret+48(FP)
-    // collected zeros are in R11
-    CMPL    R11, $0xffffffff            // all ones?
-	SETEQ   ret1+49(FP)
+	// collected ones are in R10
+	CMPL  R10, $0    // all zero?
+	SETNE ret+48(FP)
+
+	// collected zeros are in R11
+	CMPL  R11, $0xffffffff // all ones?
+	SETEQ ret1+49(FP)
 	RET
 
 // func bit_neg(src []byte)
 //
 TEXT ·bit_neg(SB), NOSPLIT, $0-24
-	MOVQ	src_base+0(FP), SI
-	MOVQ	src_len+8(FP), BX
+	MOVQ src_base+0(FP), SI
+	MOVQ src_len+8(FP), BX
 
-	TESTQ		BX, BX
-	JLE			done
-	CMPQ		BX, $256     // slices smaller than 256 byte are handled separately
-	JBE			prep_avx
-	VPCMPEQD	Y8, Y8, Y8   // prepare 0xff.. vector for ones complement
+	TESTQ    BX, BX
+	JLE      done
+	CMPQ     BX, $256   // slices smaller than 256 byte are handled separately
+	JBE      prep_avx
+	VPCMPEQD Y8, Y8, Y8 // prepare 0xff.. vector for ones complement
 
 	// works for data size 256 byte
 loop_avx2:
-	VPXOR		0(SI), Y8, Y0
-	VPXOR		32(SI), Y8, Y1
-	VPXOR		64(SI), Y8, Y2
-	VPXOR		96(SI), Y8, Y3
-	VMOVDQU		Y0, 0(SI)
-	VMOVDQU		Y1, 32(SI)
-	VMOVDQU		Y2, 64(SI)
-	VMOVDQU		Y3, 96(SI)
-	VPXOR		128(SI), Y8, Y4
-	VPXOR		160(SI), Y8, Y5
-	VPXOR		192(SI), Y8, Y6
-	VPXOR		224(SI), Y8, Y7
-	VMOVDQU		Y4, 128(SI)
-	VMOVDQU		Y5, 160(SI)
-	VMOVDQU		Y6, 192(SI)
-	VMOVDQU		Y7, 224(SI)
-	LEAQ		256(SI), SI
-	SUBQ		$256, BX
-	CMPQ		BX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	VPXOR   0(SI), Y8, Y0
+	VPXOR   32(SI), Y8, Y1
+	VPXOR   64(SI), Y8, Y2
+	VPXOR   96(SI), Y8, Y3
+	VMOVDQU Y0, 0(SI)
+	VMOVDQU Y1, 32(SI)
+	VMOVDQU Y2, 64(SI)
+	VMOVDQU Y3, 96(SI)
+	VPXOR   128(SI), Y8, Y4
+	VPXOR   160(SI), Y8, Y5
+	VPXOR   192(SI), Y8, Y6
+	VPXOR   224(SI), Y8, Y7
+	VMOVDQU Y4, 128(SI)
+	VMOVDQU Y5, 160(SI)
+	VMOVDQU Y6, 192(SI)
+	VMOVDQU Y7, 224(SI)
+	LEAQ    256(SI), SI
+	SUBQ    $256, BX
+	CMPQ    BX, $256
+	JB      exit_avx2
+	JMP     loop_avx2
 
 exit_avx2:
 	VZEROUPPER
-	TESTQ	BX, BX
-	JLE		done
+	TESTQ BX, BX
+	JLE   done
 
 prep_avx:
-	CMPQ	BX, $16
-	JBE		prep_i32
-	VPCMPEQD	X8, X8, X8
+	CMPQ     BX, $16
+	JBE      prep_i32
+	VPCMPEQD X8, X8, X8
 
 	// works for data size 16 byte
 loop_avx:
-	VPXOR		0(SI), X8, X0
-	VMOVDQU		X0, 0(SI)
-	LEAQ		16(SI), SI
-	SUBL		$16, BX
-	CMPL		BX, $16
-	JB			prep_i32
-	JMP			loop_avx
+	VPXOR   0(SI), X8, X0
+	VMOVDQU X0, 0(SI)
+	LEAQ    16(SI), SI
+	SUBL    $16, BX
+	CMPL    BX, $16
+	JB      prep_i32
+	JMP     loop_avx
 
-	// works for data size 15 down to single byte
+// works for data size 15 down to single byte
 prep_i32:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ	AX, AX
-	CMPL	BX, $4
-	JBE		prep_i8
+	TESTQ BX, BX
+	JLE   done
+	XORQ  AX, AX
+	CMPL  BX, $4
+	JBE   prep_i8
 
 loop_i32:
-	MOVL	0(SI), AX
-	NOTL	AX
-	MOVL	AX, 0(SI)
-	LEAQ	4(SI), SI
-	SUBL	$4, BX
-	CMPL	BX, $4
-	JBE		prep_i8
-	JMP		loop_i32
+	MOVL 0(SI), AX
+	NOTL AX
+	MOVL AX, 0(SI)
+	LEAQ 4(SI), SI
+	SUBL $4, BX
+	CMPL BX, $4
+	JBE  prep_i8
+	JMP  loop_i32
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORL	AX, AX
+	TESTQ BX, BX
+	JLE   done
+	XORL  AX, AX
 
 loop_i8:
-	MOVB	0(SI), AX
-	NOTB 	AX
-	MOVB	AX, 0(SI)
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ		done
-	JMP		loop_i8
+	MOVB 0(SI), AX
+	NOTB AX
+	MOVB AX, 0(SI)
+	ADDQ $1, SI
+	SUBQ $1, BX
+	JZ   done
+	JMP  loop_i8
 
 done:
 	RET
@@ -695,31 +698,31 @@ done:
 //   l = u ^ c;
 // }
 #define CSA(x, y, a, b, c) \
-	VPAND	a, b, x; \
-	VPXOR	a, b, b; \
-	VPXOR	b, c, y; \
-	VPAND	b, c, b; \
-	VPOR 	x, b, x;
+	VPAND a, b, x; \
+	VPXOR a, b, b; \
+	VPXOR b, c, y; \
+	VPAND b, c, b; \
+	VPOR  x, b, x
 
 // Input == Output register
 // Static: Y7(55), Y8(33), Y9(0F)
 // Scratch: Y6
 #define POPCOUNT(VAL) \
-	VMOVDQU		VAL, Y6; \
-	VPSRLW		$1, Y6, Y6; \
-	VPAND		Y6, Y7, Y6; \
-	VPSUBB		Y6, VAL, VAL; \
-	VMOVDQU		VAL, Y6; \
-	VPSRLW		$2, Y6, Y6; \
-	VPAND		Y6, Y8, Y6; \
-	VPAND		VAL, Y8, VAL; \
-	VPADDB		VAL, Y6, VAL; \
-	VMOVDQU		VAL, Y6; \
-	VPSRLW		$4, Y6, Y6; \
-	VPADDB		VAL, Y6, VAL; \
-	VPAND		VAL, Y9, VAL; \
-	VPXOR		Y6, Y6, Y6; \
-	VPSADBW		VAL, Y6, VAL;
+	VMOVDQU VAL, Y6;      \
+	VPSRLW  $1, Y6, Y6;   \
+	VPAND   Y6, Y7, Y6;   \
+	VPSUBB  Y6, VAL, VAL; \
+	VMOVDQU VAL, Y6;      \
+	VPSRLW  $2, Y6, Y6;   \
+	VPAND   Y6, Y8, Y6;   \
+	VPAND   VAL, Y8, VAL; \
+	VPADDB  VAL, Y6, VAL; \
+	VMOVDQU VAL, Y6;      \
+	VPSRLW  $4, Y6, Y6;   \
+	VPADDB  VAL, Y6, VAL; \
+	VPAND   VAL, Y9, VAL; \
+	VPXOR   Y6, Y6, Y6;   \
+	VPSADBW VAL, Y6, VAL
 
 // func popcount(src []byte, size int) int64
 //
@@ -749,321 +752,320 @@ done:
 // sixteens  Y15
 //
 TEXT ·popcount(SB), NOSPLIT, $0-32
-	MOVQ	src_base+0(FP), SI
-	MOVQ	src_len+8(FP), BX
-	XORQ	AX, AX
+	MOVQ src_base+0(FP), SI
+	MOVQ src_len+8(FP), BX
+	XORQ AX, AX
 
-	TESTQ	BX, BX
-	JLE		done
-	MOVQ	BX, CX        // limit = size - size % 512;
-	ANDQ	$15, CX
-	NEGQ	CX
-	ADDQ	BX, CX
-	CMPQ	CX, $512      // for(; i < limit; i += 16) // addresses 16 x 32 bytes of data
-	JBE		prep_avx
+	TESTQ BX, BX
+	JLE   done
+	MOVQ  BX, CX   // limit = size - size % 512;
+	ANDQ  $15, CX
+	NEGQ  CX
+	ADDQ  BX, CX
+	CMPQ  CX, $512 // for(; i < limit; i += 16) // addresses 16 x 32 bytes of data
+	JBE   prep_avx
 
 	// works for blocks of 512 byte
 prep_avx2:
-	VPBROADCASTB 	const_0x55<>+0x00(SB), Y7
-	VPBROADCASTB 	const_0x33<>+0x00(SB), Y8
-	VPBROADCASTB 	const_0x0f<>+0x00(SB), Y9
-	VPXOR			Y10, Y10, Y10
-	VPXOR			Y11, Y11, Y11
-	VPXOR			Y12, Y12, Y12
-	VPXOR			Y13, Y13, Y13
-	VPXOR			Y14, Y14, Y14
+	VPBROADCASTB const_0x55<>+0x00(SB), Y7
+	VPBROADCASTB const_0x33<>+0x00(SB), Y8
+	VPBROADCASTB const_0x0f<>+0x00(SB), Y9
+	VPXOR        Y10, Y10, Y10
+	VPXOR        Y11, Y11, Y11
+	VPXOR        Y12, Y12, Y12
+	VPXOR        Y13, Y13, Y13
+	VPXOR        Y14, Y14, Y14
 
 loop_avx2:
-	VMOVDQU		0(SI), Y0 		// CSA(twosA, ones, ones, data[i+0], data[i+1]);
-	VMOVDQU		32(SI), Y1
+	VMOVDQU 0(SI), Y0     // CSA(twosA, ones, ones, data[i+0], data[i+1]);
+	VMOVDQU 32(SI), Y1
 	CSA(Y2, Y11, Y11, Y0, Y1)
-	VMOVDQU		64(SI), Y0 		// CSA(twosB, ones, ones, data[i+2], data[i+3]);
-	VMOVDQU		96(SI), Y1
+	VMOVDQU 64(SI), Y0    // CSA(twosB, ones, ones, data[i+2], data[i+3]);
+	VMOVDQU 96(SI), Y1
 	CSA(Y3, Y11, Y11, Y0, Y1)
-	CSA(Y4, Y12, Y12, Y2, Y3)	// CSA(foursA, twos, twos, twosA, twosB);
-	VMOVDQU		128(SI), Y0 	// CSA(twosA, ones, ones, data[i+4], data[i+5]);
-	VMOVDQU		160(SI), Y1
+	CSA(Y4, Y12, Y12, Y2, Y3)// CSA(foursA, twos, twos, twosA, twosB);
+	VMOVDQU 128(SI), Y0   // CSA(twosA, ones, ones, data[i+4], data[i+5]);
+	VMOVDQU 160(SI), Y1
 	CSA(Y2, Y11, Y11, Y0, Y1)
-	VMOVDQU		192(SI), Y0 	// CSA(twosB, ones, ones, data[i+6], data[i+7]);
-	VMOVDQU		224(SI), Y1
+	VMOVDQU 192(SI), Y0   // CSA(twosB, ones, ones, data[i+6], data[i+7]);
+	VMOVDQU 224(SI), Y1
 	CSA(Y3, Y11, Y11, Y0, Y1)
-	CSA(Y5, Y12, Y12, Y2, Y3) 	// CSA(foursB, twos, twos, twosA, twosB);
- 	CSA(Y6, Y13, Y13, Y4, Y5)	// CSA(eightsA,fours, fours, foursA, foursB);
-	VMOVDQU		256(SI), Y0 	// CSA(twosA, ones, ones, data[i+8], data[i+9]);
-	VMOVDQU		288(SI), Y1
+	CSA(Y5, Y12, Y12, Y2, Y3)// CSA(foursB, twos, twos, twosA, twosB);
+	CSA(Y6, Y13, Y13, Y4, Y5)// CSA(eightsA,fours, fours, foursA, foursB);
+	VMOVDQU 256(SI), Y0   // CSA(twosA, ones, ones, data[i+8], data[i+9]);
+	VMOVDQU 288(SI), Y1
 	CSA(Y2, Y11, Y11, Y0, Y1)
-	VMOVDQU		320(SI), Y0 	// CSA(twosB, ones, ones, data[i+10], data[i+11]);
-	VMOVDQU		352(SI), Y1
+	VMOVDQU 320(SI), Y0   // CSA(twosB, ones, ones, data[i+10], data[i+11]);
+	VMOVDQU 352(SI), Y1
 	CSA(Y3, Y11, Y11, Y0, Y1)
- 	CSA(Y4, Y12, Y12, Y2, Y3)	// CSA(foursA, twos, twos, twosA, twosB);
-	VMOVDQU		384(SI), Y0 	// CSA(twosA, ones, ones, data[i+12], data[i+13]);
-	VMOVDQU		416(SI), Y1
+	CSA(Y4, Y12, Y12, Y2, Y3)// CSA(foursA, twos, twos, twosA, twosB);
+	VMOVDQU 384(SI), Y0   // CSA(twosA, ones, ones, data[i+12], data[i+13]);
+	VMOVDQU 416(SI), Y1
 	CSA(Y2, Y11, Y11, Y0, Y1)
-	VMOVDQU		448(SI), Y0 	// CSA(twosB, ones, ones, data[i+14], data[i+15]);
-	VMOVDQU		480(SI), Y1
+	VMOVDQU 448(SI), Y0   // CSA(twosB, ones, ones, data[i+14], data[i+15]);
+	VMOVDQU 480(SI), Y1
 	CSA(Y3, Y11, Y11, Y0, Y1)
-	CSA(Y5, Y12, Y12, Y2, Y3)	// CSA(foursB, twos, twos, twosA, twosB);
-	CSA(Y0, Y13, Y13, Y4, Y5)	// CSA(eightsB, fours, fours, foursA, foursB);
-	CSA(Y15, Y14, Y14, Y6, Y0)	// CSA(sixteens, eights, eights, eightsA, eightsB);
-	POPCOUNT(Y15)               // total = _mm256_add_epi64(total, popcount(sixteens));
-	VPADDQ		Y15, Y10, Y10
+	CSA(Y5, Y12, Y12, Y2, Y3)// CSA(foursB, twos, twos, twosA, twosB);
+	CSA(Y0, Y13, Y13, Y4, Y5)// CSA(eightsB, fours, fours, foursA, foursB);
+	CSA(Y15, Y14, Y14, Y6, Y0)// CSA(sixteens, eights, eights, eightsA, eightsB);
+	POPCOUNT(Y15)         // total = _mm256_add_epi64(total, popcount(sixteens));
+	VPADDQ  Y15, Y10, Y10
 
-	LEAQ		512(SI), SI
-	SUBQ		$512, BX
-	CMPQ		BX, $512
-	JB		 	exit_avx2
-	JMP		 	loop_avx2
+	LEAQ 512(SI), SI
+	SUBQ $512, BX
+	CMPQ BX, $512
+	JB   exit_avx2
+	JMP  loop_avx2
 
 exit_avx2:
-	VPSLLQ	$4, Y10, Y10	// total = _mm256_slli_epi64(total, 4);
-	POPCOUNT(Y14)			// total = _mm256_add_epi64(total, _mm256_slli_epi64(popcount(eights), 3));
-	VPSLLQ	$3, Y14, Y14
-	VPADDQ	Y14, Y10, Y10
-	POPCOUNT(Y13)			// total = _mm256_add_epi64(total, _mm256_slli_epi64(popcount(fours),  2));
-	VPSLLQ	$2, Y13, Y13
-	VPADDQ	Y13, Y10, Y10
-	POPCOUNT(Y12)			// total = _mm256_add_epi64(total, _mm256_slli_epi64(popcount(twos),   1));
-	VPSLLQ 	$1, Y12, Y12
-	VPADDQ	Y12, Y10, Y10
-	POPCOUNT(Y11)			// total = _mm256_add_epi64(total, popcount(ones));
-	VPADDQ	Y11, Y10, Y10
+	VPSLLQ $4, Y10, Y10  // total = _mm256_slli_epi64(total, 4);
+	POPCOUNT(Y14)        // total = _mm256_add_epi64(total, _mm256_slli_epi64(popcount(eights), 3));
+	VPSLLQ $3, Y14, Y14
+	VPADDQ Y14, Y10, Y10
+	POPCOUNT(Y13)        // total = _mm256_add_epi64(total, _mm256_slli_epi64(popcount(fours),  2));
+	VPSLLQ $2, Y13, Y13
+	VPADDQ Y13, Y10, Y10
+	POPCOUNT(Y12)        // total = _mm256_add_epi64(total, _mm256_slli_epi64(popcount(twos),   1));
+	VPSLLQ $1, Y12, Y12
+	VPADDQ Y12, Y10, Y10
+	POPCOUNT(Y11)        // total = _mm256_add_epi64(total, popcount(ones));
+	VPADDQ Y11, Y10, Y10
 
 	// horizontal sum  Y10[3] + Y10[2] + Y10[1] + Y10[0], all uint64
-	VEXTRACTI128	$1, Y10, X0 	// move Y10[3,2] into X0[1,0]
- 	VPADDQ 			X0, X10, X0     // vector add Y10[1,0] with X0[1,0]
- 	VPEXTRQ			$1, X0, R8      // extract X0[1]
- 	ADDQ			R8, AX
- 	VPEXTRQ			$0, X0, R8		// extract X0[0]
- 	ADDQ			R8, AX
+	VEXTRACTI128 $1, Y10, X0 // move Y10[3,2] into X0[1,0]
+	VPADDQ       X0, X10, X0 // vector add Y10[1,0] with X0[1,0]
+	VPEXTRQ      $1, X0, R8  // extract X0[1]
+	ADDQ         R8, AX
+	VPEXTRQ      $0, X0, R8  // extract X0[0]
+	ADDQ         R8, AX
 
 	// exit early when data was multiple of 512 byte
-	TESTQ	BX, BX
-	JLE		done
+	TESTQ BX, BX
+	JLE   done
 
 	// works for blocks of size 32 byte
 prep_avx:
-	CMPQ	BX, $32
-	JBE		prep_i64
+	CMPQ BX, $32
+	JBE  prep_i64
 
 loop_avx:
-	VMOVDQU  	0(SI), X0
-	VMOVDQU  	16(SI), X1
-	VMOVHLPS 	X0, X2, X2
-	VMOVHLPS 	X1, X3, X3
-	VMOVQ    	X0, R8
-	VMOVQ    	X1, R9
-	POPCNTQ  	R8, R8
-	ADDQ    	R8, AX
-	POPCNTQ  	R9, R9
-	ADDQ    	R9, AX
-	VMOVQ    	X2, R10
-	VMOVQ    	X3, R11
-	POPCNTQ  	R10, R10
-	ADDQ    	R10, AX
-	POPCNTQ  	R11, R11
-	ADDQ    	R11, AX
+	VMOVDQU  0(SI), X0
+	VMOVDQU  16(SI), X1
+	VMOVHLPS X0, X2, X2
+	VMOVHLPS X1, X3, X3
+	VMOVQ    X0, R8
+	VMOVQ    X1, R9
+	POPCNTQ  R8, R8
+	ADDQ     R8, AX
+	POPCNTQ  R9, R9
+	ADDQ     R9, AX
+	VMOVQ    X2, R10
+	VMOVQ    X3, R11
+	POPCNTQ  R10, R10
+	ADDQ     R10, AX
+	POPCNTQ  R11, R11
+	ADDQ     R11, AX
 
-	LEAQ		32(SI), SI
-	SUBL		$32, BX
-	CMPL		BX, $32
-	JB		 	prep_i64
-	JMP		 	loop_avx
+	LEAQ 32(SI), SI
+	SUBL $32, BX
+	CMPL BX, $32
+	JB   prep_i64
+	JMP  loop_avx
 
-	// works for data size 31 down to single byte
+// works for data size 31 down to single byte
 prep_i64:
-    VZEROUPPER
-	TESTQ	BX, BX
-	JLE		done
-	CMPL	BX, $8
-	JBE		prep_i8
+	VZEROUPPER
+	TESTQ BX, BX
+	JLE   done
+	CMPL  BX, $8
+	JBE   prep_i8
 
 loop_i64:
-	POPCNTQ	(SI), R8
+	POPCNTQ (SI), R8
 	ADDQ    R8, AX
-	LEAQ	8(SI), SI
-	SUBL	$8, BX
-	CMPL	BX, $8
-	JBE		prep_i8
-	JMP		loop_i64
+	LEAQ    8(SI), SI
+	SUBL    $8, BX
+	CMPL    BX, $8
+	JBE     prep_i8
+	JMP     loop_i64
 
 prep_i8:
-	TESTQ	BX, BX
-	JLE		done
-	XORQ 	R8, R8
+	TESTQ BX, BX
+	JLE   done
+	XORQ  R8, R8
 
 loop_i8:
-	MOVB	(SI), R8
+	MOVB    (SI), R8
 	POPCNTW R8, R8
 	ADDQ    R8, AX
-	ADDQ	$1, SI
-	SUBQ	$1, BX
-	JZ	 	done
-	JMP		loop_i8
+	ADDQ    $1, SI
+	SUBQ    $1, BX
+	JZ      done
+	JMP     loop_i8
 
 done:
 	VZEROUPPER
-	MOVQ	AX, ret+24(FP)
+	MOVQ AX, ret+24(FP)
 	RET
 
 // func bit_idx_skip(bitmap []byte, out []uint32, decodeTable []uint32, lengthTable []uint8) int
 //
 TEXT ·bit_idx_skip(SB), NOSPLIT, $0-104
-	MOVQ	bitmap_base+0(FP), SI
-	MOVQ	bitmap_len+8(FP), CX
-	MOVQ	out_base+24(FP), DI
-	MOVQ	decodeTable_base+48(FP), R15
-	MOVQ	lengthTable_base+72(FP), DX
+	MOVQ bitmap_base+0(FP), SI
+	MOVQ bitmap_len+8(FP), CX
+	MOVQ out_base+24(FP), DI
+	MOVQ decodeTable_base+48(FP), R15
+	MOVQ lengthTable_base+72(FP), DX
 
-	VPCMPEQQ	    Y10, Y10, Y10           // Y10 = -1
-    VPBROADCASTD    const_8<>(SB), Y13      // Y13 = 8
-    VPBROADCASTD    const_128<>(SB), Y15    // Y15 = 128
-    VPBROADCASTD    const_2048<>(SB), Y14   // Y14 = 2048
-	VPXOR		Y8, Y8, Y8   // prepare 0x00.. vector for comparison
+	VPCMPEQQ     Y10, Y10, Y10         // Y10 = -1
+	VPBROADCASTD const_8<>(SB), Y13    // Y13 = 8
+	VPBROADCASTD const_128<>(SB), Y15  // Y15 = 128
+	VPBROADCASTD const_2048<>(SB), Y14 // Y14 = 2048
+	VPXOR        Y8, Y8, Y8            // prepare 0x00.. vector for comparison
 
 start:
 	// no more work?
-	TESTQ		CX, CX
-	JLE			done
+	TESTQ CX, CX
+	JLE   done
 
 	// super quick pre-check if the current byte qualifies already
-    XORQ        AX, AX
-    XORQ        BX, BX
-	CMPB		0(SI)(BX*1), $0
-	JNZ			found
+	XORQ AX, AX
+	XORQ BX, BX
+	CMPB 0(SI)(BX*1), $0
+	JNZ  found
 
-	CMPQ		CX, $16		 // slices smaller than 16 byte are handled byte-wise
-	JB			prep_i8
-	CMPQ		CX, $256     // slices smaller than 256 byte are handled using AVX
-	JB			prep_avx
-
+	CMPQ CX, $16  // slices smaller than 16 byte are handled byte-wise
+	JB   prep_i8
+	CMPQ CX, $256 // slices smaller than 256 byte are handled using AVX
+	JB   prep_avx
 
 	// works for data size 256 byte
 loop_avx2:
-    XORQ        BX, BX
-	XORQ		AX, AX
-	VPCMPEQB	0(SI), Y8, Y0    // set to FF on match (we`ll negate below)
-	VPCMPEQB	32(SI), Y8, Y1
-	VPCMPEQB	64(SI), Y8, Y2
-	VPCMPEQB	96(SI), Y8, Y3
-	VPMOVMSKB	Y1, R8
-	SHLQ		$32, R8
-	VPMOVMSKB	Y3, R9
-	SHLQ		$32, R9
-	VPMOVMSKB	Y0, R10
-	ORQ			R10, R8
-	VPMOVMSKB	Y2, R11
-	ORQ			R11, R9
-	NOTQ		R8			// negate the match mask
-	NOTQ		R9
-	TZCNTQ		R8, AX
-	JNC			found       // CF is set to 1 if input was zero and cleared otherwise
-	LEAQ		64(BX), BX
-	TZCNTQ		R9, AX
-	JNC			found
-	LEAQ		64(BX), BX
-	VPCMPEQB	128(SI), Y8, Y4
-	VPCMPEQB	160(SI), Y8, Y5
-	VPCMPEQB	192(SI), Y8, Y6
-	VPCMPEQB	224(SI), Y8, Y7
-	VPMOVMSKB	Y5, R12
-	SHLQ		$32, R12
-	VPMOVMSKB	Y7, R13
-	SHLQ		$32, R13
-	VPMOVMSKB	Y4, R14
-	ORQ			R14, R12
-	VPMOVMSKB	Y6, R8
-	ORQ			R8, R13
-	NOTQ		R12
-	NOTQ		R13
-	TZCNTQ		R12, AX
-	JNC			found       // CF is set to 1 if input was zero and cleared otherwise
-	LEAQ		64(BX), BX
-	TZCNTQ		R13, AX
-	JNC			found
-	LEAQ		64(BX), BX
+	XORQ      BX, BX
+	XORQ      AX, AX
+	VPCMPEQB  0(SI), Y8, Y0   // set to FF on match (we`ll negate below)
+	VPCMPEQB  32(SI), Y8, Y1
+	VPCMPEQB  64(SI), Y8, Y2
+	VPCMPEQB  96(SI), Y8, Y3
+	VPMOVMSKB Y1, R8
+	SHLQ      $32, R8
+	VPMOVMSKB Y3, R9
+	SHLQ      $32, R9
+	VPMOVMSKB Y0, R10
+	ORQ       R10, R8
+	VPMOVMSKB Y2, R11
+	ORQ       R11, R9
+	NOTQ      R8              // negate the match mask
+	NOTQ      R9
+	TZCNTQ    R8, AX
+	JNC       found           // CF is set to 1 if input was zero and cleared otherwise
+	LEAQ      64(BX), BX
+	TZCNTQ    R9, AX
+	JNC       found
+	LEAQ      64(BX), BX
+	VPCMPEQB  128(SI), Y8, Y4
+	VPCMPEQB  160(SI), Y8, Y5
+	VPCMPEQB  192(SI), Y8, Y6
+	VPCMPEQB  224(SI), Y8, Y7
+	VPMOVMSKB Y5, R12
+	SHLQ      $32, R12
+	VPMOVMSKB Y7, R13
+	SHLQ      $32, R13
+	VPMOVMSKB Y4, R14
+	ORQ       R14, R12
+	VPMOVMSKB Y6, R8
+	ORQ       R8, R13
+	NOTQ      R12
+	NOTQ      R13
+	TZCNTQ    R12, AX
+	JNC       found           // CF is set to 1 if input was zero and cleared otherwise
+	LEAQ      64(BX), BX
+	TZCNTQ    R13, AX
+	JNC       found
+	LEAQ      64(BX), BX
 
-    VPADDD      Y10, Y14, Y10       // Y10 = Y10 + 2048
-	ADDQ		$256, SI
-	SUBQ		$256, CX
-	CMPQ		CX, $256
-	JB			exit_avx2
-	JMP			loop_avx2
+	VPADDD Y10, Y14, Y10 // Y10 = Y10 + 2048
+	ADDQ   $256, SI
+	SUBQ   $256, CX
+	CMPQ   CX, $256
+	JB     exit_avx2
+	JMP    loop_avx2
 
 exit_avx2:
-	TESTQ		CX, CX
-	JLE			done
-	CMPQ		CX, $16
-	JBE			prep_i8
+	TESTQ CX, CX
+	JLE   done
+	CMPQ  CX, $16
+	JBE   prep_i8
 
 prep_avx:
 
 	// works for data size 16 byte
 loop_avx:
-    XORQ        BX, BX
-	XORQ		AX, AX
-	VPCMPEQB	(SI), X8, X0
-	VPMOVMSKB	X0, R8
-	NOTW		R8
-	TZCNTW		R8, AX
-	JNC			found        // CF is set to 1 if input was zero and cleared otherwise
+	XORQ      BX, BX
+	XORQ      AX, AX
+	VPCMPEQB  (SI), X8, X0
+	VPMOVMSKB X0, R8
+	NOTW      R8
+	TZCNTW    R8, AX
+	JNC       found        // CF is set to 1 if input was zero and cleared otherwise
 
-    VPADDD      Y10, Y15, Y10       // Y10 = Y10 + 128
-	ADDQ		$16, SI
-	SUBL		$16, CX
-	CMPL		CX, $16
-	JB			exit_avx
-	JMP			loop_avx
+	VPADDD Y10, Y15, Y10 // Y10 = Y10 + 128
+	ADDQ   $16, SI
+	SUBL   $16, CX
+	CMPL   CX, $16
+	JB     exit_avx
+	JMP    loop_avx
 
 exit_avx:
-	TESTQ	CX, CX
-	JLE		done
+	TESTQ CX, CX
+	JLE   done
 
 	// works for data size 15 down to single byte
 prep_i8:
-	XORQ	AX, AX
-	XORQ	BX, BX
+	XORQ AX, AX
+	XORQ BX, BX
 
 loop_i8:
-	CMPB	(SI), $0
-	JNZ		found
+	CMPB (SI), $0
+	JNZ  found
 
-    VPADDD  Y10, Y13, Y10       // Y10 = Y10 + 8
-    ADDQ    $1, SI
-	SUBQ	$1, CX
-	JZ		done
-	JMP		loop_i8
+	VPADDD Y10, Y13, Y10 // Y10 = Y10 + 8
+	ADDQ   $1, SI
+	SUBQ   $1, CX
+	JZ     done
+	JMP    loop_i8
 
 done:
 	VZEROUPPER
-	MOVQ	    out_base+24(FP), R15
-    SUBQ        R15, DI
-    SHRQ        $2, DI
-    MOVQ        DI, ret+96(FP)
-    RET
+	MOVQ out_base+24(FP), R15
+	SUBQ R15, DI
+	SHRQ $2, DI
+	MOVQ DI, ret+96(FP)
+	RET
 
 found:
-	ADDQ	        AX, BX              // AX+BX is number of skipped zero bytes
-    ADDQ            BX, SI
-    SUBQ            BX, CX
+	ADDQ AX, BX // AX+BX is number of skipped zero bytes
+	ADDQ BX, SI
+	SUBQ BX, CX
 
-    XORQ            R8, R8
-    MOVB            (SI), R8            // R8 = bitmap[BX]  
-    LEAQ            (R8*8), R12         // R12 = (decodeTable[8*R8])
-    VMOVDQU         (R15)(R12*4), Y9    // Y9 = decodeTable[8*R8,...] (8x u32)
+	XORQ    R8, R8
+	MOVB    (SI), R8         // R8 = bitmap[BX]
+	LEAQ    (R8*8), R12      // R12 = (decodeTable[8*R8])
+	VMOVDQU (R15)(R12*4), Y9 // Y9 = decodeTable[8*R8,...] (8x u32)
 
-	VMOVD	        BX, X11             // X11 = leading zero bytes (no direct broadcast in AVX2)
-    VPSLLD          $3, X11, X11        // X11 = leading zero bits
-    VPBROADCASTD    X11, Y12            // Y12 = leading zero bits
-    VPADDD          Y10, Y12, Y10       // Y10 = Y10 + 8*BX (current bitset position)
-    VPADDD          Y9, Y10, Y9         // Y9 = Y9 + Y10 (decodeTable + current position)
+	VMOVD        BX, X11       // X11 = leading zero bytes (no direct broadcast in AVX2)
+	VPSLLD       $3, X11, X11  // X11 = leading zero bits
+	VPBROADCASTD X11, Y12      // Y12 = leading zero bits
+	VPADDD       Y10, Y12, Y10 // Y10 = Y10 + 8*BX (current bitset position)
+	VPADDD       Y9, Y10, Y9   // Y9 = Y9 + Y10 (decodeTable + current position)
 
-    VMOVDQU         Y9, (DI)            // [DI] = Y9 (write 8x u32 to dst)
-    XORQ            R14, R14
-    MOVB            (DX)(R8*1), R14     // R14 = lengthTable[R8]
-    LEAQ            (DI)(R14*4), DI     // DI = DI + 4*R14
-    
-    VPADDD          Y10, Y13, Y10       // Y10 = Y10 + 8
-    ADDQ            $1, SI
-    SUBQ            $1, CX
-    JMP             start
+	VMOVDQU Y9, (DI)        // [DI] = Y9 (write 8x u32 to dst)
+	XORQ    R14, R14
+	MOVB    (DX)(R8*1), R14 // R14 = lengthTable[R8]
+	LEAQ    (DI)(R14*4), DI // DI = DI + 4*R14
+
+	VPADDD Y10, Y13, Y10 // Y10 = Y10 + 8
+	ADDQ   $1, SI
+	SUBQ   $1, CX
+	JMP    start
 
