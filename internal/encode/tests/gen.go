@@ -13,7 +13,7 @@ import (
 )
 
 func GenForIntScheme[T types.Number](scheme, n int) []T {
-	sz := util.SizeOf[T]()
+	sz := util.SizeFor[T]()
 	switch scheme {
 	case 1: // TIntConstant,
 		return tests.GenConst[T](n, 42)
@@ -50,13 +50,13 @@ func GenForFloatScheme[T types.Float](scheme, n int) []T {
 		return tests.GenDups[T](n, n/10, -1)
 	case 13: // TFloatAlp,
 		w := 29
-		if util.SizeOf[T]() == 4 {
+		if util.SizeFor[T]() == 4 {
 			w = 14
 		}
 		return tests.GenRndBits[T](n, w)
 	case 14: // TFloatAlpRd,
 		w := 49
-		if util.SizeOf[T]() == 4 {
+		if util.SizeFor[T]() == 4 {
 			w = 28
 		}
 		return tests.GenRndBits[T](n, w)

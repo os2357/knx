@@ -11,13 +11,14 @@ import (
 	"sync"
 	"unsafe"
 
+	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/FastFilter/xorfilter"
 )
 
 var LE = binary.LittleEndian
 
 type Unsigned interface {
-	~uint8 | ~uint16 | ~uint32
+	uint8 | uint16 | uint32
 }
 
 var pool = &sync.Pool{
@@ -55,7 +56,7 @@ func NewFromBytes[T Unsigned](buf []byte) (*BinaryFuse[T], error) {
 }
 
 func (f *BinaryFuse[T]) MarshalBinary() ([]byte, error) {
-	size := int(unsafe.Sizeof(T(0)))
+	size := util.SizeOf[T]()
 	space := len(f.Fingerprints)*size + 28
 	buf := bytes.NewBuffer(make([]byte, 0, space))
 	err := f.Save(buf)

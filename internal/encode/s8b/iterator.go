@@ -9,6 +9,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/encode/s8b/generic"
 	"blockwatch.cc/knoxdb/internal/types"
+	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 const (
@@ -149,7 +150,7 @@ func (it *Iterator[T]) fill(idx int) int {
 	// attempt to fill chunk as much as possible without overflow,
 	// peek into next selector to count codewords
 	p := unsafe.Pointer(&it.chunk[0])
-	w := int(unsafe.Sizeof(T(0)))
+	w := util.SizeOf[T]()
 	it.cnt = 0
 	for srcIdx < len(it.src) {
 		n := it.dec.DecodeWordPtr(unsafe.Add(p, it.cnt*w), CHUNK_SIZE-it.cnt, it.src[srcIdx:])

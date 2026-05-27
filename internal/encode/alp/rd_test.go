@@ -18,7 +18,7 @@ func TestAlpRD(t *testing.T) {
 }
 
 func AlpRDTest[T Float, U Uint](t *testing.T) {
-	w := util.SizeOf[T]()
+	w := util.SizeFor[T]()
 	for _, c := range MakeTestcases[T]() {
 		t.Run(fmt.Sprintf("%T/%s", T(0), c.Name), func(t *testing.T) {
 			// estimate shift

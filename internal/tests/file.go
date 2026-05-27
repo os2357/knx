@@ -124,7 +124,7 @@ func (f *File[T]) Close() error {
 }
 
 func (f *File[T]) Len() int {
-	return f.Size() / util.SizeOf[T]()
+	return f.Size() / util.SizeFor[T]()
 }
 
 func (f *File[T]) Size() int {
@@ -150,7 +150,7 @@ func (f *File[T]) NextN(n int, dst []T) ([]T, int) {
 	if err != nil {
 		n = 0
 	}
-	n /= util.SizeOf[T]()
+	n /= util.SizeFor[T]()
 
 	return dst[:n], n
 }

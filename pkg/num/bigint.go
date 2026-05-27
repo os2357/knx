@@ -397,9 +397,9 @@ func (z Big) Rsh(n uint) Big {
 	return NewFromBigInt(new(big.Int).Rsh(z.Big(), n))
 }
 
-func MaxBig(args ...Big) Big {
-	var m Big
-	for _, z := range args {
+func MaxBig(first Big, rest ...Big) Big {
+	m := first
+	for _, z := range rest {
 		if m.Cmp(z) < 0 {
 			m = z
 		}
@@ -407,19 +407,12 @@ func MaxBig(args ...Big) Big {
 	return m
 }
 
-func MinBig(args ...Big) Big {
-	switch len(args) {
-	case 0:
-		return Big{}
-	case 1:
-		return args[0]
-	default:
-		m := args[0]
-		for _, z := range args[1:] {
-			if m.Cmp(z) > 0 {
-				m = z
-			}
+func MinBig(first Big, rest ...Big) Big {
+	m := first
+	for _, z := range rest {
+		if m.Cmp(z) > 0 {
+			m = z
 		}
-		return m
 	}
+	return m
 }

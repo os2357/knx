@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"math"
 	"math/bits"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/types"
@@ -170,7 +169,7 @@ func analyzeRD[T Float, U Uint](sample []T) Analysis {
 		bestSize  = math.MaxInt32
 		useDict   = false
 		sz        = len(sample)
-		w         = int(unsafe.Sizeof(T(0)))
+		w         = util.SizeFor[T]()
 		unique    = arena.Alloc[uint16](1 << 16)[:1<<16]
 	)
 

@@ -7,10 +7,10 @@ import (
 	"math"
 	"reflect"
 	"testing"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
+	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -141,7 +141,7 @@ func IsFloat(v any) bool {
 	}
 }
 
-func IsUintOverFlowIntCaster(v any, width uintptr) bool {
+func IsUintOverFlowIntCaster(v any, width int) bool {
 	vv := reflect.Indirect(reflect.ValueOf(v))
 	switch vv.Kind() {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -151,7 +151,7 @@ func IsUintOverFlowIntCaster(v any, width uintptr) bool {
 	}
 }
 
-func IsUintOverFlowUintCaster(v any, width uintptr) bool {
+func IsUintOverFlowUintCaster(v any, width int) bool {
 	vv := reflect.Indirect(reflect.ValueOf(v))
 	switch vv.Kind() {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -161,7 +161,7 @@ func IsUintOverFlowUintCaster(v any, width uintptr) bool {
 	}
 }
 
-func ValueSize(v any) uintptr {
+func ValueSize(v any) int {
 	switch v.(type) {
 	case int8:
 		return 8
@@ -184,9 +184,9 @@ func ValueSize(v any) uintptr {
 	case uint:
 		return 32 << (^uint(0) >> 63) // 32 or 64
 	case float32:
-		return unsafe.Sizeof(math.MaxFloat32) * 8
+		return 32
 	case float64:
-		return unsafe.Sizeof(math.MaxFloat64) * 8
+		return 64
 	default:
 		return 0
 	}
@@ -242,13 +242,13 @@ func TestCastIntCaster(t *testing.T) {
 	tests := []struct {
 		name   string
 		caster ValueCaster
-		size   uintptr
+		size   int
 	}{
-		{"Int", IntCaster[int]{}, unsafe.Sizeof(int(0)) * 8},
-		{"Int8", IntCaster[int8]{}, unsafe.Sizeof(int8(0)) * 8},
-		{"Int16", IntCaster[int16]{}, unsafe.Sizeof(int16(0)) * 8},
-		{"Int32", IntCaster[int32]{}, unsafe.Sizeof(int32(0)) * 8},
-		{"Int64", IntCaster[int64]{}, unsafe.Sizeof(int64(0)) * 8},
+		{"Int", IntCaster[int]{}, util.SizeFor[int]() * 8},
+		{"Int8", IntCaster[int8]{}, 8},
+		{"Int16", IntCaster[int16]{}, 16},
+		{"Int32", IntCaster[int32]{}, 32},
+		{"Int64", IntCaster[int64]{}, 64},
 	}
 
 	// zero cases
@@ -365,13 +365,13 @@ func TestCastUintCaster(t *testing.T) {
 	tests := []struct {
 		name   string
 		caster ValueCaster
-		size   uintptr
+		size   int
 	}{
-		{"Uint", UintCaster[uint]{}, unsafe.Sizeof(uint(0)) * 8},
-		{"Uint8", UintCaster[uint8]{}, unsafe.Sizeof(uint8(0)) * 8},
-		{"Uint16", UintCaster[uint16]{}, unsafe.Sizeof(uint16(0)) * 8},
-		{"Uint32", UintCaster[uint32]{}, unsafe.Sizeof(uint32(0)) * 8},
-		{"Uint64", UintCaster[uint64]{}, unsafe.Sizeof(uint64(0)) * 8},
+		{"Uint", UintCaster[uint]{}, util.SizeFor[uint]() * 8},
+		{"Uint8", UintCaster[uint8]{}, 8},
+		{"Uint16", UintCaster[uint16]{}, 16},
+		{"Uint32", UintCaster[uint32]{}, 32},
+		{"Uint64", UintCaster[uint64]{}, 64},
 	}
 
 	// zero cases

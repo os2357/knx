@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"testing"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/cpu"
@@ -114,7 +113,7 @@ func DictBenchmark[T Integer](b *testing.B, fn buildFunc[T]) {
 			card := estimateCardinality(data)
 			b.Run(fmt.Sprintf("%T/%s/%s", T(0), c.Name, p.Name), func(b *testing.B) {
 				b.ReportAllocs()
-				b.SetBytes(int64(c.N * int(unsafe.Sizeof(T(0)))))
+				b.SetBytes(int64(c.N * util.SizeOf[T]()))
 				for range b.N {
 					dict, codes := fn(data, card)
 					card = len(dict)
@@ -140,7 +139,7 @@ func DictBenchmarkFloat[T Float, U Integer](b *testing.B, fn buildFunc[U]) {
 					once = false
 				}
 				b.ReportAllocs()
-				b.SetBytes(int64(c.N * int(unsafe.Sizeof(T(0)))))
+				b.SetBytes(int64(c.N * util.SizeFor[T]()))
 				for range b.N {
 					dict, codes := fn(src, card)
 					card = len(dict)

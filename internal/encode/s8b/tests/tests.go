@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/tests"
@@ -29,7 +28,7 @@ type TestCase[T types.Integer] struct {
 }
 
 func MakeTests[T types.Integer]() []TestCase[T] {
-	width := unsafe.Sizeof(T(0))
+	width := util.SizeOf[T]()
 	tests := []TestCase[T]{
 		{Name: "nil", Data: nil},
 		{Name: "empty", Data: []T{}},

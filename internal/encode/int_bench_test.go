@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/bitset"
@@ -17,6 +16,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/tests"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/xroar"
+	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -382,7 +382,7 @@ func DictArrayBenchmark[T types.Integer](b *testing.B) {
 			var card int
 			b.Run(fmt.Sprintf("%T/%s/%s", T(0), c.Name, p.Name), func(b *testing.B) {
 				b.ReportAllocs()
-				b.SetBytes(int64(c.N * int(unsafe.Sizeof(T(0)))))
+				b.SetBytes(int64(c.N * util.SizeOf[T]()))
 				for range b.N {
 					dict, codes := dictEncodeArray(ctx, data)
 					card = len(dict)

@@ -132,7 +132,7 @@ func (d *Decoder[T, E]) Decode(dst []T, src []E) {
 
 	var i int
 	if l >= 128 {
-		switch util.SizeOf[T]() {
+		switch util.SizeFor[T]() {
 		case 8:
 			d64 := util.ReinterpretSlice[T, float64](dst)
 			s64 := util.ReinterpretSlice[E, int64](src)
@@ -213,7 +213,7 @@ func decodeCore[T Float, E Int](dst []T, src []E, fx, ex uint8, _ bool) int {
 func (d *Decoder[T, E]) DecodeChunk(dst *[128]T, src *[128]E, n, ofs int) {
 	// decode values
 	if n == 128 {
-		switch util.SizeOf[T]() {
+		switch util.SizeFor[T]() {
 		case 8:
 			d64 := util.ReinterpretSlice[T, float64](dst[:])
 			s64 := util.ReinterpretSlice[E, int64](src[:])

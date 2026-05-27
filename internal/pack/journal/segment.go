@@ -6,7 +6,6 @@ package journal
 import (
 	"math"
 	"sync/atomic"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/engine"
@@ -17,6 +16,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/internal/xroar"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 const (
@@ -36,7 +36,7 @@ const (
 	SegmentStateMerged                       // 5 merge complete, can be closed
 )
 
-var segmentSz = int(unsafe.Sizeof(Segment{}))
+var segmentSz = util.SizeFor[Segment]()
 
 // Journal segment optimized for single writer tx. Only the current tx
 // can add/commit/abort data. Concurrent queries hide uncommitted,

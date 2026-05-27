@@ -29,7 +29,7 @@ func benchAnalyze[T Float, E Int](b *testing.B) {
 		b.Run(fmt.Sprintf("%T/%s", T(0), c.Name), func(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
-			b.SetBytes(int64(c.N * util.SizeOf[T]()))
+			b.SetBytes(int64(c.N * util.SizeFor[T]()))
 			for b.Loop() {
 				_ = Analyze[T, E](src)
 			}
@@ -51,12 +51,12 @@ func BenchmarkEncodeOnly(b *testing.B) {
 func benchEncode[T Float, E Int](b *testing.B, withAnalysis bool) {
 	for _, c := range tests.BenchmarkSizes {
 		var exn int
-		src := tests.GenRndBits[T](c.N, util.SizeOf[T]()*3)
+		src := tests.GenRndBits[T](c.N, util.SizeFor[T]()*3)
 		a := Analyze[T, E](src)
 		b.Run(fmt.Sprintf("%T/%s", T(0), c.Name), func(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
-			b.SetBytes(int64(c.N * util.SizeOf[T]()))
+			b.SetBytes(int64(c.N * util.SizeFor[T]()))
 			for b.Loop() {
 				enc := NewEncoder[T, E]()
 				if withAnalysis {
@@ -151,7 +151,7 @@ func benchAnalyzeRD[T Float, U Uint](b *testing.B) {
 		b.Run(fmt.Sprintf("%T/%s", T(0), c.Name), func(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
-			b.SetBytes(int64(c.N * util.SizeOf[T]()))
+			b.SetBytes(int64(c.N * util.SizeFor[T]()))
 			for b.Loop() {
 				_ = AnalyzeRD[T, U](src)
 			}
@@ -172,7 +172,7 @@ func benchEncodeRD[T Float, U Uint](b *testing.B, withAnalysis bool) {
 		b.Run(fmt.Sprintf("%T/%s", T(0), c.Name), func(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
-			b.SetBytes(int64(c.N * util.SizeOf[T]()))
+			b.SetBytes(int64(c.N * util.SizeFor[T]()))
 			for b.Loop() {
 				enc := NewEncoderRD[T, U]()
 				if withAnalysis {
@@ -200,7 +200,7 @@ func benchDecodeRD[T Float, U Uint](b *testing.B) {
 		dst := make([]T, c.N)
 		dec := NewDecoderRD[T, U](a.Split)
 		b.Run(fmt.Sprintf("%T/%s", T(0), c.Name), func(b *testing.B) {
-			b.SetBytes(int64(c.N * util.SizeOf[T]()))
+			b.SetBytes(int64(c.N * util.SizeFor[T]()))
 			for b.Loop() {
 				dec.Decode(dst, res.Left, res.Right)
 			}

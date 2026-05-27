@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"math/bits"
 	"sync"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/arena"
 	"blockwatch.cc/knoxdb/internal/encode/alp"
@@ -53,7 +52,7 @@ func (c *Context[T]) WithLevel(l int) *Context[T] {
 func NewIntContext[T types.Integer](minv, maxv T, n int) *Context[T] {
 	c := newContext[T]()
 	c.Lvl = MAX_LEVEL
-	c.PhyBits = int(unsafe.Sizeof(T(0))) * 8
+	c.PhyBits = util.SizeOf[T]() * 8
 	c.UseBits = types.Log2Range(minv, maxv)
 	c.NumValues = n
 	c.Min = minv
@@ -66,7 +65,7 @@ func NewIntContext[T types.Integer](minv, maxv T, n int) *Context[T] {
 func NewFloatContext[T types.Float](minv, maxv T, n int) *Context[T] {
 	c := newContext[T]()
 	c.Lvl = MAX_LEVEL
-	c.PhyBits = util.SizeOf[T]() * 8
+	c.PhyBits = util.SizeFor[T]() * 8
 	c.UseBits = c.PhyBits
 	c.NumValues = n
 	c.Min = minv
@@ -167,7 +166,7 @@ func AnalyzeInt[T types.Integer](vals []T, checkUnique bool) *Context[T] {
 func AnalyzeFloat[T types.Float](vals []T, checkUnique, checkALP bool) *Context[T] {
 	c := newContext[T]()
 	c.Lvl = MAX_LEVEL
-	c.PhyBits = util.SizeOf[T]() * 8
+	c.PhyBits = util.SizeFor[T]() * 8
 	c.UseBits = c.PhyBits
 	if len(vals) == 0 {
 		return c

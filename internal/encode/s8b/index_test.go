@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/cmp"
@@ -45,7 +44,7 @@ func IndexBenchmark[T types.Unsigned, I uint16 | uint32](b *testing.B, enc stest
 		require.NoError(b, err)
 		dst := make([]I, len(c.Data))
 		b.Run(c.Name, func(b *testing.B) {
-			b.SetBytes(int64(len(c.Data) * int(unsafe.Sizeof(T(0)))))
+			b.SetBytes(int64(len(c.Data) * util.SizeOf[T]()))
 			for range b.N {
 				idx(buf, dst)
 			}
@@ -91,7 +90,7 @@ func CmpEqualUnpackedBenchmark[T types.Unsigned](b *testing.B) {
 		bits := bitset.New(len(c.Data))
 		val := c.Data[len(c.Data)/2]
 		b.Run(fmt.Sprintf("%T/%s", T(0), c.Name), func(b *testing.B) {
-			b.SetBytes(int64(len(c.Data) * int(unsafe.Sizeof(T(0)))))
+			b.SetBytes(int64(len(c.Data) * util.SizeOf[T]()))
 			for b.Loop() {
 				dst := make([]T, len(c.Data))
 				var n int64

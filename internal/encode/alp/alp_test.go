@@ -8,11 +8,11 @@ import (
 	"math"
 	"testing"
 	"testing/quick"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/encode/bitpack"
 	"blockwatch.cc/knoxdb/internal/tests"
 	"blockwatch.cc/knoxdb/internal/types"
+	"blockwatch.cc/knoxdb/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +23,7 @@ type TestCase[T types.Float] struct {
 }
 
 func MakeTestcases[T types.Float]() []TestCase[T] {
-	if unsafe.Sizeof(T(0)) == 8 {
+	if util.SizeFor[T]() == 8 {
 		// float64 cases
 		return []TestCase[T]{
 			{"bw0", append(tests.GenConst[T](1024, 33554431.0), 0.0), 0},

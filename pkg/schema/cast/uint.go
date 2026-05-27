@@ -7,10 +7,10 @@ import (
 	"math"
 	"reflect"
 	"strconv"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
+	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // uint caster
@@ -18,7 +18,7 @@ type UintCaster[T types.Unsigned] struct{}
 
 func (c UintCaster[T]) CastValue(val any) (res any, err error) {
 	var ok bool
-	width := unsafe.Sizeof(T(0)) * 8
+	width := util.SizeOf[T]() * 8
 	res = val
 	switch v := val.(type) {
 	case int:
@@ -70,14 +70,14 @@ func (c UintCaster[T]) CastValue(val any) (res any, err error) {
 		}
 	}
 	if !ok {
-		err = CastError(val, "uint"+strconv.Itoa(int(width)))
+		err = CastError(val, "uint"+strconv.Itoa(width))
 	}
 	return
 }
 
 func (c UintCaster[T]) CastSlice(val any) (res any, err error) {
 	ok := true
-	width := unsafe.Sizeof(T(0)) * 8
+	width := util.SizeOf[T]() * 8
 	res = val
 	switch v := val.(type) {
 	case []int:
@@ -261,7 +261,7 @@ func (c UintCaster[T]) CastSlice(val any) (res any, err error) {
 		}
 	}
 	if !ok {
-		err = CastError(val, "uint"+strconv.Itoa(int(width)))
+		err = CastError(val, "uint"+strconv.Itoa(width))
 	}
 	return
 }

@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/tests"
 	"blockwatch.cc/knoxdb/internal/types"
+	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 func EncodeBenchmark[T types.Unsigned](b *testing.B, fn EncodeFunc[T]) {
-	w := int(unsafe.Sizeof(T(0)))
+	w := util.SizeOf[T]()
 	for _, c := range tests.MakeBenchmarks[T]() {
 		minv, maxv := slices.Min(c.Data), slices.Max(c.Data)
 		buf := make([]byte, w*c.N*8)
@@ -35,7 +35,7 @@ func DecodeBenchmark[T types.Unsigned](b *testing.B, enc EncodeFunc[T], dec Deco
 	if enc == nil {
 		enc = encode[T]
 	}
-	w := int(unsafe.Sizeof(T(0)))
+	w := util.SizeOf[T]()
 	for _, c := range tests.MakeBenchmarks[T]() {
 		minv, maxv := slices.Min(c.Data), slices.Max(c.Data)
 		buf, log2 := enc(make([]byte, w*c.N*8), c.Data, minv, maxv)
@@ -54,7 +54,7 @@ func CompareBenchmark[T types.Unsigned](b *testing.B, enc EncodeFunc[T], cmp Com
 	if enc == nil {
 		enc = encode[T]
 	}
-	w := int(unsafe.Sizeof(T(0)))
+	w := util.SizeOf[T]()
 	for _, c := range tests.MakeBenchmarks[T]() {
 		minv, maxv := slices.Min(c.Data), slices.Max(c.Data)
 		buf, log2 := enc(make([]byte, w*c.N), c.Data, minv, maxv)
@@ -75,7 +75,7 @@ func CompareBenchmark2[T types.Unsigned](b *testing.B, enc EncodeFunc[T], cmp Co
 	if enc == nil {
 		enc = encode[T]
 	}
-	w := int(unsafe.Sizeof(T(0)))
+	w := util.SizeOf[T]()
 	for _, c := range tests.MakeBenchmarks[T]() {
 		minv, maxv := slices.Min(c.Data), slices.Max(c.Data)
 		buf, log2 := enc(make([]byte, w*c.N), c.Data, minv, maxv)
@@ -84,7 +84,7 @@ func CompareBenchmark2[T types.Unsigned](b *testing.B, enc EncodeFunc[T], cmp Co
 		from, to := max(val/2, minv+1), min(val*2, maxv-1)
 
 		b.Run(fmt.Sprintf("u%d/%s", w*8, c.Name), func(b *testing.B) {
-			b.SetBytes(int64(len(c.Data) * int(unsafe.Sizeof(T(0)))))
+			b.SetBytes(int64(len(c.Data) * util.SizeOf[T]()))
 			for b.Loop() {
 				cmp(buf, log2, uint64(from), uint64(to), c.N, bits)
 			}

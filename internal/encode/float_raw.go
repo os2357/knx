@@ -49,8 +49,8 @@ func (c *FloatRawContainer[T]) Len() int {
 }
 
 func (c *FloatRawContainer[T]) Size() int {
-	return 1 + UvarintLen(uint64(util.SizeOf[T]()*len(c.Values))) +
-		util.SizeOf[T]()*len(c.Values)
+	return 1 + UvarintLen(uint64(util.SizeFor[T]()*len(c.Values))) +
+		util.SizeFor[T]()*len(c.Values)
 }
 
 func (c *FloatRawContainer[T]) Matcher() types.NumberMatcher[T] {
@@ -73,7 +73,7 @@ func (c *FloatRawContainer[T]) Iterator() iter.Seq2[int, T] {
 
 func (c *FloatRawContainer[T]) Store(dst []byte) []byte {
 	dst = append(dst, byte(TFloatRaw))
-	dst = binary.AppendUvarint(dst, uint64(util.SizeOf[T]()*len(c.Values)))
+	dst = binary.AppendUvarint(dst, uint64(util.SizeFor[T]()*len(c.Values)))
 	return append(dst, util.ToByteSlice(c.Values)...)
 }
 

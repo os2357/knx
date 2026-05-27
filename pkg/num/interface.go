@@ -9,6 +9,8 @@ import (
 	"blockwatch.cc/knoxdb/internal/bitset"
 )
 
+const CHUNK_SIZE = 128
+
 type Bitset = bitset.Bitset
 
 type BigIntAccessor[T any, E any] interface {

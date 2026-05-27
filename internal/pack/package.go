@@ -6,18 +6,18 @@ package pack
 import (
 	"sync"
 	"time"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/block"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 var (
 	pool      = sync.Pool{New: func() any { return &Package{} }}
 	zeroTime  = time.Time{}
-	szPackage = int(unsafe.Sizeof(Package{}))
+	szPackage = util.SizeFor[Package]()
 )
 
 type Package struct {

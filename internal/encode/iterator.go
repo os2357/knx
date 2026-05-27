@@ -116,7 +116,7 @@ var (
 )
 
 func matchFn[T types.Float](mode types.FilterMode) unsafe.Pointer {
-	if util.SizeOf[T]() == 8 {
+	if util.SizeFor[T]() == 8 {
 		return floatMatch64Fn[mode]
 	} else {
 		return floatMatch32Fn[mode]

@@ -3,8 +3,6 @@
 
 package num
 
-const CHUNK_SIZE = 128
-
 var _ BigIntIterator[Int128, Int128Stride] = (*Int128Iterator)(nil)
 
 type Int128Iterator struct {

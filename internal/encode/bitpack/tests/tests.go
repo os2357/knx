@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"unsafe"
 
 	"blockwatch.cc/knoxdb/internal/bitset"
 	"blockwatch.cc/knoxdb/internal/tests"
 	"blockwatch.cc/knoxdb/internal/types"
+	"blockwatch.cc/knoxdb/pkg/util"
 
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +65,7 @@ func EncodeTest[T types.Integer](t *testing.T, enc EncodeFunc[T], dec DecodeFunc
 		dec = decode[T]
 	}
 	for _, n := range TestSizes {
-		for w := range int(unsafe.Sizeof(T(0)) * 8) { // bit depths [0..8|16|32|64]
+		for w := range util.SizeFor[T]() * 8 { // bit depths [0..8|16|32|64]
 			t.Run(fmt.Sprintf("%T/%d_bits/n_%d", T(0), w, n), func(t *testing.T) {
 				src := tests.GenRndBits[T](n, w)
 				minv, maxv := slices.Min(src), slices.Max(src)

@@ -12,11 +12,11 @@ import (
 )
 
 type Signed interface {
-	int8 | int16 | int32 | int64
+	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 
 type Unsigned interface {
-	uint8 | uint16 | uint32 | uint64
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
 }
 
 type Integer interface {
@@ -31,11 +31,18 @@ type Number interface {
 	Integer | Float
 }
 
-func SizeOf[T Number]() int {
-	return int(unsafe.Sizeof(T(0)))
+func SizeOf[T Integer]() int {
+	x := uint16(1 << 8)
+	y := uint32(2 << 16)
+	z := uint64(4 << 32)
+	return 1 + int(T(x))>>8 + int(T(y))>>16 + int(T(z))>>32
 }
 
-// go 1.20 versions
+func SizeFor[T any]() int {
+	var t T
+	return int(unsafe.Sizeof(t))
+}
+
 func UnsafeGetBytes(s string) []byte {
 	if s == "" {
 		return nil
@@ -53,19 +60,19 @@ func UnsafeGetString(b []byte) string {
 func ToByteSlice[T Number](s []T) []byte {
 	return unsafe.Slice(
 		(*byte)(unsafe.Pointer(unsafe.SliceData(s))),
-		len(s)*int(unsafe.Sizeof(T(0))),
+		len(s)*SizeFor[T](),
 	)
 }
 
 func FromByteSlice[T Number](s []byte) []T {
 	return unsafe.Slice(
 		(*T)(unsafe.Pointer(unsafe.SliceData(s))),
-		len(s)/int(unsafe.Sizeof(T(0))),
+		len(s)/SizeFor[T](),
 	)
 }
 
 func ReinterpretSlice[T, S Number](t []T) []S {
-	if unsafe.Sizeof(T(0)) == unsafe.Sizeof(S(0)) {
+	if SizeFor[T]() == SizeFor[S]() {
 		return *(*[]S)(unsafe.Pointer(&t))
 	}
 	panic(errors.New(
@@ -77,13 +84,13 @@ func ReinterpretSlice[T, S Number](t []T) []S {
 }
 
 func ReinterpretValue[T Number, S Number](t T) S {
-	if unsafe.Sizeof(T(0)) == unsafe.Sizeof(S(0)) {
+	if SizeFor[T]() == SizeFor[S]() {
 		return *(*S)(unsafe.Pointer(&t))
 	}
 	return S(0)
 }
 
-func ConvertSlice[T, S Number](t []T) (s []S) {
+func ConvertSlice[T, S arena.Number](t []T) (s []S) {
 	s = arena.Alloc[S](len(t))[:len(t)]
 	for i, v := range t {
 		s[i] = S(v)

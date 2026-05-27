@@ -66,7 +66,7 @@ func EncodeFloat[T types.Float](ctx *Context[T], v []T) NumberContainer[T] {
 func EstimateFloat[T types.Float](ctx *Context[T], scheme ContainerType, vals []T) float64 {
 	// estimate cheap encodings
 	var (
-		w       = util.SizeOf[T]()
+		w       = util.SizeFor[T]()
 		rawSize = ctx.rawCosts()
 		estSize int
 	)

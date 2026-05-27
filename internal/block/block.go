@@ -23,7 +23,7 @@ var (
 	blockPool = &sync.Pool{
 		New: func() any { return &Block{} },
 	}
-	blockSize = int(unsafe.Sizeof(Block{}))
+	blockSize = util.SizeFor[Block]()
 )
 
 // TODO: replace with BufferManager page

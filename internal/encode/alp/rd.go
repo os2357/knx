@@ -42,7 +42,7 @@ func (enc *EncoderRD[T, U]) Encode(src []T, split int) *RDResult[U] {
 }
 
 func (enc *EncoderRD[T, U]) split(src []T, left []uint16, right []U, shift int) {
-	switch util.SizeOf[T]() {
+	switch util.SizeFor[T]() {
 	case 4:
 		s32 := util.ReinterpretSlice[T, uint32](src)
 		r32 := util.ReinterpretSlice[U, uint32](right)
@@ -188,7 +188,7 @@ type DecoderRD[T Float, U Uint] struct {
 func NewDecoderRD[T Float, U Uint](split int) *DecoderRD[T, U] {
 	return &DecoderRD[T, U]{
 		split: split,
-		width: util.SizeOf[T](),
+		width: util.SizeFor[T](),
 	}
 }
 
@@ -211,7 +211,7 @@ func (d *DecoderRD[T, U]) DecodeValue(left uint16, right U) T {
 }
 
 func (d *DecoderRD[T, U]) merge(dst []T, left []uint16, right []U, shift int) []T {
-	switch util.SizeOf[T]() {
+	switch util.SizeFor[T]() {
 	case 4:
 		d32 := util.ReinterpretSlice[T, uint32](dst)
 		r32 := util.ReinterpretSlice[U, uint32](right)

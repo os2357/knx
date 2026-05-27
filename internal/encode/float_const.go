@@ -43,7 +43,7 @@ func (c *FloatConstContainer[T]) Len() int {
 }
 
 func (c *FloatConstContainer[T]) Size() int {
-	return 1 + util.SizeOf[T]() + UvarintLen(uint64(c.N))
+	return 1 + util.SizeFor[T]() + UvarintLen(uint64(c.N))
 }
 
 func (c *FloatConstContainer[T]) Matcher() types.NumberMatcher[T] {
