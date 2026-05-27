@@ -22,9 +22,7 @@ import (
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
-var (
-	ErrNilValue = errors.New("schema: nil value")
-)
+var ErrNilValue = errors.New("schema: nil value")
 
 const TAG_NAME = "knox"
 

@@ -334,7 +334,7 @@ func (w *Writer) Bytes() []byte {
 		case f.IsFixedSize():
 			// write fixed size field
 			buf.Write(w.buf[w.ofs[n] : w.ofs[n]+w.len[n]])
-		case f.Type == FT_STRING || f.Type == FT_BYTES:
+		case f.Type == FT_STRING || f.Type == FT_BYTES || f.Type == FT_BIGINT:
 			// write dynamic field with 1 byte len
 			val := w.dyn[n]
 			buf.Write([]byte{byte(len(val))})

@@ -265,7 +265,7 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 		v := *(*num.Big)(ptr)
 		b := v.Bytes()
 		if len(b) > 255 {
-			err = fmt.Errorf("%s: bigint too large %q", field.Name, v)
+			err = fmt.Errorf("%s: bigint too large %d > 255", field.Name, len(b))
 		} else {
 			_, err = buf.Write([]byte{byte(len(b))})
 			if err == nil {

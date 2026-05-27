@@ -7,6 +7,8 @@ import (
 	"encoding/binary"
 	"io"
 	"reflect"
+
+	"blockwatch.cc/knoxdb/pkg/util"
 )
 
 // writeInt writes an integer value to wire format. Accepts all
@@ -47,19 +49,35 @@ func writeInt(w io.Writer, code OpCode, val any, layout binary.ByteOrder) (err e
 		width uint
 	)
 	switch code {
-	case OC_I8, OC_U8:
+	case OC_I8:
+		over = (!neg && u64>>7 > 0) || neg && int64(u64)>>7 != -1
+		buf[0] = uint8(u64)
+		width = 1
+	case OC_U8:
 		over = (!neg && u64>>8 > 0) || neg && int64(u64)>>8 != -1
 		buf[0] = uint8(u64)
 		width = 1
-	case OC_I16, OC_U16:
+	case OC_I16:
+		over = (!neg && u64>>15 > 0) || neg && int64(u64)>>15 != -1
+		layout.PutUint16(buf[:], uint16(u64))
+		width = 2
+	case OC_U16:
 		over = (!neg && u64>>16 > 0) || neg && int64(u64)>>16 != -1
 		layout.PutUint16(buf[:], uint16(u64))
 		width = 2
-	case OC_I32, OC_U32:
+	case OC_I32:
+		over = (!neg && u64>>31 > 0) || neg && int64(u64)>>31 != -1
+		layout.PutUint32(buf[:], uint32(u64))
+		width = 4
+	case OC_U32:
 		over = (!neg && u64>>32 > 0) || neg && int64(u64)>>32 != -1
 		layout.PutUint32(buf[:], uint32(u64))
 		width = 4
-	case OC_I64, OC_U64:
+	case OC_I64:
+		over = (!neg && u64>>63 > 0) || neg && int64(u64)>>63 != -1
+		layout.PutUint64(buf[:], u64)
+		width = 8
+	case OC_U64:
 		layout.PutUint64(buf[:], u64)
 		width = 8
 	}
@@ -77,11 +95,9 @@ func writeBytes(w io.Writer, val any, fixed uint8, short bool, layout binary.Byt
 	// type cast values
 	switch v := val.(type) {
 	case string:
-		b = []byte(v)
-
+		b = util.UnsafeGetBytes(v)
 	case []byte:
 		b = v
-
 	default:
 		// use reflect for array types
 		rv := reflect.Indirect(reflect.ValueOf(val))

@@ -2,6 +2,7 @@ package encode
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"time"
@@ -11,7 +12,7 @@ import (
 )
 
 // EncodeField serializes the value of an individual field
-// to wire format. It is used in composite indexes and hash joins.
+// to wire format. It is used in queries.
 func EncodeField(w io.Writer, f *Field, val any, layout binary.ByteOrder) (err error) {
 	if val == nil {
 		return ErrNilValue
@@ -105,9 +106,13 @@ func EncodeField(w io.Writer, f *Field, val any, layout binary.ByteOrder) (err e
 
 	case OC_BIGINT:
 		// 1 byte len
-		v, ok := val.(num.Big)
-		if ok {
-			err = writeBytes(w, v.Bytes(), 0, true, layout)
+		if v, ok := val.(num.Big); ok {
+			buf := v.Bytes()
+			if len(buf) > 255 {
+				err = fmt.Errorf("%s: bigint too large %d > 255", f.Name, len(buf))
+			} else {
+				err = writeBytes(w, buf, 0, true, layout)
+			}
 		}
 	}
 	return
@@ -208,7 +213,7 @@ func DecodeField(r io.Reader, f *Field, layout binary.ByteOrder) (val any, err e
 			if n < int(f.Scale) {
 				return nil, ErrShortBuffer
 			}
-			val = string(b[:n])
+			val = b[:n]
 		} else {
 			_, err = r.Read(buf[:1])
 			if err != nil {
@@ -260,12 +265,11 @@ func DecodeField(r io.Reader, f *Field, layout binary.ByteOrder) (val any, err e
 		val = d32
 
 	case FT_BIGINT:
-		_, err = r.Read(buf[:4])
+		_, err = r.Read(buf[:1])
 		if err != nil {
 			return
 		}
-		u32 := layout.Uint32(buf[:4])
-		b := make([]byte, int(u32))
+		b := make([]byte, int(buf[0]))
 		n, err = r.Read(b)
 		val = num.NewBigFromBytes(b[:n])
 
