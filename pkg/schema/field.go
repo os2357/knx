@@ -376,6 +376,11 @@ func (f *Field) Validate() error {
 		return fmt.Errorf("field[%s]: invalid use of timebase flag on type %s", f.Name, f.Type)
 	}
 
+	// primary key field is limited to uint64 (TODO: relax)
+	if f.IsPrimary() && f.Type != FT_U64 {
+		return fmt.Errorf("field[%s]: invalid primary key type %s", f.Name, f.Type)
+	}
+
 	return nil
 }
 

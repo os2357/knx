@@ -224,6 +224,7 @@ func TestFieldStructReadSpecial(t *testing.T) {
 			f, err := reflectStructField(sf, TAG_NAME)
 			if tt.err {
 				assert.Error(t, err)
+				return
 			} else {
 				assert.NoError(t, err)
 			}

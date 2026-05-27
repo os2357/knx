@@ -11,17 +11,18 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"unicode"
-	"unsafe"
+	"time"
 
-	"blockwatch.cc/knoxdb/pkg/assert"
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
 
-var ErrNilValue = errors.New("schema: nil value")
+var (
+	ErrNilValue        = errors.New("schema: nil value")
+	ErrUnsupportedType = errors.New("schema: unsupported type")
+)
 
 const TAG_NAME = "knox"
 
@@ -80,21 +81,18 @@ func SchemaOfTag(m any, tag string, opts ...Option) (*schema.Schema, error) {
 		return nil, fmt.Errorf("invalid value of type %T", m)
 	}
 
-	// must be a struct or slice of struct
+	// must be a struct, pointer to struct or slice of struct
 	typ := val.Type()
-	switch typ.Kind() {
-	case reflect.Struct:
-		// ok
-	case reflect.Slice:
-		telem := typ.Elem()
-		if telem.Kind() == reflect.Pointer {
-			telem = telem.Elem()
-		}
-		if telem.Kind() != reflect.Struct {
-			return nil, fmt.Errorf("slice element type %s (%s) is not a struct", telem, telem.Kind())
-		}
-		typ = telem
-	default:
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	if typ.Kind() == reflect.Slice {
+		typ = typ.Elem()
+	}
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	if typ.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("type %s (%s) is not a struct", typ, typ.Kind())
 	}
 
@@ -137,12 +135,6 @@ func SchemaOfTag(m any, tag string, opts ...Option) (*schema.Schema, error) {
 			return nil, err
 		}
 
-		// catch duplicates
-		if exist, ok := s.Find(field.Name); ok {
-			return nil, fmt.Errorf("%s field %q conflicts with field %q",
-				field.Type, field.Name, exist.Name)
-		}
-
 		// assign id starting at 1, allow pre-assigned ids
 		if field.Id == 0 {
 			field.Id = uint16(len(s.Fields)) + 1
@@ -177,7 +169,8 @@ func SchemaOfTag(m any, tag string, opts ...Option) (*schema.Schema, error) {
 }
 
 // Produces a dynamic struct type only using native types like
-// int64 for Decimal64 [16]byte for Int128, etc.
+// int64 for Decimal64, [16]byte for Int128, etc. to make internal
+// types compatible with external libraries.
 func NativeStructType(s *Schema) reflect.Type {
 	sfields := make([]reflect.StructField, 0, len(s.Fields))
 	for _, f := range s.Fields {
@@ -187,35 +180,35 @@ func NativeStructType(s *Schema) reflect.Type {
 		var rtyp reflect.Type
 		switch f.Type {
 		case FT_TIMESTAMP, FT_TIME, FT_DATE, FT_I64, FT_D64:
-			rtyp = reflect.TypeFor[int64]()
+			rtyp = typeOfInt64
+		case FT_I32, FT_D32:
+			rtyp = typeOfInt32
+		case FT_I16:
+			rtyp = typeOfInt16
+		case FT_I8:
+			rtyp = typeOfInt8
 		case FT_U64:
-			rtyp = reflect.TypeFor[uint64]()
+			rtyp = typeOfUint64
+		case FT_U32:
+			rtyp = typeOfUint32
+		case FT_U16:
+			rtyp = typeOfUint16
+		case FT_U8:
+			rtyp = typeOfUint8
 		case FT_F64:
-			rtyp = reflect.TypeFor[float64]()
+			rtyp = typeOfFloat64
+		case FT_F32:
+			rtyp = typeOfFloat32
 		case FT_BOOL:
-			rtyp = reflect.TypeFor[bool]()
+			rtyp = typeOfBool
 		case FT_STRING, FT_TEXT:
-			rtyp = reflect.TypeFor[string]()
+			rtyp = typeOfString
 		case FT_BYTES, FT_BIGINT, FT_BLOB:
 			if f.IsArray() {
 				rtyp = reflect.ArrayOf(int(f.Scale), reflect.TypeFor[byte]())
 			} else {
-				rtyp = reflect.TypeFor[[]byte]()
+				rtyp = typeOfByteSlice
 			}
-		case FT_I32, FT_D32:
-			rtyp = reflect.TypeFor[int32]()
-		case FT_I16:
-			rtyp = reflect.TypeFor[int16]()
-		case FT_I8:
-			rtyp = reflect.TypeFor[int8]()
-		case FT_U32:
-			rtyp = reflect.TypeFor[uint32]()
-		case FT_U16:
-			rtyp = reflect.TypeFor[uint16]()
-		case FT_U8:
-			rtyp = reflect.TypeFor[uint8]()
-		case FT_F32:
-			rtyp = reflect.TypeFor[float32]()
 		case FT_I256, FT_D256:
 			rtyp = reflect.TypeFor[[32]byte]()
 		case FT_I128, FT_D128:
@@ -231,9 +224,9 @@ func NativeStructType(s *Schema) reflect.Type {
 	return reflect.StructOf(sfields)
 }
 
-// Produces a dynamic struct type compatible with SchemaOf which uses
-// custom types for large numeric values (num.Int128) and decimals
-// (num.Decimal64). Does add struct tags, but excludes index tags.
+// Produces a dynamic Go struct type compatible with SchemaOf which
+// uses native and custom types (e.g. num.Int128, num.Decimal64).
+// Adds struct tags, but excludes index tags.
 func StructType(s *Schema) reflect.Type {
 	sfields := make([]reflect.StructField, 0, len(s.Fields))
 	for _, f := range s.Fields {
@@ -300,31 +293,31 @@ func AppendFieldLayout(s *Schema) {
 	}
 }
 
-// FieldStructValue resolves a struct field from a struct. When the field
-// is a pointer it allocates the target type and dereferences it
-// so that the return value can consistently be used for interface calls.
-func FieldStructValue(f *Field, rval reflect.Value) reflect.Value {
-	dst := rval.FieldByIndex(f.Path)
-	if dst.Kind() == reflect.Pointer {
-		if dst.IsNil() && dst.CanSet() {
-			dst.Set(reflect.New(dst.Type().Elem()))
-		}
-		dst = dst.Elem()
-	}
-	return dst
-}
+// // FieldStructValue resolves a struct field from a struct. When the field
+// // is a pointer it allocates the target type and dereferences it
+// // so that the return value can consistently be used for interface calls.
+// func FieldStructValue(f *Field, rval reflect.Value) reflect.Value {
+// 	dst := rval.FieldByIndex(f.Path)
+// 	if dst.Kind() == reflect.Pointer {
+// 		if dst.IsNil() && dst.CanSet() {
+// 			dst.Set(reflect.New(dst.Type().Elem()))
+// 		}
+// 		dst = dst.Elem()
+// 	}
+// 	return dst
+// }
 
-// StructPointer unwraps an interface and returns the embedded
-// struct pointer if addressable. Panics if interface is nil
-// or warps an unaddressable value.
-func StructPointer(v any) unsafe.Pointer {
-	rval := reflect.Indirect(reflect.ValueOf(v))
-	assert.Always(rval.IsValid() && rval.Kind() == reflect.Struct, "invalid value",
-		"kind", rval.Kind().String(),
-		"type", rval.Type().String(),
-	)
-	return rval.Addr().UnsafePointer()
-}
+// // StructPointer unwraps an interface and returns the embedded
+// // struct pointer if addressable. Panics if interface is nil
+// // or warps an unaddressable value.
+// func StructPointer(v any) unsafe.Pointer {
+// 	rval := reflect.Indirect(reflect.ValueOf(v))
+// 	assert.Always(rval.IsValid() && rval.Kind() == reflect.Struct, "invalid value",
+// 		"kind", rval.Kind().String(),
+// 		"type", rval.Type().String(),
+// 	)
+// 	return rval.Addr().UnsafePointer()
+// }
 
 var rx = regexp.MustCompile("[^a-zA-Z0-9]+")
 
@@ -355,29 +348,27 @@ func toTitle(src string) string {
 }
 
 func fromCamelCase(src, sep string) string {
-	var chunks []string
+	var b strings.Builder
 	for idx := 0; idx < len(src); {
-		offs := strings.IndexFunc(src[idx+1:], unicode.IsUpper) + 1
+		offs := strings.IndexFunc(src[idx+1:], func(r rune) bool {
+			return r >= 'A' && r <= 'Z'
+		}) + 1
 		if offs <= 0 {
 			offs = len(src) - idx
 		}
-		chunks = append(chunks, strings.ToLower(src[idx:idx+offs]))
+		if b.Len() > 0 {
+			b.WriteString(sep)
+		}
+		b.WriteString(strings.ToLower(src[idx : idx+offs]))
 		idx += offs
 	}
-	return strings.Join(chunks, sep)
+	return b.String()
 }
 
-var (
-	emptyType     = reflect.TypeFor[struct{}]()
-	uint8Type     = reflect.TypeFor[uint8]()
-	byteSliceType = reflect.TypeFor[[]byte]()
-	modelType     = reflect.TypeFor[Model]()
-)
-
-func reflectStructField(f reflect.StructField, tagName string) (field *Field, err error) {
-	tag := f.Tag.Get(tagName)
-	field = &Field{
-		Name: f.Name,
+func reflectStructField(structField reflect.StructField, tagName string) (*Field, error) {
+	tag := structField.Tag.Get(tagName)
+	field := &Field{
+		Name: structField.Name,
 	}
 	// extract alias name
 	if n, _, _ := strings.Cut(tag, ","); n != "" {
@@ -388,142 +379,184 @@ func reflectStructField(f reflect.StructField, tagName string) (field *Field, er
 	field.Name = strings.ToLower(strings.TrimSpace(field.Name))
 
 	// identify field type from Go type
-	err = parseFieldType(field, f)
+	err := inferFieldType(field, structField.Type)
 	if err != nil {
-		err = fmt.Errorf("field %s: %v", field.Name, err)
-		return
+		return nil, fmt.Errorf("field[%s]: %w", field.Name, err)
 	}
 
-	// parse tags, allow type & fixed override
+	// parse tags, allow feature override
 	err = parseFieldTag(field, tag)
 	if err != nil {
-		err = fmt.Errorf("field %s: %v", field.Name, err)
-		return
-	}
-
-	// Validate field
-
-	// pk field must be of type uint64
-	if field.Flags&F_PRIMARY > 0 {
-		switch f.Type.Kind() {
-		case reflect.Uint64:
-		default:
-			err = fmt.Errorf("field %s: invalid primary key type %s", field.Name, f.Type)
-			return
-		}
+		return nil, fmt.Errorf("field[%s]: %w", field.Name, err)
 	}
 
 	// fill en/decoder info
-	field.Path = f.Index
-	field.Offset = f.Offset
+	field.Path = structField.Index
+	field.Offset = structField.Offset
 	field.Size = uint16(field.Type.Size())
 
-	return
+	return field, nil
 }
 
-func parseFieldType(f *Field, r reflect.StructField) error {
-	var (
-		typ   types.FieldType
-		flags types.FieldFlags
-		scale uint8
-	)
+var (
+	emptyType       = reflect.TypeFor[struct{}]()
+	modelType       = reflect.TypeFor[Model]()
+	typeOfTime      = reflect.TypeFor[time.Time]()
+	typeOfInt256    = reflect.TypeFor[num.Int256]()
+	typeOfInt128    = reflect.TypeFor[num.Int128]()
+	typeOfDec32     = reflect.TypeFor[num.Decimal32]()
+	typeOfDec64     = reflect.TypeFor[num.Decimal64]()
+	typeOfDec128    = reflect.TypeFor[num.Decimal128]()
+	typeOfDec256    = reflect.TypeFor[num.Decimal256]()
+	typeOfBigInt    = reflect.TypeFor[num.Big]()
+	typeOfByteSlice = reflect.TypeFor[[]byte]()
+	typeOfInt8      = reflect.TypeFor[int8]()
+	typeOfInt16     = reflect.TypeFor[int16]()
+	typeOfInt32     = reflect.TypeFor[int32]()
+	typeOfInt64     = reflect.TypeFor[int64]()
+	typeOfUint8     = reflect.TypeFor[uint8]()
+	typeOfUint16    = reflect.TypeFor[uint16]()
+	typeOfUint32    = reflect.TypeFor[uint32]()
+	typeOfUint64    = reflect.TypeFor[uint64]()
+	typeOfFloat32   = reflect.TypeFor[float32]()
+	typeOfFloat64   = reflect.TypeFor[float64]()
+	typeOfBool      = reflect.TypeFor[bool]()
+	typeOfString    = reflect.TypeFor[string]()
+)
 
-	// field must have supported kind
-	switch r.Type.Kind() {
-	case reflect.Int,
-		reflect.Uint,
-		reflect.Complex64,
-		reflect.Complex128,
-		reflect.Chan,
-		reflect.Func,
-		reflect.Interface,
-		reflect.Pointer,
-		reflect.UnsafePointer:
-		return fmt.Errorf("unsupported kind %s", r.Type.Kind())
-
-	// supported kinds
-	case reflect.Int64:
-		typ = FT_I64
-	case reflect.Int32:
-		typ = FT_I32
-	case reflect.Int16:
-		typ = FT_I16
-	case reflect.Int8:
-		typ = FT_I8
-	case reflect.Uint64:
-		typ = FT_U64
-	case reflect.Uint32:
-		typ = FT_U32
-	case reflect.Uint16:
-		typ = FT_U16
-	case reflect.Uint8:
-		typ = FT_U8
-	case reflect.Float64:
-		typ = FT_F64
-	case reflect.Float32:
-		typ = FT_F32
-	case reflect.String:
-		typ = FT_STRING
-	case reflect.Bool:
-		typ = FT_BOOL
-	case reflect.Map:
-		return fmt.Errorf("unsupported map type %s", r.Type)
-	case reflect.Slice:
-		if r.Type == byteSliceType {
-			typ = FT_BYTES
-		} else {
-			return fmt.Errorf("unsupported slice type %s", r.Type)
-		}
-	case reflect.Struct:
-		// string-check is much quicker
-		switch r.Type.String() {
-		case "time.Time":
-			typ = FT_TIMESTAMP
-			scale = types.TIME_SCALE_NANO.AsUint()
-		case "num.Decimal32":
-			typ = FT_D32
-			scale = num.MaxDecimal32Precision
-		case "num.Decimal64":
-			typ = FT_D64
-			scale = num.MaxDecimal64Precision
-		case "num.Decimal128":
-			typ = FT_D128
-			scale = num.MaxDecimal128Precision
-		case "num.Decimal256":
-			typ = FT_D256
-			scale = num.MaxDecimal256Precision
-		case "num.Big":
-			typ = FT_BIGINT
-		default:
-			return fmt.Errorf("unsupported nested struct type %s", r.Type)
-		}
-	case reflect.Array:
-		// string-check is much quicker
-		switch r.Type.String() {
-		case "num.Int128":
-			typ = FT_I128
-		case "num.Int256":
-			typ = FT_I256
-		default:
-			if r.Type.Elem() != uint8Type {
-				return fmt.Errorf("unsupported array type %s", r.Type)
-			}
-			if r.Type.Len() > types.MAX_ARRAY {
-				typ = FT_BLOB
-			} else {
-				typ = FT_BYTES
-				scale = uint8(r.Type.Len())
-				flags |= F_ARRAY
-			}
-		}
-	default:
-		return fmt.Errorf("unsupported type %s (%v)", r.Type, r.Type.Kind())
+func inferFieldType(f *Field, t reflect.Type) error {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
 	}
 
-	f.Type = typ
-	f.Flags = flags
-	f.Scale = scale
+	if t == typeOfByteSlice {
+		f.Type = FT_BYTES
+		return nil
+	}
 
+	switch t.Kind() {
+	case reflect.Array:
+		return inferArrayFieldType(f, t)
+	case reflect.Slice:
+		// TODO: list type
+		return fmt.Errorf("unsupported Go slice type %v: %w", t, ErrUnsupportedType)
+	case reflect.Map:
+		// TODO: map type
+		return fmt.Errorf("unsupported Go map type %v: %w", t, ErrUnsupportedType)
+	case reflect.Struct:
+		return inferStructFieldType(f, t)
+	default:
+		return inferPrimitiveFieldType(f, t)
+	}
+}
+
+func inferArrayFieldType(f *Field, t reflect.Type) error {
+	switch t {
+	case typeOfInt256:
+		f.Type = FT_I256
+	case typeOfInt128:
+		f.Type = FT_I128
+	default:
+		if t.Elem() != typeOfUint8 {
+			return fmt.Errorf("unsupported Go array type %v: %w", t, ErrUnsupportedType)
+		}
+		if t.Len() > types.MAX_ARRAY {
+			f.Type = FT_BLOB
+		} else {
+			f.Type = FT_BYTES
+			f.Scale = uint8(t.Len())
+			f.Flags |= F_ARRAY
+		}
+	}
+	return nil
+}
+
+func inferStructFieldType(f *Field, t reflect.Type) error {
+	switch t {
+	case typeOfTime:
+		f.Type = FT_TIMESTAMP
+		f.Scale = types.TIME_SCALE_NANO.AsUint()
+	case typeOfDec32:
+		f.Type = FT_D32
+		f.Scale = num.MaxDecimal32Precision
+	case typeOfDec64:
+		f.Type = FT_D64
+		f.Scale = num.MaxDecimal64Precision
+	case typeOfDec128:
+		f.Type = FT_D128
+		f.Scale = num.MaxDecimal128Precision
+	case typeOfDec256:
+		f.Type = FT_D256
+		f.Scale = num.MaxDecimal256Precision
+	case typeOfBigInt:
+		f.Type = FT_BIGINT
+	default:
+		return fmt.Errorf("unsupported nested Go struct type %v: %w", t, ErrUnsupportedType)
+	}
+	return nil
+}
+
+func inferPrimitiveFieldType(f *Field, t reflect.Type) error {
+	switch t {
+	case typeOfInt64:
+		f.Type = FT_I64
+	case typeOfInt32:
+		f.Type = FT_I32
+	case typeOfInt16:
+		f.Type = FT_I16
+	case typeOfInt8:
+		f.Type = FT_I8
+	case typeOfUint64:
+		f.Type = FT_U64
+	case typeOfUint32:
+		f.Type = FT_U32
+	case typeOfUint16:
+		f.Type = FT_U16
+	case typeOfUint8:
+		f.Type = FT_U8
+	case typeOfFloat64:
+		f.Type = FT_F64
+	case typeOfFloat32:
+		f.Type = FT_F32
+	case typeOfString:
+		f.Type = FT_STRING
+	case typeOfBool:
+		f.Type = FT_BOOL
+	default:
+		return inferPrimitiveFieldTypeAlias(f, t)
+	}
+	return nil
+}
+
+func inferPrimitiveFieldTypeAlias(f *Field, t reflect.Type) error {
+	switch t.Kind() {
+	case reflect.Int64:
+		f.Type = FT_I64
+	case reflect.Int32:
+		f.Type = FT_I32
+	case reflect.Int16:
+		f.Type = FT_I16
+	case reflect.Int8:
+		f.Type = FT_I8
+	case reflect.Uint64:
+		f.Type = FT_U64
+	case reflect.Uint32:
+		f.Type = FT_U32
+	case reflect.Uint16:
+		f.Type = FT_U16
+	case reflect.Uint8:
+		f.Type = FT_U8
+	case reflect.Float64:
+		f.Type = FT_F64
+	case reflect.Float32:
+		f.Type = FT_F32
+	case reflect.String:
+		f.Type = FT_STRING
+	case reflect.Bool:
+		f.Type = FT_BOOL
+	default:
+		return fmt.Errorf("unsupported Go type %v: %w", t, ErrUnsupportedType)
+	}
 	return nil
 }
 
