@@ -165,7 +165,7 @@ func TestWorkload4(t *testing.T) {
 		require.Equal(t, r.Id, row.Id, "Row id matches")
 		if r.ThreadID == 0 {
 			// initial state
-			require.Equal(t, 0, r.TxId, "Non zero tx id for initial state")
+			require.Equal(t, int64(0), r.TxId, "Non zero tx id for initial state")
 		} else {
 			// updated state (formatting rules)
 			require.GreaterOrEqual(t, r.ThreadID, int32(1))
