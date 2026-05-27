@@ -107,7 +107,7 @@ func WithCatalog(t *testing.T) (context.Context, *Engine, *Catalog, func() error
 
 type TestTable struct {
 	Id uint64 `knox:"id,pk"`
-	F1 int    `knox:"f1"`
+	F1 int64  `knox:"f1"`
 }
 
 func TestCatalogAddTable(t *testing.T) {

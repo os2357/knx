@@ -11,16 +11,16 @@ import (
 var (
 	defaultDatabaseOptions = engine.Options{
 		Driver:    "bolt",
-		PageSize:  16 * 1024,
+		CacheSize: 128 << 20, // 128 MB
+		PageSize:  16 << 14,  // 16k
 		PageFill:  1.0,
-		CacheSize: 16 * 1 << 20,
 		Log:       log.New(nil).SetLevel(log.LevelInfo),
 	}
 	readonlyDatabaseOptions = engine.Options{
 		Driver:    "bolt",
-		PageSize:  16 * 1024,
+		CacheSize: 128 << 20, // 128 MB
+		PageSize:  16 << 14,  // 16k
 		PageFill:  1.0,
-		CacheSize: 16 * 1 << 20,
 		ReadOnly:  true,
 		Log:       log.New(nil).SetLevel(log.LevelInfo),
 	}

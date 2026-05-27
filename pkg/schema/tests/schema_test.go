@@ -197,19 +197,20 @@ var schemaTestCases = []schemaTest{
 		// decode:  []OpCode{OC_U64, OC_FIXBYTES, OC_FIXSTRING},
 	},
 
-	// native int/uint
-	{
-		name:    "native_types",
-		build:   reflect.SchemaFor[NativeTypes],
-		fields:  "id,int,uint",
-		typs:    []FieldType{FT_U64, FT_INT, FT_UINT},
-		flags:   []FieldFlags{F_PRIMARY, 0, 0},
-		scales:  []uint8{0, 0, 0},
-		fixed:   []uint8{0, 0, 0},
-		isFixed: true,
-		// encode:  []OpCode{OC_U64, OC_INT, OC_UINT},
-		// decode:  []OpCode{OC_U64, OC_INT, OC_UINT},
-	},
+	// DEPRECATED: native types are disabled due to size ambiguity
+	// // native int/uint
+	// {
+	// 	name:    "native_types",
+	// 	build:   reflect.SchemaFor[NativeTypes],
+	// 	fields:  "id,int,uint",
+	// 	typs:    []FieldType{FT_U64, FT_INT, FT_UINT},
+	// 	flags:   []FieldFlags{F_PRIMARY, 0, 0},
+	// 	scales:  []uint8{0, 0, 0},
+	// 	fixed:   []uint8{0, 0, 0},
+	// 	isFixed: true,
+	// 	// encode:  []OpCode{OC_U64, OC_INT, OC_UINT},
+	// 	// decode:  []OpCode{OC_U64, OC_INT, OC_UINT},
+	// },
 
 	// DEPRECATED: Marshalers are too expensive to test for during encoding
 	// // struct with binary & text (un)marshaler
@@ -284,12 +285,12 @@ var schemaTestCases = []schemaTest{
 	// current architecture size (64 or 32 bit) explicit field types. If
 	// this ever changes, disable the acceptance case above and enable
 	// this rejection case.
-	// // error: native int/uint
-	// {
-	// 	name:  "invalid_native_types",
-	// 	build: reflect.SchemaFor[InvalidNativeTypes],
-	// 	iserr: true,
-	// },
+	// error: native int/uint
+	{
+		name:  "invalid_native_types",
+		build: reflect.SchemaFor[InvalidNativeTypes],
+		iserr: true,
+	},
 
 	// error: unsupported struct binary & text (un)marshaler
 	{

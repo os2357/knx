@@ -35,8 +35,8 @@ const (
 type UnifiedRow struct {
 	Id        uint64    `knox:"id,pk"`
 	RowType   RowType   `knox:"row_type"`   // "meta" or "work"
-	ThreadID  int       `knox:"thread_id"`  // For meta rows + work rows
-	TxId      int       `knox:"tx_id"`      // For meta rows + work rows
+	ThreadID  int32     `knox:"thread_id"`  // For meta rows + work rows
+	TxId      int64     `knox:"tx_id"`      // For meta rows + work rows
 	Timestamp time.Time `knox:"timestamp"`  // For meta rows
 	WorkRow1  uint64    `knox:"work_row_1"` // For meta rows
 	WorkRow2  uint64    `knox:"work_row_2"` // For meta rows
@@ -79,18 +79,18 @@ func TestWorkload4(t *testing.T) {
 	require.NoError(t, err, "Failed to insert work rows")
 
 	// Multi-threaded interleaved operations
-	for threadID := 1; threadID <= numThreads; threadID++ {
+	for threadID := int32(1); threadID <= numThreads; threadID++ {
 		threadMap := &threadMaps[threadID-1]
 		wg.Add(1)
-		go func(threadID int, thMap *sync.Map) {
+		go func(threadID int32, thMap *sync.Map) {
 			start := time.Now()
 			defer func() {
 				log.Infof("Thread %d completed in %s", threadID, time.Since(start))
 				wg.Done()
 			}()
 
-			for i := 1; i <= txnSize; i++ {
-				func(txId int) {
+			for i := int64(1); i <= txnSize; i++ {
+				func(txId int64) {
 					// Determine two work-row keys
 					workRowID1 := testutil.RandUint64n(numWorkRows) + 1
 					workRowID2 := testutil.RandUint64n(numWorkRows) + 1
@@ -168,10 +168,10 @@ func TestWorkload4(t *testing.T) {
 			require.Equal(t, 0, r.TxId, "Non zero tx id for initial state")
 		} else {
 			// updated state (formatting rules)
-			require.GreaterOrEqual(t, r.ThreadID, 1)
-			require.LessOrEqual(t, r.ThreadID, numThreads)
-			require.GreaterOrEqual(t, r.TxId, 1)
-			require.LessOrEqual(t, r.TxId, txnSize)
+			require.GreaterOrEqual(t, r.ThreadID, int32(1))
+			require.LessOrEqual(t, r.ThreadID, int32(numThreads))
+			require.GreaterOrEqual(t, r.TxId, int64(1))
+			require.LessOrEqual(t, r.TxId, int64(txnSize))
 		}
 	}
 

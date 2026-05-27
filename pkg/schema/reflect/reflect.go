@@ -6,7 +6,6 @@ package reflect
 import (
 	"errors"
 	"fmt"
-	"math/bits"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -431,7 +430,9 @@ func parseFieldType(f *Field, r reflect.StructField) error {
 
 	// field must have supported kind
 	switch r.Type.Kind() {
-	case reflect.Complex64,
+	case reflect.Int,
+		reflect.Uint,
+		reflect.Complex64,
 		reflect.Complex128,
 		reflect.Chan,
 		reflect.Func,
@@ -440,12 +441,7 @@ func parseFieldType(f *Field, r reflect.StructField) error {
 		reflect.UnsafePointer:
 		return fmt.Errorf("unsupported kind %s", r.Type.Kind())
 
-	case reflect.Int:
-		if bits.UintSize == 64 {
-			typ = FT_I64
-		} else {
-			typ = FT_I32
-		}
+	// supported kinds
 	case reflect.Int64:
 		typ = FT_I64
 	case reflect.Int32:
@@ -454,12 +450,6 @@ func parseFieldType(f *Field, r reflect.StructField) error {
 		typ = FT_I16
 	case reflect.Int8:
 		typ = FT_I8
-	case reflect.Uint:
-		if bits.UintSize == 64 {
-			typ = FT_U64
-		} else {
-			typ = FT_U32
-		}
 	case reflect.Uint64:
 		typ = FT_U64
 	case reflect.Uint32:

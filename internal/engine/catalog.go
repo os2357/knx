@@ -9,15 +9,12 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/internal/wal"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
-	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/store"
 	"github.com/echa/log"
 )
@@ -91,27 +88,9 @@ var (
 )
 
 var (
-	BE = binary.BigEndian
+	// BE = binary.BigEndian
 	LE = binary.LittleEndian
 )
-
-var defaultDatabaseOptions = Options{
-	Path:            "./db",
-	CacheSize:       16 << 20,
-	WalSegmentSize:  128 << 20,
-	WalRecoveryMode: wal.RecoveryModeTruncate,
-	MaxWorkers:      runtime.NumCPU(),
-	MaxTasks:        16,
-	Engine:          "pack",
-	PackSize:        1 << 14, // 16k
-	JournalSize:     1 << 15, // 32k
-	JournalSegments: 16,
-	Driver:          "bolt",
-	TxMaxSize:       10 << 24, // 16 MB
-	PageSize:        1 << 16,  // 64kB
-	PageFill:        0.9,
-	Log:             log.Disabled,
-}
 
 // knoxdb.schemas.catalog.v1
 type Catalog struct {
@@ -201,7 +180,7 @@ func (c *Catalog) Open(ctx context.Context, opts Options) error {
 		if err != nil {
 			return ErrNoKey
 		}
-		c.checkpoint = wal.LSN(BE.Uint64(val))
+		c.checkpoint = wal.LSN(decodeKey(val))
 		return nil
 	})
 	if err != nil {
@@ -265,9 +244,7 @@ func (c *Catalog) PutCheckpoint(ctx context.Context, lsn wal.LSN) error {
 		if err != nil {
 			return ErrDatabaseCorrupt
 		}
-		var b [8]byte
-		BE.PutUint64(b[:], uint64(lsn))
-		err = bucket.Put(checkpointKey, b[:])
+		err = bucket.Put(checkpointKey, encodeU64(lsn))
 		if err != nil {
 			return err
 		}
@@ -368,11 +345,7 @@ func (c *Catalog) DelSchema(ctx context.Context, key uint64) error {
 	return bucket.Delete(encodeKey(key))
 }
 
-func (c *Catalog) GetOptions(ctx context.Context, key uint64, opts any) error {
-	s, err := reflect.SchemaOf(opts)
-	if err != nil {
-		return err
-	}
+func (c *Catalog) GetOptions(ctx context.Context, key uint64, opts *Options) error {
 	tx, err := GetTx(ctx).CatalogTx(c.db, false)
 	if err != nil {
 		return err
@@ -381,20 +354,12 @@ func (c *Catalog) GetOptions(ctx context.Context, key uint64, opts any) error {
 	if err != nil {
 		return ErrNoKey
 	}
-	dec := encode.NewDecoder(s)
-	if err := dec.Decode(buf, opts); err != nil {
-		return err
-	}
-	return nil
+	return opts.UnmarshalBinary(buf)
 }
 
-func (c *Catalog) PutOptions(ctx context.Context, key uint64, opts any) error {
+func (c *Catalog) PutOptions(ctx context.Context, key uint64, opts *Options) error {
 	if opts == nil {
 		return nil
-	}
-	s, err := reflect.SchemaOf(opts)
-	if err != nil {
-		return err
 	}
 	tx, err := GetTx(ctx).CatalogTx(c.db, true)
 	if err != nil {
@@ -404,8 +369,7 @@ func (c *Catalog) PutOptions(ctx context.Context, key uint64, opts any) error {
 	if err != nil {
 		return ErrDatabaseCorrupt
 	}
-	enc := encode.NewEncoder(s)
-	buf, err := enc.Encode(opts, nil)
+	buf, err := opts.MarshalBinary()
 	if err != nil {
 		return err
 	}
@@ -439,7 +403,7 @@ func (c *Catalog) GetTable(ctx context.Context, key uint64) (s *schema.Schema, o
 		err = ErrNoKey
 		return
 	}
-	s, err = c.GetSchema(ctx, BE.Uint64(skey))
+	s, err = c.GetSchema(ctx, decodeKey(skey))
 	if err != nil {
 		return
 	}
@@ -503,7 +467,7 @@ func (c *Catalog) DropTable(ctx context.Context, key uint64) error {
 	if err := c.DelOptions(ctx, key); err != nil {
 		return err
 	}
-	if err := c.DelSchema(ctx, BE.Uint64(skey)); err != nil {
+	if err := c.DelSchema(ctx, decodeKey(skey)); err != nil {
 		return err
 	}
 
@@ -521,7 +485,7 @@ func (c *Catalog) GetIndex(ctx context.Context, key uint64) (s *schema.IndexSche
 		err = ErrNoKey
 		return
 	}
-	s, err = c.GetIndexSchema(ctx, BE.Uint64(skey))
+	s, err = c.GetIndexSchema(ctx, decodeKey(skey))
 	if err != nil {
 		return
 	}
@@ -544,8 +508,8 @@ func (c *Catalog) ListIndexes(ctx context.Context, key uint64) ([]uint64, error)
 		if err != nil {
 			return nil, ErrNoKey
 		}
-		if BE.Uint64(tkey) == key {
-			res = append(res, BE.Uint64(k))
+		if decodeKey(tkey) == key {
+			res = append(res, decodeKey(k))
 		}
 	}
 	return res, nil
@@ -608,7 +572,7 @@ func (c *Catalog) DropIndex(ctx context.Context, key uint64) error {
 	if err := c.DelOptions(ctx, key); err != nil {
 		return err
 	}
-	if err := c.DelSchema(ctx, BE.Uint64(skey)); err != nil {
+	if err := c.DelSchema(ctx, decodeKey(skey)); err != nil {
 		return err
 	}
 
@@ -717,7 +681,7 @@ func (c *Catalog) listObjectKeys(ctx context.Context, bucketKey []byte) ([]uint6
 	}
 	res := make([]uint64, 0)
 	for k := range bucket.Buckets() {
-		res = append(res, BE.Uint64(k))
+		res = append(res, decodeKey(k))
 	}
 	return res, nil
 }
@@ -1004,6 +968,16 @@ func (c *Catalog) decodeWalRecord(ctx context.Context, rec *wal.Record) (Object,
 	return obj, nil
 }
 
-func encodeKey(u64 uint64) []byte {
-	return binary.BigEndian.AppendUint64(nil, u64)
+func encodeU64[T ~int | ~uint64](v T) []byte {
+	var b [8]byte
+	return binary.BigEndian.AppendUint64(b[:0], uint64(v))
 }
+
+func decodeU64(buf []byte) uint64 {
+	return binary.BigEndian.Uint64(buf)
+}
+
+var (
+	encodeKey = encodeU64[uint64]
+	decodeKey = decodeU64
+)

@@ -198,12 +198,12 @@ type largeStruct struct {
 	Id             uint64    `knox:"id,pk"`
 	Time           time.Time `knox:"time"`
 	One            int64     `knox:"one"`
-	Index          int       `knox:"index"`
+	Index          int64     `knox:"index"`
 	UUID           uint64    `knox:"uuid"`
 	IsActive       bool      `knox:"isActive"`
 	Balance        int64     `knox:"balance"`
 	Picture        int64     `knox:"picture"`
-	Age            int       `knox:"age"`
+	Age            int64     `knox:"age"`
 	EyeColor       int8      `knox:"eyeColor"`
 	Name           int64     `knox:"name"`
 	Gender         int8      `knox:"gender"`
@@ -218,12 +218,12 @@ type largeStruct struct {
 	Greeting       int64     `knox:"greeting"`
 	FavoriteFruit  int64     `knox:"favoriteFruit"`
 	AID            int64     `knox:"aid"`
-	AIndex         int       `knox:"aindex"`
+	AIndex         int64     `knox:"aindex"`
 	AUUID          int64     `knox:"auuid"`
 	AIsActive      bool      `knox:"aisActive"`
 	ABalance       int64     `knox:"abalance"`
 	APicture       int64     `knox:"apicture"`
-	AAge           int       `knox:"aage"`
+	AAge           int32     `knox:"aage"`
 	AEyeColor      int64     `knox:"aeyeColor"`
 	AName          int64     `knox:"aname"`
 	AGender        int64     `knox:"agender"`
@@ -263,7 +263,7 @@ type tradeStruct struct {
 	Id          TradeID       `knox:"id,pk"`
 	Pool        PoolID        `knox:"pool,filter=bloom3b"`
 	Entity      Entity        `knox:"entity,filter=bloom3b"`
-	Counter     int           `knox:"counter"`
+	Counter     int64         `knox:"counter"`
 	Side        Direction     `knox:"side"`
 	VolumeA     num.Big       `knox:"volume_a,zip=snappy"`
 	VolumeB     num.Big       `knox:"volume_b,zip=snappy"`
