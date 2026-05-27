@@ -17,15 +17,12 @@
 package xroar
 
 import (
-	"log"
 	"unsafe"
-
-	"github.com/pkg/errors"
 )
 
 func assert(b bool) {
 	if !b {
-		log.Fatalf("%+v", errors.Errorf("Assertion failure"))
+		panic("assertion failed")
 	}
 }
 

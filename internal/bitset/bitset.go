@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"blockwatch.cc/knoxdb/internal/arena"
-	"golang.org/x/exp/constraints"
 )
 
 // ensure we implement required interfaces
@@ -65,7 +64,7 @@ func NewFromBytes(buf []byte, sz int) *Bitset {
 }
 
 // NewFromIndexes creates a new bitset and sets indexed positions.
-func NewFromIndexes[T constraints.Integer](idxs []T) *Bitset {
+func NewFromIndexes(idxs []uint32) *Bitset {
 	if len(idxs) == 0 {
 		return New(0)
 	}

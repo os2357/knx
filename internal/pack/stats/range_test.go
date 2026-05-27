@@ -11,10 +11,9 @@ import (
 	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/internal/types"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/constraints"
 )
 
-func newBlock[T constraints.Integer](vals ...uint) *block.Block {
+func newBlock[T types.Integer](vals ...uint) *block.Block {
 	var (
 		t T
 		b *block.Block

@@ -20,6 +20,7 @@
 package xroar
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -27,9 +28,8 @@ import (
 	"strings"
 	"sync"
 
+	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/slicex"
-	"github.com/pkg/errors"
-	"golang.org/x/exp/constraints"
 )
 
 const mask = uint64(0xFFFFFFFFFFFF0000)
@@ -111,12 +111,12 @@ func NewFromBytes(src []byte) *Bitmap {
 	}
 }
 
-func NewFromIndexes[T constraints.Integer](src []T) *Bitmap {
+func NewFromIndexes[T types.Integer](src []T) *Bitmap {
 	slicex.Sort(src, 0)
 	return NewFromSorted(src)
 }
 
-func NewFromSorted[T constraints.Integer](vals []T) *Bitmap {
+func NewFromSorted[T types.Integer](vals []T) *Bitmap {
 	arr := make([]uint16, 0)
 	var hi, lastHi, off uint64
 
@@ -514,7 +514,7 @@ func (ra *Bitmap) Count() int {
 // Select returns the element at the xth index. (0-indexed)
 func (ra *Bitmap) Select(x uint64) (uint64, error) {
 	if x >= uint64(ra.Count()) {
-		return 0, errors.Errorf("index %d is not less than the cardinality: %d",
+		return 0, fmt.Errorf("index %d is not less than the cardinality: %d",
 			x, ra.Count())
 	}
 	n := ra.keys.numKeys()

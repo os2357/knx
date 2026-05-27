@@ -7,7 +7,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/reflect"
-	"golang.org/x/exp/constraints"
 )
 
 // Construct a union schema over pack stats and table min/max.
@@ -60,11 +59,11 @@ func MakeSchema(s *schema.Schema) *schema.Schema {
 	return statsSchema.Finalize()
 }
 
-func minColIndex[T constraints.Signed | constraints.Unsigned](i T) T {
+func minColIndex(i int) int {
 	return 2*i + STATS_DATA_COL_OFFSET
 }
 
-func maxColIndex[T constraints.Signed | constraints.Unsigned](i T) T {
+func maxColIndex(i int) int {
 	return 2*i + STATS_DATA_COL_OFFSET + 1
 }
 

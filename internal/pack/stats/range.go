@@ -18,7 +18,6 @@ import (
 	"blockwatch.cc/knoxdb/internal/operator/filter"
 	"blockwatch.cc/knoxdb/internal/types"
 	"blockwatch.cc/knoxdb/pkg/util"
-	"golang.org/x/exp/constraints"
 )
 
 var ErrUnsupportedType = errors.New("range index: unsupported data type")
@@ -99,7 +98,7 @@ func (idx RangeIndex) Bytes() []byte {
 }
 
 func (idx RangeIndex) Range(val, minVal int) types.Range {
-	slot, ok := getSlot(val, minVal)
+	slot, ok := getSlot(int64(val), int64(minVal))
 	if !ok || slot >= len(idx.lower) {
 		return types.InvalidRange
 	}
@@ -231,7 +230,7 @@ func (idx RangeIndex) mergeRange(start, end int, maxRange uint32) types.Range {
 	return types.Range{lower, upper - 1}
 }
 
-func buildRangeIndex[T constraints.Integer](src []T, minVal, maxVal T) *RangeIndex {
+func buildRangeIndex[T types.Integer](src []T, minVal, maxVal T) *RangeIndex {
 	nSlots, _ := getSlot(maxVal, minVal) // highest used slot (zero based array index)
 	nSlots++                             // add one for correct array size
 	buf := make([]byte, nSlots*8)        // 2x uint32
@@ -275,7 +274,7 @@ func getSlotTyped(typ filter.ValueType, val, minVal any) (int, bool) {
 }
 
 // Returns calculated slot and whether val underflows (val<min).
-func getSlot[T constraints.Integer](val, minVal T) (int, bool) {
+func getSlot[T types.Integer](val, minVal T) (int, bool) {
 	delta := uint64(val - minVal)
 	var r int
 	if delta != 0 {

@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 var (
