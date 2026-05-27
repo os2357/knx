@@ -20,7 +20,7 @@ type ChangeCaptureMeta struct {
 
 var (
 	cdcNames    = "__+I_+U_-U_-D"
-	cdcNamesOfs = [...]int{0, 2, 5, 8, 11, 14}
+	cdcNamesOfs = [...]int8{0, 2, 5, 8, 11, 14}
 )
 
 func (t ChangeAction) String() string {

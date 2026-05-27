@@ -74,7 +74,7 @@ func (p *Package) WithSchema(s *schema.Schema) *Package {
 
 func (p *Package) WithBlock(i int, b *block.Block) *Package {
 	if p.blocks[i] != nil {
-		p.blocks[i].Deref()
+		p.blocks[i].Release()
 		p.blocks[i] = nil
 	}
 	p.blocks[i] = b
@@ -200,7 +200,7 @@ func (p *Package) Copy() *Package {
 	cp.nRows = p.nRows
 	for i, b := range p.blocks {
 		if b != nil {
-			b.Ref()
+			b.Retain()
 			cp.blocks[i] = b
 		}
 	}
@@ -244,7 +244,7 @@ func (p *Package) Release() {
 		if p.blocks[i] == nil {
 			continue
 		}
-		p.blocks[i].Deref()
+		p.blocks[i].Release()
 		p.blocks[i] = nil
 	}
 	if p.stats != nil {
@@ -273,7 +273,7 @@ func (p *Package) Materialize() *Package {
 			continue
 		}
 		clone := b.Clone(p.maxRows)
-		b.Deref()
+		b.Release()
 		p.blocks[i] = clone
 	}
 	return p
@@ -284,7 +284,7 @@ func (p *Package) MaterializeBlock(i int) *Package {
 		return p
 	}
 	clone := p.blocks[i].Clone(p.maxRows)
-	p.blocks[i].Deref()
+	p.blocks[i].Release()
 	p.blocks[i] = clone
 	return p
 }

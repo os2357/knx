@@ -39,9 +39,9 @@ func (i BlockCompression) Is(f BlockCompression) bool {
 
 var (
 	blockTypeNames        = "__i64_i32_i16_i8_u64_u32_u16_u8_f64_f32_bool_bytes_i128_i256"
-	blockTypeNamesOfs     = [...]int{0, 2, 6, 10, 14, 17, 21, 25, 29, 32, 36, 40, 45, 51, 56, 61}
+	blockTypeNamesOfs     = [...]int8{0, 2, 6, 10, 14, 17, 21, 25, 29, 32, 36, 40, 45, 51, 56, 61}
 	blockCompressNames    = "__snappy_lz4_zstd"
-	blockCompressNamesOfs = [...]int{0, 2, 7, 13, 18}
+	blockCompressNamesOfs = [...]int8{0, 2, 7, 13, 18}
 
 	blockTypeDataSize = [...]int{
 		BlockInvalid: 0,

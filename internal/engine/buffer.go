@@ -28,12 +28,12 @@ type Buffer struct {
 	buf []byte
 }
 
-func (b *Buffer) Ref() int64 {
-	return atomic.AddInt64(&b.ref, 1)
+func (b *Buffer) Retain() {
+	atomic.AddInt64(&b.ref, 1)
 }
 
-func (b *Buffer) Deref() int64 {
-	return atomic.AddInt64(&b.ref, -1)
+func (b *Buffer) Release() {
+	atomic.AddInt64(&b.ref, -1)
 }
 
 func (b *Buffer) Size() int {

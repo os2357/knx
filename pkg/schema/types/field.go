@@ -57,7 +57,7 @@ const (
 
 var (
 	fieldTypeString  = "__timestamp_int64_uint64_float64_boolean_string_bytes_int32_int16_int8_uint32_uint16_uint8_float32_int256_int128_decimal256_decimal128_decimal64_decimal32_bigint_date_time_text_blob"
-	fieldTypeIdx     = [...]int{0, 2, 12, 18, 25, 33, 41, 48, 54, 60, 66, 71, 78, 85, 91, 99, 106, 113, 124, 135, 145, 155, 162, 167, 172, 177, 182}
+	fieldTypeIdx     = [...]int16{0, 2, 12, 18, 25, 33, 41, 48, 54, 60, 66, 71, 78, 85, 91, 99, 106, 113, 124, 135, 145, 155, 162, 167, 172, 177, 182}
 	fieldTypeReverse = map[string]FieldType{}
 
 	fieldTypeWireSize = [...]int{
@@ -184,7 +184,7 @@ const (
 
 var (
 	fieldFlagNames   = "primary_array_enum_deleted_metadata_nullable_timebase_action"
-	fieldFlagIdx     = [...]int{0, 8, 14, 19, 27, 36, 45, 54, 61}
+	fieldFlagIdx     = [...]int8{0, 8, 14, 19, 27, 36, 45, 54, 61}
 	fieldFlagReverse = map[string]FieldFlags{}
 )
 

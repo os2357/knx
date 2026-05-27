@@ -148,14 +148,14 @@ func (c *RelinkConverter) ConvertPack(pkg *pack.Package, mode pack.WriteMode) *p
 		ipkg.WithBlock(0, u64)
 	} else {
 		// link as is
-		b.Ref()
+		b.Retain()
 		ipkg.WithBlock(0, b)
 	}
 
 	// link remaining blocks
 	for i, v := range c.link {
 		b := pkg.Block(v)
-		b.Ref()
+		b.Retain()
 		ipkg.WithBlock(i+1, b)
 	}
 
@@ -178,7 +178,7 @@ func (c *SimpleHashConverter) ConvertPack(pkg *pack.Package, mode pack.WriteMode
 	ipkg.WithBlock(0, pkg.Block(c.hash).Hash())
 	for i, v := range c.link {
 		b := pkg.Block(v)
-		b.Ref()
+		b.Retain()
 		ipkg.WithBlock(i+1, b)
 	}
 	ipkg.UpdateLen()
@@ -244,7 +244,7 @@ func (c *CompositeHashConverter) ConvertPack(pkg *pack.Package, mode pack.WriteM
 	// relink other source blocks in index schema order
 	for i, v := range c.link {
 		b := pkg.Block(v)
-		b.Ref()
+		b.Retain()
 		ipkg.WithBlock(i+1, b)
 	}
 

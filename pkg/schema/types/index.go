@@ -21,7 +21,7 @@ func (i IndexType) Is(f IndexType) bool {
 
 var (
 	indexTypeString  = "__hash_int_pk_composite"
-	indexTypeIdx     = [...]int{0, 2, 7, 11, 14, 24}
+	indexTypeIdx     = [...]int8{0, 2, 7, 11, 14, 24}
 	indexTypeReverse = map[string]IndexType{}
 )
 

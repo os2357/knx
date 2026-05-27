@@ -44,7 +44,7 @@ const (
 
 var (
 	opCodeStrings = "__i8_i16_i32_i64_u8_u16_u32_u64_f32_f64_bool_fixbyte_fixstr_str_byte_timestamp_time_date_i128_i256_d32_d64_d128_d256_bigint_enum_skip_text_blob"
-	opCodeIdx     = [...]int{
+	opCodeIdx     = [...]int16{
 		0,                           // invalid
 		2, 5, 9, 13, 17, 20, 24, 28, // int/uint
 		32, 36, // float

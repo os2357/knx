@@ -4,8 +4,8 @@
 package rclru
 
 type RefCountedElem interface {
-	Ref() int64
-	Deref() int64
+	Retain()
+	Release()
 	Size() int
 }
 

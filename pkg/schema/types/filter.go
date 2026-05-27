@@ -24,7 +24,7 @@ func (i FilterType) Is(f FilterType) bool {
 
 var (
 	filterTypeString  = "__bits_bloom2b_bloom3b_bloom4b_bloom5b_bfuse8_bfuse16"
-	filterTypeIdx     = [...]int{0, 2, 7, 15, 23, 31, 39, 46, 54}
+	filterTypeIdx     = [...]int8{0, 2, 7, 15, 23, 31, 39, 46, 54}
 	filterTypeReverse = map[string]FilterType{}
 )
 

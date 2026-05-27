@@ -21,7 +21,7 @@ const (
 
 var (
 	recoveryModeNames    = "fail_skip_truncate_ignore"
-	recoveryModeNamesOfs = [...]int{0, 5, 10, 19, 26}
+	recoveryModeNamesOfs = [...]int8{0, 5, 10, 19, 26}
 )
 
 func (m RecoveryMode) IsValid() bool {

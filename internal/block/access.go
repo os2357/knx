@@ -54,7 +54,7 @@ func GetMatcher[T types.Number](b *Block) types.NumberMatcher[T] {
 func (a Accessor[T]) Matcher() types.NumberMatcher[T] {
 	assert.Always(a.block != nil, "slice: nil block")
 	assert.Always(a.block.IsMaterialized(), "matcher: block not materialized")
-	return cmp.NewMatcher[T](a.Slice())
+	return cmp.NewMatcher(a.Slice())
 }
 
 func (_ Accessor[T]) Close() {
@@ -121,7 +121,7 @@ func (a Accessor[T]) AppendTo(dst []T, sel []uint32) []T {
 }
 
 func (a Accessor[T]) MinMax() (T, T) {
-	return util.MinMax[T](unsafe.Slice((*T)(unsafe.Pointer(a.block.buf)), a.block.len)...)
+	return util.MinMax(unsafe.Slice((*T)(unsafe.Pointer(a.block.buf)), a.block.len)...)
 }
 
 func (a Accessor[T]) Cmp(i, j int) int {

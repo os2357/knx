@@ -130,7 +130,7 @@ func (c *TwoQueueCache[K, V]) Get(key K) (val V, ok bool) {
 func (c *TwoQueueCache[K, V]) GetLocked(key K) (val V, ok bool) {
 	// Check if this is a frequent value
 	if val, ok = c.frequent.Get(key); ok {
-		val.Ref()
+		val.Retain()
 		c.stats.Hit()
 		return
 	}
@@ -140,7 +140,7 @@ func (c *TwoQueueCache[K, V]) GetLocked(key K) (val V, ok bool) {
 	if val, ok = c.recent.Peek(key); ok {
 		c.recent.Remove(key)
 		c.frequent.Add(key, val)
-		val.Ref()
+		val.Retain()
 		c.stats.Hit()
 		return
 	}
@@ -160,7 +160,7 @@ func (c *TwoQueueCache[K, V]) Add(key K, value V) (updated, evicted bool) {
 
 func (c *TwoQueueCache[K, V]) AddLocked(key K, value V) (updated, evicted bool) {
 	// Grab a reference since this element will stay in the cache (even on update)
-	value.Ref()
+	value.Retain()
 
 	// Check if the value is frequently used already,
 	// and just update the value
@@ -171,7 +171,7 @@ func (c *TwoQueueCache[K, V]) AddLocked(key K, value V) (updated, evicted bool) 
 		// counter which may release the element) new value can take more space in memory,
 		// so maybe we have to evict something
 		c.stats.Rem(val.Size())
-		val.Deref()
+		val.Release()
 		c.frequent.Add(key, value)
 		c.stats.Add(value.Size())
 		evicted = c.ensureSpace()
@@ -186,7 +186,7 @@ func (c *TwoQueueCache[K, V]) AddLocked(key K, value V) (updated, evicted bool) 
 		// the same element is never added twice to the cache
 		c.stats.Rem(val.Size())
 		c.recent.Remove(key)
-		val.Deref()
+		val.Release()
 		c.stats.Add(value.Size())
 		c.frequent.Add(key, value)
 		evicted = c.ensureSpace()
@@ -254,7 +254,7 @@ func (c *TwoQueueCache[K, V]) ensureSpace() (evicted bool) {
 		}
 		if e {
 			c.stats.Rem(v.Size())
-			v.Deref()
+			v.Release()
 		}
 		evicted = evicted || e
 	}
@@ -303,7 +303,7 @@ func (c *TwoQueueCache[K, V]) RemoveLocked(key K) {
 	}
 	if ok {
 		c.stats.Rem(val.Size())
-		val.Deref()
+		val.Release()
 	}
 
 	if c.frequent.Remove(key) {
@@ -332,7 +332,7 @@ func (c *TwoQueueCache[K, V]) Purge() {
 	_, v, ok := c.recent.RemoveOldest()
 	for ok {
 		c.stats.Rem(v.Size())
-		v.Deref()
+		v.Release()
 		_, v, ok = c.recent.RemoveOldest()
 	}
 	c.recent.Purge()
@@ -340,7 +340,7 @@ func (c *TwoQueueCache[K, V]) Purge() {
 	_, v, ok = c.frequent.RemoveOldest()
 	for ok {
 		c.stats.Rem(v.Size())
-		v.Deref()
+		v.Release()
 		_, v, ok = c.frequent.RemoveOldest()
 	}
 	c.frequent.Purge()
@@ -363,13 +363,13 @@ func (c *TwoQueueCache[K, V]) Peek(key K) (value V, ok bool) {
 	c.lock.RLock()
 	value, ok = c.frequent.Peek(key)
 	if ok {
-		value.Ref()
+		value.Retain()
 		c.lock.RUnlock()
 		return
 	}
 	value, ok = c.recent.Peek(key)
 	if ok {
-		value.Ref()
+		value.Retain()
 	}
 	c.lock.RUnlock()
 	return

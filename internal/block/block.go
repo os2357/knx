@@ -167,18 +167,18 @@ func (b *Block) free() {
 	blockPool.Put(b)
 }
 
-func (b *Block) Ref() int64 {
+func (b *Block) Retain() {
 	assert.Always(b != nil, "ref: nil block, potential use after free")
 	assert.Always(b.nref.Load() >= 0, "block refcount < 0")
 	for {
 		val := b.nref.Load()
 		if b.nref.CompareAndSwap(val, val+1) {
-			return val + 1
+			return
 		}
 	}
 }
 
-func (b *Block) Deref() int64 {
+func (b *Block) Release() {
 	assert.Always(b != nil, "deref: nil block, potential use after free", nil)
 	assert.Always(b.nref.Load() > 0, "block refcount <= 0")
 	for {
@@ -188,7 +188,7 @@ func (b *Block) Deref() int64 {
 			if val == 0 {
 				b.free()
 			}
-			return val
+			return
 		}
 	}
 }

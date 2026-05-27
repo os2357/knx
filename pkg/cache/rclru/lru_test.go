@@ -32,12 +32,12 @@ func NewTestPackage(key int, sz int) *TestPackage {
 	}
 }
 
-func (p *TestPackage) Ref() int64 {
-	return atomic.AddInt64(&p.refCount, 1)
+func (p *TestPackage) Retain() {
+	atomic.AddInt64(&p.refCount, 1)
 }
 
-func (p *TestPackage) Deref() int64 {
-	return atomic.AddInt64(&p.refCount, -1)
+func (p *TestPackage) Release() {
+	atomic.AddInt64(&p.refCount, -1)
 }
 
 func (p *TestPackage) Size() int {

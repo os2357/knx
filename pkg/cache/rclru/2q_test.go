@@ -101,7 +101,7 @@ func Test2Q_RandomOps(t *testing.T) {
 				if int(b.refCount) != 2 {
 					t.Fatalf("bad: RefCount == %d after Get", b.refCount)
 				}
-				b.Deref()
+				b.Release()
 			}
 		case 2:
 			l.Remove(key)
@@ -325,7 +325,7 @@ func Test2Q(t *testing.T) {
 			if v.refCount != 2 {
 				t.Errorf("RefCount of %d should be 2: %v", v.key, v)
 			}
-			v.Deref()
+			v.Release()
 		}
 	}
 	for i := range 128 {
@@ -343,7 +343,7 @@ func Test2Q(t *testing.T) {
 			if v.refCount != 2 {
 				t.Errorf("RefCount of %d should be 2: %v", v.key, v)
 			}
-			v.Deref()
+			v.Release()
 		} else {
 			t.Fatalf("should not be evicted")
 		}
@@ -465,10 +465,10 @@ func Test2Q_Parallism(t *testing.T) {
 			go func(act, id int) {
 				switch act {
 				case 0: // Deref
-					b[id].Deref()
+					b[id].Release()
 					atomic.AddInt64(&refs[id], -1)
 				case 1: // IncRef
-					b[id].Ref()
+					b[id].Retain()
 					atomic.AddInt64(&refs[id], 1)
 				case 2: // Peek
 					v, ok := l.Peek(id)

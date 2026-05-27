@@ -23,7 +23,7 @@ const (
 
 var (
 	recordTypeNames    = "__insert_update_delete_commit_abort_checkpoint"
-	recordTypeNamesOfs = [...]int{0, 2, 9, 16, 23, 30, 36, 47}
+	recordTypeNamesOfs = [...]int8{0, 2, 9, 16, 23, 30, 36, 47}
 )
 
 func (t RecordType) IsValid() bool {
