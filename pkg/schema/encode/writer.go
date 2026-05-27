@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -119,7 +120,7 @@ func (w *Writer) Write(i int, val any) error {
 			} else {
 				err = ErrShortValue
 			}
-		case len(buf) <= 255:
+		case len(buf) <= types.MAX_STRING:
 			// variable size, reference buf (no copy)
 			w.dyn[i] = buf
 		default:

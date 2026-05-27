@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -139,6 +140,16 @@ func TestFieldOverflow(t *testing.T) {
 			Name:      "Overflow for -i64",
 			FieldType: FT_I64,
 			Value:     uint64(math.MaxUint64),
+		},
+		{
+			Name:      "Too long bytes",
+			FieldType: FT_BYTES,
+			Value:     bytes.Repeat([]byte{0xfa}, 256),
+		},
+		{
+			Name:      "Too long string",
+			FieldType: FT_STRING,
+			Value:     strings.Repeat("A", 256),
 		},
 	}
 

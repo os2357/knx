@@ -190,7 +190,11 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 	case OC_STRING:
 		// 1 byte len
 		s := *(*string)(ptr)
-		_, err = buf.Write([]byte{byte(len(s))})
+		if len(s) > types.MAX_STRING {
+			err = ErrLongValue
+		} else {
+			_, err = buf.Write([]byte{byte(len(s))})
+		}
 		if err == nil {
 			_, err = buf.WriteString(s)
 		}
@@ -198,7 +202,11 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 	case OC_BYTES:
 		// 1 byte len
 		b := *(*[]byte)(ptr)
-		_, err = buf.Write([]byte{byte(len(b))})
+		if len(b) > types.MAX_BYTES {
+			err = ErrLongValue
+		} else {
+			_, err = buf.Write([]byte{byte(len(b))})
+		}
 		if err == nil {
 			_, err = buf.Write(b)
 		}

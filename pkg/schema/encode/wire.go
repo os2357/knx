@@ -8,6 +8,7 @@ import (
 	"io"
 	"reflect"
 
+	"blockwatch.cc/knoxdb/pkg/schema/types"
 	"blockwatch.cc/knoxdb/pkg/util"
 )
 
@@ -119,7 +120,11 @@ func writeBytes(w io.Writer, val any, fixed uint8, short bool, layout binary.Byt
 		}
 		_, err = w.Write(b[:fixed])
 	case short:
-		_, err = w.Write([]byte{byte(len(b))})
+		if len(b) > types.MAX_BYTES {
+			err = ErrLongValue
+		} else {
+			_, err = w.Write([]byte{byte(len(b))})
+		}
 		if err == nil {
 			_, err = w.Write(b)
 		}
