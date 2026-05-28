@@ -2,7 +2,6 @@ package encode
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
 	"time"
@@ -109,7 +108,7 @@ func EncodeField(w io.Writer, f *Field, val any, layout binary.ByteOrder) (err e
 		if v, ok := val.(num.Big); ok {
 			buf := v.Bytes()
 			if len(buf) > 255 {
-				err = fmt.Errorf("%s: bigint too large %d > 255", f.Name, len(buf))
+				err = ErrLongValue
 			} else {
 				err = writeBytes(w, buf, 0, true, layout)
 			}
@@ -269,8 +268,8 @@ func DecodeField(r io.Reader, f *Field, layout binary.ByteOrder) (val any, err e
 		if err != nil {
 			return
 		}
-		b := make([]byte, int(buf[0]))
-		n, err = r.Read(b)
+		var b [256]byte
+		n, err = r.Read(b[:])
 		val = num.NewBigFromBytes(b[:n])
 
 	default:

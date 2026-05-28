@@ -12,19 +12,17 @@ import (
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema"
+	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
-
-type Option = sreflect.Option
-
-var WithEnums = sreflect.WithEnums
 
 type EncoderT[T any] struct {
 	enc *Encoder
 }
 
-func NewEncoderFor[T any](opts ...Option) *EncoderT[T] {
+func NewEncoderFor[T any](opts ...schema.Option) *EncoderT[T] {
 	s, err := sreflect.SchemaFor[T](opts...)
 	if err != nil {
 		panic(err)
@@ -69,7 +67,7 @@ func NewEncoder(s *Schema) *Encoder {
 	sreflect.AppendFieldLayout(s)
 	return &Encoder{
 		schema:  s,
-		layout:  binary.NativeEndian,
+		layout:  binary.LittleEndian,
 		opcodes: CompileCodecs(s),
 	}
 }
@@ -166,7 +164,7 @@ func (e *Encoder) EncodePtrSlice(slice any, buf *bytes.Buffer) ([]byte, error) {
 			ptr := unsafe.Add(base, field.Offset)
 			err = e.writeField(buf, code, field, ptr)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%s: %w", field.Name, err)
 			}
 		}
 	}
@@ -263,7 +261,7 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 		v := *(*string)(ptr)
 		code, ok := field.Enum.Code(v)
 		if !ok {
-			err = fmt.Errorf("%s: invalid enum value %q", field.Name, v)
+			err = enum.ErrEnumNoCode
 		} else {
 			err = writeU16(buf, code, e.layout)
 		}
@@ -273,7 +271,7 @@ func (e *Encoder) writeField(buf *bytes.Buffer, code OpCode, field *Field, ptr u
 		v := *(*num.Big)(ptr)
 		b := v.Bytes()
 		if len(b) > 255 {
-			err = fmt.Errorf("%s: bigint too large %d > 255", field.Name, len(b))
+			err = ErrLongValue
 		} else {
 			_, err = buf.Write([]byte{byte(len(b))})
 			if err == nil {

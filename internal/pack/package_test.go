@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/encode"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
@@ -30,7 +31,7 @@ func init() {
 	enums.Register(0, myEnum)
 
 	// init schema and link enums (will lookup myEnum and link to field)
-	sreflect.MustSchemaFor[specialStruct](sreflect.WithEnums(enums))
+	sreflect.MustSchemaFor[specialStruct](schema.WithEnums(enums))
 }
 
 var (
@@ -80,7 +81,7 @@ var (
 )
 
 func makeTypedPackage(typ any, fill int) *Package {
-	s, err := sreflect.SchemaOf(typ, sreflect.WithEnums(enums))
+	s, err := sreflect.SchemaOf(typ, schema.WithEnums(enums))
 	if err != nil {
 		panic(err)
 	}

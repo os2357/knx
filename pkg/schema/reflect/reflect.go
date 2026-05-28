@@ -4,7 +4,6 @@
 package reflect
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -15,26 +14,12 @@ import (
 
 	"blockwatch.cc/knoxdb/pkg/num"
 	"blockwatch.cc/knoxdb/pkg/schema"
-	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
-)
-
-var (
-	ErrNilValue        = errors.New("schema: nil value")
-	ErrUnsupportedType = errors.New("schema: unsupported type")
 )
 
 const TAG_NAME = "knox"
 
 var schemaRegistry sync.Map
-
-type Option func(*schema.Schema)
-
-func WithEnums(r *enum.EnumRegistry) Option {
-	return func(s *schema.Schema) {
-		s.WithEnums(r)
-	}
-}
 
 func LookupSchema(typ reflect.Type) (*schema.Schema, bool) {
 	sval, ok := schemaRegistry.Load(typ)
@@ -44,12 +29,12 @@ func LookupSchema(typ reflect.Type) (*schema.Schema, bool) {
 	return nil, ok
 }
 
-func SchemaFor[T any](opts ...Option) (*schema.Schema, error) {
+func SchemaFor[T any](opts ...schema.Option) (*schema.Schema, error) {
 	var m T
 	return SchemaOf(m, opts...)
 }
 
-func MustSchemaFor[T any](opts ...Option) *schema.Schema {
+func MustSchemaFor[T any](opts ...schema.Option) *schema.Schema {
 	s, err := SchemaFor[T](opts...)
 	if err != nil {
 		panic(err)
@@ -57,11 +42,11 @@ func MustSchemaFor[T any](opts ...Option) *schema.Schema {
 	return s
 }
 
-func SchemaOf(m any, opts ...Option) (*schema.Schema, error) {
+func SchemaOf(m any, opts ...schema.Option) (*schema.Schema, error) {
 	return SchemaOfTag(m, TAG_NAME, opts...)
 }
 
-func MustSchemaOf(m any, opts ...Option) *schema.Schema {
+func MustSchemaOf(m any, opts ...schema.Option) *schema.Schema {
 	s, err := SchemaOf(m, opts...)
 	if err != nil {
 		panic(err)
@@ -69,10 +54,10 @@ func MustSchemaOf(m any, opts ...Option) *schema.Schema {
 	return s
 }
 
-func SchemaOfTag(m any, tag string, opts ...Option) (*schema.Schema, error) {
+func SchemaOfTag(m any, tag string, opts ...schema.Option) (*schema.Schema, error) {
 	// interface must not be nil
 	if m == nil {
-		return nil, ErrNilValue
+		return nil, schema.ErrNilValue
 	}
 
 	// validate type
@@ -438,10 +423,10 @@ func inferFieldType(f *Field, t reflect.Type) error {
 		return inferArrayFieldType(f, t)
 	case reflect.Slice:
 		// TODO: list type
-		return fmt.Errorf("unsupported Go slice type %v: %w", t, ErrUnsupportedType)
+		return fmt.Errorf("go slice type %v: %w", t, schema.ErrUnsupportedType)
 	case reflect.Map:
 		// TODO: map type
-		return fmt.Errorf("unsupported Go map type %v: %w", t, ErrUnsupportedType)
+		return fmt.Errorf("go map type %v: %w", t, schema.ErrUnsupportedType)
 	case reflect.Struct:
 		return inferStructFieldType(f, t)
 	default:
@@ -457,7 +442,7 @@ func inferArrayFieldType(f *Field, t reflect.Type) error {
 		f.Type = FT_I128
 	default:
 		if t.Elem() != typeOfUint8 {
-			return fmt.Errorf("unsupported Go array type %v: %w", t, ErrUnsupportedType)
+			return fmt.Errorf("go array type %v: %w", t, schema.ErrUnsupportedType)
 		}
 		if t.Len() > types.MAX_ARRAY {
 			f.Type = FT_BLOB
@@ -490,7 +475,7 @@ func inferStructFieldType(f *Field, t reflect.Type) error {
 	case typeOfBigInt:
 		f.Type = FT_BIGINT
 	default:
-		return fmt.Errorf("unsupported nested Go struct type %v: %w", t, ErrUnsupportedType)
+		return fmt.Errorf("nested Go struct type %v: %w", t, schema.ErrUnsupportedType)
 	}
 	return nil
 }
@@ -554,7 +539,7 @@ func inferPrimitiveFieldTypeAlias(f *Field, t reflect.Type) error {
 	case reflect.Bool:
 		f.Type = FT_BOOL
 	default:
-		return fmt.Errorf("unsupported Go type %v: %w", t, ErrUnsupportedType)
+		return fmt.Errorf("go type %v: %w", t, schema.ErrUnsupportedType)
 	}
 	return nil
 }

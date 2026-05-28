@@ -25,16 +25,31 @@ const (
 	defaultVarFieldSize = 32
 )
 
+// schema is serialized in LE
+var LE = binary.LittleEndian
+
+// Option defines a function type for schema options.
+type Option func(*Schema)
+
+// WithEnums adds enums from the provided registry to a schema's
+// enum fields. Us this option with reflect.SchemaOf and SchemaFor[T]
+// to initialize the schema with enums.
+func WithEnums(r *enum.EnumRegistry) Option {
+	return func(s *Schema) {
+		s.WithEnums(r)
+	}
+}
+
 type Schema struct {
-	Name        string
-	Hash        uint64
 	Fields      []*Field
 	Indexes     []*IndexSchema
 	Enums       atomic.Pointer[enum.EnumRegistry]
+	Name        string
+	Hash        uint64
 	MinWireSize int
 	MaxWireSize int
-	IsFixedSize bool
 	Version     uint32
+	IsFixedSize bool
 }
 
 func NewSchema() *Schema {

@@ -376,7 +376,7 @@ func (r *Row) Decode(val any) error {
 	}
 
 	// detect and cache struct schema
-	s, err := reflect.SchemaOf(val, reflect.WithEnums(r.res.Schema().Enums.Load()))
+	s, err := reflect.SchemaOf(val, schema.WithEnums(r.res.Schema().Enums.Load()))
 	if err != nil {
 		return err
 	}

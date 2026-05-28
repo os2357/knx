@@ -41,7 +41,7 @@ func init() {
 	testEnums = enum.NewEnumRegistry()
 	testEnums.Register(statusTag, statusEnum)
 
-	testSchema = sreflect.MustSchemaFor[testStruct](sreflect.WithEnums(testEnums))
+	testSchema = sreflect.MustSchemaFor[testStruct](schema.WithEnums(testEnums))
 	testSchema = testSchema.WithMeta()
 	testIndexSchema = testSchema.Indexes[1] // hash index on name
 }

@@ -593,7 +593,7 @@ func (j *Journal) ReplayWalRecord(ctx context.Context, rec *wal.Record, rd engin
 			if j.Capacity() == 0 {
 				return fmt.Errorf("insert: journal overflow")
 			}
-			j.tip.InsertRecord(rec.TxID, rid, view.Bytes())
+			j.tip.InsertRecord(rec.TxID, rid, view.Buffer())
 			rid++
 			count++
 			view, buf, _ = view.Cut(buf)
@@ -642,7 +642,7 @@ func (j *Journal) ReplayWalRecord(ctx context.Context, rec *wal.Record, rd engin
 				view, buf, _ = view.Cut(buf)
 
 				// append to journal
-				j.tip.UpdateRecord(rec.TxID, rid, ref, view.Bytes())
+				j.tip.UpdateRecord(rec.TxID, rid, ref, view.Buffer())
 				nextRid++
 
 				// ensure amount of updates fits into current journal tip

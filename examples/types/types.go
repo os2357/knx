@@ -17,6 +17,7 @@ import (
 	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/knox"
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 )
@@ -284,7 +285,7 @@ func Create(ctx context.Context) (db knox.Database, table knox.Table, err error)
 
 	enums := enum.NewEnumRegistry()
 	enums.Register(0, e)
-	s, err := reflect.SchemaFor[Types](reflect.WithEnums(enums))
+	s, err := reflect.SchemaFor[Types](schema.WithEnums(enums))
 	if err != nil {
 		return
 	}

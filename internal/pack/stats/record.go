@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	STATS_ROW_KEY     = iota
-	STATS_ROW_VERSION = iota
-	STATS_ROW_SCHEMA
-	STATS_ROW_NVALS
-	STATS_ROW_SIZE
+	STATS_ROW_KEY     = iota // 0
+	STATS_ROW_VERSION        // 1
+	STATS_ROW_SCHEMA         // 2
+	STATS_ROW_NVALS          // 3
+	STATS_ROW_SIZE           // 4
 )
 
 // field usage in meta wire encoding

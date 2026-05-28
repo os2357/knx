@@ -40,7 +40,7 @@ func (t TableImpl) DB() Database {
 
 func (t TableImpl) Insert(ctx context.Context, val any) (uint64, int, error) {
 	// analyze reflect
-	s, err := reflect.SchemaOf(val, reflect.WithEnums(t.table.Schema().Enums.Load()))
+	s, err := reflect.SchemaOf(val, schema.WithEnums(t.table.Schema().Enums.Load()))
 	if err != nil {
 		return 0, 0, err
 	}
@@ -82,7 +82,7 @@ func (t TableImpl) Insert(ctx context.Context, val any) (uint64, int, error) {
 
 func (t TableImpl) Update(ctx context.Context, val any) (int, error) {
 	// analyze reflect
-	s, err := reflect.SchemaOf(val, reflect.WithEnums(t.table.Schema().Enums.Load()))
+	s, err := reflect.SchemaOf(val, schema.WithEnums(t.table.Schema().Enums.Load()))
 	if err != nil {
 		return 0, err
 	}
@@ -251,7 +251,7 @@ func FindTableFor[T any](db Database, name string) (*TableT[T], error) {
 		return nil, err
 	}
 	var t T
-	s, err := reflect.SchemaOf(t, reflect.WithEnums(table.Schema().Enums.Load()))
+	s, err := reflect.SchemaOf(t, schema.WithEnums(table.Schema().Enums.Load()))
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func (t *TableT[T]) Insert(ctx context.Context, val any) (uint64, int, error) {
 		err error
 	)
 	if t.enc == nil {
-		t.enc = encode.NewEncoderFor[T](encode.WithEnums(t.Schema().Enums.Load()))
+		t.enc = encode.NewEncoderFor[T](schema.WithEnums(t.Schema().Enums.Load()))
 	}
 	switch v := val.(type) {
 	case *T:
@@ -356,7 +356,7 @@ func (t *TableT[T]) Update(ctx context.Context, val any) (int, error) {
 		err error
 	)
 	if t.enc == nil {
-		t.enc = encode.NewEncoderFor[T](encode.WithEnums(t.Schema().Enums.Load()))
+		t.enc = encode.NewEncoderFor[T](schema.WithEnums(t.Schema().Enums.Load()))
 	}
 	switch v := val.(type) {
 	case *T:

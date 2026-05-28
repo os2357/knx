@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"blockwatch.cc/knoxdb/internal/engine"
+	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/echa/log"
@@ -123,7 +124,7 @@ func NewDatabase(t testing.TB, typs ...any) (*engine.Engine, func()) {
 
 	// Create tables and indexes for given types
 	for _, typ := range typs {
-		s, err := reflect.SchemaOf(typ, reflect.WithEnums(enums))
+		s, err := reflect.SchemaOf(typ, schema.WithEnums(enums))
 		require.NoError(t, err, "Failed to generate schema for type %T", typ)
 		s = s.WithMeta()
 		opts := NewTestTableOptions(t, "", "")

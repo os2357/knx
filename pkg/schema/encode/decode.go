@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema"
 	sreflect "blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
 )
@@ -21,7 +22,7 @@ type DecoderT[T any] struct {
 	dec *Decoder
 }
 
-func NewDecoderFor[T any](opts ...Option) *DecoderT[T] {
+func NewDecoderFor[T any](opts ...schema.Option) *DecoderT[T] {
 	s, err := sreflect.SchemaFor[T](opts...)
 	if err != nil {
 		panic(err)
@@ -80,7 +81,7 @@ func NewDecoder(s *Schema) *Decoder {
 	return &Decoder{
 		schema:  s,
 		buf:     bytes.NewBuffer(make([]byte, 0, s.MaxWireSize)),
-		layout:  binary.NativeEndian,
+		layout:  binary.LittleEndian,
 		opcodes: CompileCodecs(s),
 	}
 }

@@ -85,11 +85,11 @@ func (j *Journal) UpdateRecords(ctx context.Context, src []byte, ridMap map[uint
 			// write to wal msg
 			writeBinaryUvarint(msg, nextRid)
 			writeBinaryUvarint(msg, ref)
-			msg.Write(view.Bytes())
+			msg.Write(view.Buffer())
 
 			// add update to journal
 			// j.log.Debugf("journal update record %d[%d] -> [%d]", pk, ref, nextRid)
-			j.tip.UpdateRecord(xid, nextRid, ref, view.Bytes())
+			j.tip.UpdateRecord(xid, nextRid, ref, view.Buffer())
 
 			// keep new assigned rid (in case we update again later)
 			ridMap[pk] = nextRid
@@ -98,7 +98,7 @@ func (j *Journal) UpdateRecords(ctx context.Context, src []byte, ridMap map[uint
 			nextRid++
 			jcap--
 			n++
-			sz += len(view.Bytes())
+			sz += len(view.Buffer())
 			view, vbuf, _ = view.Cut(vbuf)
 		}
 		// j.log.Debugf("journal updated %d records in segment %d", nextRid-firstRid, j.tip.Id())

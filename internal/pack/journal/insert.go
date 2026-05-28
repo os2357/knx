@@ -51,12 +51,12 @@ func (j *Journal) InsertRecords(ctx context.Context, buf []byte) (uint64, int, e
 		// assign PKs, insert to active segment and assemble WAL batch buffer
 		for view.IsValid() && jcap > 0 {
 			view.SetPk(nextPk)
-			j.tip.InsertRecord(xid, nextRid, view.Bytes())
+			j.tip.InsertRecord(xid, nextRid, view.Buffer())
 			nextRid++
 			nextPk++
 			jcap--
 			n++
-			sz += len(view.Bytes())
+			sz += len(view.Buffer())
 			view, vbuf, _ = view.Cut(vbuf)
 		}
 		// j.log.Debugf("journal inserted %d records into segment %d", nextRid-firstRid, j.tip.Id())
@@ -210,7 +210,7 @@ func (j *Journal) insertPackWithWal(_ context.Context, src *pack.Package, xid ty
 					return 0, 0, err
 				}
 				view.Reset(msg.Bytes()[start:]).SetPk(nextPk)
-				j.tip.InsertRecord(xid, nextRid, view.Bytes())
+				j.tip.InsertRecord(xid, nextRid, view.Buffer())
 				i++
 				nextPk++
 				nextRid++
@@ -253,7 +253,7 @@ func (j *Journal) insertPackWithWal(_ context.Context, src *pack.Package, xid ty
 					return 0, 0, err
 				}
 				view.Reset(msg.Bytes()[start:]).SetPk(nextPk)
-				j.tip.InsertRecord(xid, nextRid, view.Bytes())
+				j.tip.InsertRecord(xid, nextRid, view.Buffer())
 
 				nextPk++
 				nextRid++

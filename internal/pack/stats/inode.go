@@ -30,6 +30,9 @@ func (n INode) Bytes() []byte {
 }
 
 func (n INode) MinKey(view *schema.View) uint32 {
+	if len(n.meta) == 0 {
+		return 0
+	}
 	val, ok := view.Reset(n.meta).GetPhy(STATS_ROW_KEY)
 	view.Reset(nil)
 	if !ok {
@@ -39,6 +42,9 @@ func (n INode) MinKey(view *schema.View) uint32 {
 }
 
 func (n INode) Version(view *schema.View) uint32 {
+	if len(n.meta) == 0 {
+		return 0
+	}
 	val, ok := view.Reset(n.meta).GetPhy(STATS_ROW_VERSION)
 	view.Reset(nil)
 	if !ok {
@@ -49,6 +55,9 @@ func (n INode) Version(view *schema.View) uint32 {
 
 func (n INode) NPacks(view *schema.View) int {
 	// (u64) schema id repurposed
+	if len(n.meta) == 0 {
+		return 0
+	}
 	val, ok := view.Reset(n.meta).GetPhy(STATS_ROW_SCHEMA)
 	view.Reset(nil)
 	if !ok {
@@ -58,6 +67,9 @@ func (n INode) NPacks(view *schema.View) int {
 }
 
 func (n INode) NValues(view *schema.View) uint64 {
+	if len(n.meta) == 0 {
+		return 0
+	}
 	val, ok := view.Reset(n.meta).GetPhy(STATS_ROW_NVALS)
 	view.Reset(nil)
 	if !ok {
@@ -67,6 +79,9 @@ func (n INode) NValues(view *schema.View) uint64 {
 }
 
 func (n INode) Size(view *schema.View) int64 {
+	if len(n.meta) == 0 {
+		return 0
+	}
 	val, ok := view.Reset(n.meta).GetPhy(STATS_ROW_SIZE)
 	view.Reset(nil)
 	if !ok {

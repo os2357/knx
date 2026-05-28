@@ -16,7 +16,7 @@ import (
 
 type indexTest struct {
 	name      string
-	build     func(...reflect.Option) (*Schema, error)
+	build     func(...schema.Option) (*Schema, error)
 	idxnames  []string
 	idxfields []string
 	idxextra  []string

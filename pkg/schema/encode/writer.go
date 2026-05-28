@@ -139,7 +139,7 @@ func (w *Writer) Write(i int, val any) error {
 		}
 		w.dyn[i] = buf
 
-	case FT_TIMESTAMP:
+	case FT_TIMESTAMP, FT_TIME, FT_DATE:
 		switch tm := val.(type) {
 		case time.Time:
 			w.layout.PutUint64(w.buf[x:y], uint64(TimeScale(field.Scale).ToUnix(tm)))

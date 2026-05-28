@@ -53,8 +53,8 @@ func RegisterEnum() {
 	enums.Register(0, myEnum)
 
 	// init schema and link enums (will lookup myEnum and link to field)
-	allTypesSchema = reflect.MustSchemaFor[AllTypes](reflect.WithEnums(enums))
-	securitySchema = reflect.MustSchemaFor[Security](reflect.WithEnums(enums))
+	allTypesSchema = reflect.MustSchemaFor[AllTypes](schema.WithEnums(enums))
+	securitySchema = reflect.MustSchemaFor[Security](schema.WithEnums(enums))
 }
 
 // Types defines the schema for Workload1 and Workload2.

@@ -12,6 +12,7 @@ import (
 
 	"blockwatch.cc/knoxdb/internal/tests/testutil"
 	"blockwatch.cc/knoxdb/pkg/num"
+	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"github.com/stretchr/testify/require"
@@ -35,7 +36,7 @@ func TestMain(m *testing.M) {
 	enums.Register(0, myEnum)
 
 	// init schema and link enums (will lookup myEnum and link to field)
-	reflect.MustSchemaFor[encodeTestStruct](reflect.WithEnums(enums))
+	reflect.MustSchemaFor[encodeTestStruct](schema.WithEnums(enums))
 
 	m.Run()
 }

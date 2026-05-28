@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"blockwatch.cc/knoxdb/pkg/schema"
 	"blockwatch.cc/knoxdb/pkg/schema/enum"
 	"blockwatch.cc/knoxdb/pkg/schema/reflect"
 	"blockwatch.cc/knoxdb/pkg/schema/types"
@@ -25,14 +26,14 @@ func TestMain(m *testing.M) {
 	enums.Register(0, myEnum)
 
 	// init schema and link enums (will lookup myEnum and link to field)
-	reflect.MustSchemaFor[AllTypes](reflect.WithEnums(enums))
+	reflect.MustSchemaFor[AllTypes](schema.WithEnums(enums))
 
 	m.Run()
 }
 
 type schemaTest struct {
 	name      string
-	build     func(...reflect.Option) (*Schema, error)
+	build     func(...schema.Option) (*Schema, error)
 	fields    string
 	idxfields string
 	idxtyps   []IndexType
